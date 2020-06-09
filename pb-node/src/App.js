@@ -1,26 +1,27 @@
 import React from 'react';
 import logo from './logo.svg';
+import {Router,Route,Switch} from 'react-router-dom'
+import SignUpForm from './components/User/SignUpForm'
+import Test from "./containers/test"
 import './App.css';
 
-function App() {
+class App extends React.Component {
+
+
+  render(){
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      
+    <Route exact path="/">
+      <SignUpForm/>
+    </Route>
+    <Route path="/test">
+      <Test/>
+    </Route>
+
+     
     </div>
-  );
+  );}
 }
 
 export default App;
