@@ -9,11 +9,6 @@ class SignUpForm extends React.Component{
                 password:""    
             }
     }
-    componentDidMount(){
-        fetch("http://localhost:9000/users").then(res=>res.json()).then(obj=>{
-            debugger
-        }).catch(err=>console.log(err))
-    }
     handleOnChange = e =>{   
         this.setState({[e.target["name"]]: e.target.value})
     }
@@ -29,10 +24,10 @@ class SignUpForm extends React.Component{
         timeout: 4000,    // 4 seconds timeout
         data: user}
     axios(config)
-      .then(response => response.json()).then(obj=>{
+      .then(response => {
           debugger
-      })
-      .catch(error => console.error('timeout exceeded'))
+        response.json()})
+      .catch(error => console.log(error))
         // fetch("http://localhost:9000/users", config).then(res=>res.json()).then(res=>{
         //     debugger
         //     console.log(res)

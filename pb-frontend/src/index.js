@@ -3,9 +3,18 @@ import ReactDOM from 'react-dom';
 import {Router} from 'react-router-dom'
 import './index.css';
 import App from './App';
+import { createStore, applyMiddleware, combineReducers,compose } from 'redux';
+import thunk from "redux-thunk"
+import UserReducer from './reducer/UserReducer'
+import {Provider} from "react-redux"
 import * as serviceWorker from './serviceWorker';
 import history from './history'
+
+const rootReducer = combineReducers({users: UserReducer})
+const store = createStore(rootReducer,compose( applyMiddleware(thunk),window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__()))
+
 ReactDOM.render(
+  <Provider store={store}>
   <React.StrictMode>
         <link
   rel="stylesheet"
@@ -16,7 +25,8 @@ ReactDOM.render(
     <Router history={history}>
     <App />
     </Router>
-  </React.StrictMode>,
+  </React.StrictMode>
+  </Provider>,
   document.getElementById('root')
 );
 
