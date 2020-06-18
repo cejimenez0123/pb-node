@@ -3,7 +3,7 @@ import logo from './logo.svg';
 import {Router,Route,Switch} from 'react-router-dom'
 import SignUpForm from './components/User/SignUpForm'
 import HomeContainer from "./containers/HomeContainer"
-import {useUserActions,signUp} from "./actions/UserActions"
+import {useUserActions,signUp,LOG_IN} from "./actions/UserActions"
 import Test from "./containers/test"
 import {connect} from 'react-redux'
 import './App.css';
@@ -17,10 +17,10 @@ class App extends React.Component {
     <div className="App">
   
     <Route exact path="/">
-      <HomeContainer signUp={this.props.signUp}/>
+      <HomeContainer signUp={this.props.signUp} logIn={this.props.logIn}/>
     </Route>
     <Route exact path="/users/:id">
-      <ProfileContainer/>
+      <ProfileContainer currentUser={this.props.currentUser}/>
     </Route>
     <Route path="/test">
       <Test/>
@@ -32,7 +32,8 @@ class App extends React.Component {
 }
 
 function mapDispatch(dispatch){
-  return({signUp: (user)=>dispatch(signUp(user))})
+  return({signUp: (user)=>dispatch(signUp(user)),
+  logIn: (user)=>dispatch(LOG_IN(user))})
 }
 function mapState(state){
   return({currentUser: state.users.currentUser})

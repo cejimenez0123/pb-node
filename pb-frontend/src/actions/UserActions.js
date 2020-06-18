@@ -1,7 +1,7 @@
 import history from "../history"
 import store from '../index'
 import axios from 'axios'
-export {signUp}
+export {signUp,LOG_IN}
 const userPath = "http://127.0.0.1:3000/users"
 
 
@@ -28,7 +28,9 @@ function signUp(user) {
           debugger
           if(res.status===200){
               let user=res.data
+              
               localStorage.setItem("currentUser",res.data.id)
+              localStorage.setItem("loggedIn","true")
               history.push(`/users/${user.username}`)
               dispatch({type: 'SIGN_UP',user})
           }}
@@ -40,31 +42,30 @@ function signUp(user) {
 
 
 
-// function LOG_IN_START(){
-//     return{
-//         type: "LOG_IN_START"
-//     }
-// }
-// const LOG_IN = (user)=>{
-
-//     let config={
-//         method: 'post',
-//         url: '/users',
-//         timeout: 4000,    // 4 seconds timeout
-//         data: user}
-//     return ((dispatch)=>{
-//         dispatch(LOG_IN_START);
+function LOG_IN_START(){
+    return{
+        type: "LOG_IN_START"
+    }
+}
+const LOG_IN = (user)=>{
+debugger
+    let config={ 
+        url: '/users/login',
+        timeout: 4000,    // 4 seconds timeout
+        data: user}
+    return ((dispatch)=>{
+        dispatch(LOG_IN_START);
        
         
-//         axios(config)
-//           .then(res => {
-//               debugger
-//               if(res.status===200){
+        axios(config)
+          .then(res => {
+              debugger
+              if(res.status===200){
 
-//               }
-//             response.json()})
-//           .catch(error => console.log(error))})
-// }
+              }
+            res.json()})
+          .catch(error => console.log(error))})
+}
 // const SET_CURRENT_USER=()=>{
 //     let id = localStorage.getItem("currentUser")
 
