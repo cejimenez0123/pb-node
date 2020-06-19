@@ -32,7 +32,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: 'work hard',
   resave: true,
-  saveUninitialized: false
+  saveUninitialized: false,
+  sessionId: function(req) {
+    return genuuid() // use UUIDs for session IDs
+  },
 }));
 //Routes
 app.use('/', indexRouter);

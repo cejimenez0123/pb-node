@@ -6,6 +6,7 @@ var mongoose = require("mongoose")
 var path = require("path")
 var mongoose = require('mongoose')
 let DbUrl = "mongodb://localhost:27017/pb"
+let middleware = require("../middleware/index")
 let User = require("../models/user")
 
  
@@ -32,18 +33,21 @@ router.get('/',(req,res)=>{
 
 })
 router.post('/',(req,res)=>{
- console.log("Req",req)
-  console.log(req.body)
 
+  console.log(req.body)
   let user = new User({...req.body})
-   db.collection("user").save(user).then(obj=>obj.json().then(obj=>{console.log(obj)}))
- res.json(user)
+  req.session.userId = user.id
+   db.collection("user").save(user).then(obj=>console.log(obj)).catch(err=>console.log(err))
+  
+res.json(user)
 
 
 })
 router.get('/login',(req,res)=>{
   const {username,password} = req.body
+  console.log("body",req.body)
   User.authenticate(username,password,function(err,result){
+    console.log("werrrrr")
     if (err) console.log(err)
     res.json(result)
 
