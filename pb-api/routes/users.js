@@ -4,10 +4,10 @@ var MongoClient = require("mongodb").MongoClient
 var Server = require('mongodb').Server;
 var mongoose = require("mongoose")
 var path = require("path")
-var mongoose = require('mongoose')
+var passport = require("passport")
 let DbUrl = "mongodb://localhost:27017/pb"
 let middleware = require("../middleware/index")
-let User = require("../models/user")
+const User = require("../models/user").User
 
  
 
@@ -33,25 +33,53 @@ router.get('/',(req,res)=>{
 
 })
 router.post('/',(req,res)=>{
-
   console.log(req.body)
-  let user = new User({...req.body})
-  req.session.userId = user.id
-   db.collection("user").save(user).then(obj=>console.log(obj)).catch(err=>console.log(err))
+  const newUser = new User ({username: req.body.username,name: req.body.name});
+  console.log("new",newUser)
+  User.register(newUser, req.body.password, function(err, user) {
+    if(err) {
+			console.log(err);
+     res.json(user);
+      
+    }		
   
-res.json(user)
+		  passport.authenticate("local",{failureRedirect: "/"})(req, res, function() {
 
-
-})
-router.get('/login',(req,res)=>{
-  const {username,password} = req.body
-  console.log("body",req.body)
-  User.authenticate(username,password,function(err,result){
-    console.log("werrrrr")
-    if (err) console.log(err)
-    res.json(result)
-
+        
+    
   })
+  User.register()
+  
+  })
+})
+  
+  // app.post("/register", function(req, res) {
+  //   // The logic here comes from passport in user.js
+  //   const newUser = new User({username: req.body.username});
+  //   User.register(newUser, req.body.password, function(err, user) {
+  //     if(err) {
+  //       console.log(err);
+  //       return res.render("register");
+  //     }
+  //     passport.authenticate("local")(req, res, function() {
+  //       res.redirect("/q&a")
+  //     })
+  
+  //   })
+  //   User.register()
+  // })
+// 	User.register()
+//   console.log(req.body)
+//   let user = new User({...req.body})
+//   req.session.userId = user.id
+//    db.collection("user").save(user).then(obj=>console.log(obj)).catch(err=>console.log(err))
+  
+// res.json(user)
+
+
+
+router.post('/login', passport.authenticate('local'),(req,res)=>{
+  res.redirect(`http://localhost:3000/users/${res.user.username}`)
 })
 router.get('/logout', function(req, res, next) {
   if (req.session) {

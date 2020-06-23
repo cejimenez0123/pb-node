@@ -7,10 +7,12 @@ var MongoClient = require("mongodb").MongoClient
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var cors = require('cors')
+var passport = require("passport")
+const LocalStrategy = require("passport-local")
 var app = express();
 var session = require("express-session")
 var parse = require("./routes/parse")
-
+const User = require("./models/user").User
 // view engine setup
 app.use(cors())
 app.set('views', path.join(__dirname, 'views'));
@@ -32,12 +34,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: 'work hard',
   resave: true,
-  saveUninitialized: false,
-  sessionId: function(req) {
-    return genuuid() // use UUIDs for session IDs
-  },
+  saveUninitialized: false
 }));
+app.use(passport.initialize());
+app.use(passport.session());
+ // This next line authenticates the user at login
+passport.use(new LocalStrategy(User.authenticate()));;
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
 //Routes
+
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
