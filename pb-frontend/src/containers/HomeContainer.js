@@ -40,7 +40,7 @@ function HomeContainer (props){
     </Accordion.Collapse>
   </Card>
 </Accordion>
-                <Editor/>
+            
 
             </div>
         )

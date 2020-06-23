@@ -14,31 +14,54 @@ function SIGN_UP_START(){
     type: "SIGN_UP_START"}
 }
 
-function signUp(user) { 
-   
-    let config={
-        method: 'post',
-        url: '/users',
-        timeout: 4000,    // 4 seconds timeout
-        data: user}
-   return(dispatch)=>{
-       dispatch(SIGN_UP_START())
-    axios(config)
-      .then(res => {
-          debugger
-          if(res.status===200){
-              let user=res.data
-              
-              localStorage.setItem("currentUser",res.data.id)
+function signUp(user) {
+    debugger 
+    let config = {
+        method: 'POST',
+        headers: {
+            
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        
+            },
+            body: JSON.stringify({
+            username: user.username,
+            name: user.name,
+            password: user.password
+            })}
+            return(dispatch)=>{fetch("http://localhost:9000/users",config).then(
+                res=>res.json()
+            ).then(res=>{
+                debugger
+                let user=res.data
+                localStorage.setItem("currentUser",res.data.id)
               localStorage.setItem("loggedIn","true")
               history.push(`/users/${user.username}`)
               dispatch({type: 'SIGN_UP',user})
-          }}
-      )
-      .catch(error => console.log(error))
+            }).catch(err=>console.log(err))}
+//     let config={
+//         method: 'post',
+//         url: '/users',
+//         timeout: 4000,    // 4 seconds timeout
+//         data: user}
+//    return(dispatch)=>{
+//        dispatch(SIGN_UP_START())
+//     axios(config)
+//       .then(res => {
+//           debugger
+//           if(res.status===200){
+//               let user=res.data
+              
+//               localStorage.setItem("currentUser",res.data.id)
+//               localStorage.setItem("loggedIn","true")
+//               history.push(`/users/${user.username}`)
+//               dispatch({type: 'SIGN_UP',user})
+//           }}
+//       )
+//       .catch(error => console.log(error))
         
-    
-}}
+    // }
+}
 
 
 
