@@ -7,5 +7,20 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "plumbum",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "prisma": "^5.18.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cookie-session": "^2.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "mongodb": "^6.8.0",
+    "node": "^22.7.0",
+    "nodemon": "^3.1.4"
+  }
 }
