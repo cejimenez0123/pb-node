@@ -16,10 +16,23 @@ module.exports = function (){
     })
     router.put("/:id", async (req,res)=>{
 
+        const {title,data,isPrivate,commentable,type}= doc
 
-
-
-
+        const story = await prisma.story.update({where:{
+            id:req.params.id,
+            data:{
+                title:title,
+                data:data,
+                isPrivate:isPrivate,
+                author:{
+                connect:{
+                    id:authorId
+                }
+                },
+                commentable:commentable,
+                type:type
+        }}}) 
+        res.status(200).json(story)
     })
     router.delete(":/id",async (req,res)=>{
 
