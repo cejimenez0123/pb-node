@@ -2,7 +2,7 @@ const express = require("express");
 let session = require('cookie-session');
 const bodyParser = require("body-parser")
 const cors = require('cors')
-
+const authRoutes = require("./routes/auth")
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,14 +22,14 @@ app.get('/', (req, res, next) => {
     res.status(200).json({message:"Hello World"})
 })
 
-
+app.use("/auth",authRoutes())
 app.use(
     session({
     secret: process.env.JWT_SECRET??"SDFSDGds",resave: false,
     saveUninitialized: true,
     cookie: { secure: false },
     }))
-app.listen(PORT, '0.0.0.0', () => {
-console.log(`Server is running on port`+PORT)
+app.listen(PORT, () => {
+console.log(`Server is running on port `+PORT)
 })
 module.exports = app
