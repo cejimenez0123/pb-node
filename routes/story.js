@@ -6,13 +6,15 @@ const router = express.Router()
 
 module.exports = function (){
     router.get("/",async (req,res)=>{
-       let stories = await prisma.story.findMany({where:{isPrivate:false}})
-        res.status(200).json({data:stories})
+       let stories = await prisma.story.findMany({where:{
+        isPrivate:{equals: false}
+       }})
+        res.status(200).json({stories})
     })
     router.get("/:id",async (req,res)=>{
         let story = await prisma.story.findFirst({where: {
             id:req.params.id}})
-        res.status(200).json({data:story})
+        res.status(200).json({story})
     })
     router.put("/:id", async (req,res)=>{
 

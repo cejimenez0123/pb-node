@@ -3,7 +3,8 @@ let session = require('cookie-session');
 const bodyParser = require("body-parser")
 const cors = require('cors')
 const authRoutes = require("./routes/auth")
-
+const storyRoutes = require("./routes/story")
+const collectionRoutes = require("./routes/collection")
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(cors())
@@ -15,7 +16,7 @@ const logger = (req, _res, next) => {
     next();
     };
 
-app.use(bodyParser.json());
+app.use(bodyParser.json({limit: '50mb'}));
 app.use(logger);
 app.get('/', (req, res, next) => {
 
@@ -23,6 +24,8 @@ app.get('/', (req, res, next) => {
 })
 
 app.use("/auth",authRoutes())
+app.use("/story",storyRoutes())
+app.use("/collection",collectionRoutes())
 app.use(
     session({
     secret: process.env.JWT_SECRET??"SDFSDGds",resave: false,

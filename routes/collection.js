@@ -9,12 +9,50 @@ const router = express.Router()
 module.exports = function (){
     router.get("/",async (req,res)=>{
         const collection = await prisma.collection.findMany(
-            {where:{isPrivate:false}})
+            {where:{isPrivate:{equals:false}}})
 
         res.status(200).json({data:collection})
 
 
 
+    })
+    router.get("/library",async (req,res)=>{
+        try{
+        const libraries = await prisma.collection.findMany({
+            where:{
+                AND:{  
+                isPrivate:{equals:false},
+                collectionIdList:{
+                    some:{}
+                },
+                storyIdList:{
+                    some:{}
+                }
+
+            }}
+        })
+        res.json({libraries})
+    }catch(e){
+        console.log("/collection/library",e)
+        res.json({error:e})
+    }
+    })
+    router.get("/book",async (req,res)=>{
+        const books  = await prisma.collection.findMany({
+            
+            where:{
+                AND:{  
+                isPrivate:{equals:false},
+                collectionIdList:{
+                    none:{}
+                },
+                storyIdList:{
+                    some:{}
+                }
+
+            }}
+        })
+        res.json({books})
     })
     router.get("/:id",async (req,res)=>{
         const collection = await prisma.collection.findFirst({where:{
