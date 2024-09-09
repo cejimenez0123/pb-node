@@ -8,6 +8,7 @@ const router = express.Router()
 
 module.exports = function (){
     router.get("/",async (req,res)=>{
+        //GET ALL PUBLIC COLLECTIONS
         const collection = await prisma.collection.findMany(
             {where:{isPrivate:{equals:false}}})
 
@@ -17,6 +18,7 @@ module.exports = function (){
 
     })
     router.get("/library",async (req,res)=>{
+        // GETS ALL LIBRARIES
         try{
         const libraries = await prisma.collection.findMany({
             where:{
@@ -35,9 +37,10 @@ module.exports = function (){
     }catch(e){
         console.log("/collection/library",e)
         res.json({error:e})
-    }
+        }
     })
     router.get("/book",async (req,res)=>{
+        //GET ALL PUBLIC BOOKS
         const books  = await prisma.collection.findMany({
             
             where:{
@@ -55,6 +58,8 @@ module.exports = function (){
         res.json({books})
     })
     router.get("/:id",async (req,res)=>{
+
+        //GET COLLECTION
         const collection = await prisma.collection.findFirst({where:{
             id: req.params.id
         },include:{
@@ -64,6 +69,7 @@ module.exports = function (){
         res.status(200).json({data:collection})
     })
     router.post("/:id/collection/:childId",async (req,res)=>{
+        //ADD COLLECTION TO COLLECTION
         const {id,childId}=req.params
         const joint = await prisma.collectionToCollection.create({
             data:{
@@ -83,6 +89,7 @@ module.exports = function (){
     }
 )
     router.delete("/:id/collection/:childId",async (req,res)=>{
+        //REMOVE COLLECTION FROM COLLECTION
     const {id,childId}=req.params
     const joint = await prisma.collectionToCollection.deleteMany({
         data:{
@@ -102,7 +109,7 @@ module.exports = function (){
 }
 )
     router.post("/:id/story/:storyId",async (req,res)=>{
-
+//ADD STORY TO COLLECTION
         const {id,storyId}= req.params
 
         const joint = await prisma.storyToCollection.create({
@@ -116,6 +123,7 @@ module.exports = function (){
 
     })
     router.delete("/:id/story/:storyId",async (req,res)=>{
+        //DELETE STORY FROM COLLECTION
         const {storyId,id}=req.params
         await prisma.storyToCollection.deleteMany({where:{
             story:{
@@ -130,12 +138,68 @@ module.exports = function (){
 
     })
     router.delete("/:id",async (req,res)=>{
+        //DELETE COLLECTION
         const doc = req.body.data
         const {id}= doc
+        await prisma.collectionToCollection.delete({where:{
+            parentCollectionId: id
+        }})
+        await prisma.storyToCollection.delete({where:{
+            collectionId: id
+        }})
         await prisma.collection.delete({where:{
             id: id
         }})
+     
         res.status(202).json({message:"success"})
+    })
+    router.get("/profile/:id/library",async (req,res)=>{
+        let data = await prisma.collection.findMany({where:{
+           
+            AND:{  
+                profileId:{
+                    equals:req.params.id
+                },
+                collectionIdList:{
+                    some:{}
+                },
+                storyIdList:{
+                    some:{}
+                }
+        }}})
+        res.json({collection:data})
+    })
+    router.get("/profile/:id/book",async (req,res)=>{
+        let data = await prisma.collection.findMany({where:{
+           
+            AND:{  
+                profileId:{
+                    equals:req.params.id
+                },
+                collectionIdList:{
+                    none:{}
+                },
+                storyIdList:{
+                    some:{}
+                }
+        }}})
+        res.json({collections:data})
+    })
+    router.put("/:id",async (req,res)=>{
+     const {title,purpose,isPrivate,isOpenCollaboration}=doc
+        let data = await prisma.collection.update({
+            where:{
+                id:req.params.id
+            },
+            data:{
+                title:title,
+                purpose:purpose,
+                isPrivate:isPrivate,
+                isOpenCollaboration:isOpenCollaboration
+            }
+        })
+
+        res.json({collection:data})
     })
     router.post("/",async (req,res)=>{
         const doc = req.body.data
@@ -153,7 +217,7 @@ module.exports = function (){
         }})
         
         
-        res.status(201).json({data:collection})
+        res.status(201).json({colelction:collection})
     })
 
     return router

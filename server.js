@@ -5,6 +5,7 @@ const cors = require('cors')
 const authRoutes = require("./routes/auth")
 const storyRoutes = require("./routes/story")
 const collectionRoutes = require("./routes/collection")
+const profileRoutes = require("./routes/profile")
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(cors())
@@ -25,6 +26,7 @@ app.get('/', (req, res, next) => {
 
 app.use("/auth",authRoutes())
 app.use("/story",storyRoutes())
+app.use("/profile",profileRoutes())
 app.use("/collection",collectionRoutes())
 app.use(
     session({
