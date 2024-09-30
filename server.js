@@ -6,6 +6,7 @@ const authRoutes = require("./routes/auth")
 const storyRoutes = require("./routes/story")
 const collectionRoutes = require("./routes/collection")
 const profileRoutes = require("./routes/profile")
+const passport = require("passport")
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(cors())
@@ -23,11 +24,12 @@ app.get('/', (req, res, next) => {
 
     res.status(200).json({message:"Hello World"})
 })
+const authMiddleware = passport.authenticate('bearer', { session: false }); // Sessionless authentication
 
 app.use("/auth",authRoutes())
-app.use("/story",storyRoutes())
+app.use("/story",storyRoutes(authMiddleware))
 app.use("/profile",profileRoutes())
-app.use("/collection",collectionRoutes())
+app.use("/collection",collectionRoutes(authMiddleware))
 app.use(
     session({
     secret: process.env.JWT_SECRET??"SDFSDGds",resave: false,

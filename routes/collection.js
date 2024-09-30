@@ -2,11 +2,12 @@ const express = require('express');
 const prisma = require("../db");
 const { title } = require('process');
 const { isParameter } = require('typescript');
+const { connect } = require('http2');
 
 
 const router = express.Router()
 
-module.exports = function (){
+module.exports = function (authMiddleware){
     router.get("/",async (req,res)=>{
         //GET ALL PUBLIC COLLECTIONS
         const collection = await prisma.collection.findMany(
@@ -17,7 +18,7 @@ module.exports = function (){
 
 
     })
-    router.get("/library",async (req,res)=>{
+    router.get("/public/library",async (req,res)=>{
         // GETS ALL LIBRARIES
         try{
         const libraries = await prisma.collection.findMany({
@@ -39,7 +40,53 @@ module.exports = function (){
         res.json({error:e})
         }
     })
-    router.get("/book",async (req,res)=>{
+    router.post("/:id/role",async (req,res)=>{
+            const {profileId,role} = req.body
+         let roleToCollection = await prisma.roleToCollection.create({data:{
+            colleciton:{
+                connect:{
+                    id:req.params.id,
+                }},
+            profile:{
+                connect:{
+                    id: profileId
+                }
+            },
+            role:role
+          }})  
+        res.json({role:roleToCollection})
+    })
+    router.get("/:id/profile/:profileId",async (req,res)=>{
+        try{
+           let found = prisma.roleToCollection.findUniqueOrThrow({
+                where:{
+                   AND:{
+                    collection:{
+                        id:{
+                            equals: req.params.id
+                        }
+                    },
+                    profile:{
+                        id:{
+                            equals: req.params.profileId
+                        }
+                    }
+                   }
+                }
+            })
+            res.status(200).json({
+                isMember:true,
+                role:found
+            })
+
+        }catch(e){
+
+            res.status(204).json({isMember:false,
+                                message:"Profile is not member of collection"
+            })
+        }
+    })
+    router.get("/public/book",async (req,res)=>{
         //GET ALL PUBLIC BOOKS
         const books  = await prisma.collection.findMany({
             
@@ -66,9 +113,9 @@ module.exports = function (){
             storyIdList:true,
             collectionIdList:true
         }})
-        res.status(200).json({data:collection})
+        res.status(200).json({collection:collection})
     })
-    router.post("/:id/collection/:childId",async (req,res)=>{
+    router.post("/:id/collection/:childId",authMiddleware,async (req,res)=>{
         //ADD COLLECTION TO COLLECTION
         const {id,childId}=req.params
         const joint = await prisma.collectionToCollection.create({
@@ -108,19 +155,22 @@ module.exports = function (){
     res.status(204)
 }
 )
-    router.post("/:id/story/:storyId",async (req,res)=>{
+    router.post("/:id/story",authMiddleware,async (req,res)=>{
 //ADD STORY TO COLLECTION
-        const {id,storyId}= req.params
-
-        const joint = await prisma.storyToCollection.create({
-        data:{
-            collection:{connect:{id:id}},
-            story:{connect:{id:storyId}}
-        }
+        const {id,storyIdList}= req.params
+        let promises = storyIdList.map( id=>{
+            return prisma.storyToCollection.create({
+                data:{
+                        collection:{connect:{id:req.params.id}},
+                        story:{connect:{id:storyId}}
+                    }
+            })
         })
-        res.status(201).json({data:joint})
-
-
+        Promise.all(promises)
+        const collection = await prisma.collection.findFirst({where:{id:id},include:{
+            storyIdList:true
+        }})
+        return {collection}
     })
     router.delete("/:id/story/:storyId",async (req,res)=>{
         //DELETE STORY FROM COLLECTION
@@ -154,19 +204,12 @@ module.exports = function (){
         res.status(202).json({message:"success"})
     })
     router.get("/profile/:id/library",async (req,res)=>{
+        //Library
         let data = await prisma.collection.findMany({where:{
-           
-            AND:{  
-                profileId:{
-                    equals:req.params.id
-                },
-                collectionIdList:{
-                    some:{}
-                },
-                storyIdList:{
-                    some:{}
-                }
-        }}})
+           profile:{
+            id: req.params.id
+           }
+        }})
         res.json({collection:data})
     })
     router.get("/profile/:id/book",async (req,res)=>{
@@ -175,12 +218,9 @@ module.exports = function (){
             AND:{  
                 profileId:{
                     equals:req.params.id
-                },
+                }, 
                 collectionIdList:{
                     none:{}
-                },
-                storyIdList:{
-                    some:{}
                 }
         }}})
         res.json({collections:data})
@@ -201,7 +241,7 @@ module.exports = function (){
 
         res.json({collection:data})
     })
-    router.post("/",async (req,res)=>{
+    router.post("/",authMiddleware,async (req,res)=>{
         const doc = req.body.data
         const {title,purpose,isPrivate,profileId,isOpenCollaboration}=doc
         const collection = await prisma.collection.create({data:{

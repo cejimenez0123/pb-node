@@ -17,7 +17,9 @@ datasource db {
 model User{
   id    String @id @default(auto()) @map("_id") @db.ObjectId
   email String @unique
+  uId String @unique
   profiles Profile[]
+  verified Boolean @default(false)
   created DateTime? @default(now())
 }
 model Profile{
@@ -27,11 +29,13 @@ model Profile{
     profileToCollections ProfileToCollection[]
     selfStatement String @default("")
     userId String? @db.ObjectId
+    writerLevel Int? @default(1)
     user User? @relation(fields: [userId], references: [id])
     isPrivate Boolean?
     stories Story[]
     collections Collection[] 
-    rolesToStory RoleToStory[] 
+    rolesToStory RoleToStory[]
+    rolesToCollection RoleToCollection[] 
     created DateTime? @default(now())
 }
 model ProfileToCollection{
@@ -56,6 +60,16 @@ model StoryToCollection {
   story Story? @relation(fields: [storyId], references: [id])
   collection Collection @relation(fields: [collectionId], references: [id])
   collectionId String @db.ObjectId
+  created DateTime? @default(now())
+}
+model RoleToCollection{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  profileId String  @db.ObjectId
+  profile Profile @relation(fields: [profileId], references: [id])
+  collecitonId String @db.ObjectId
+  collection Collection @relation(fields: [collecitonId], references: [id])
+  role Role @default(reader)
+  updated DateTime? @default(now())
   created DateTime? @default(now())
 }
 model RoleToStory{
@@ -85,6 +99,7 @@ model Collection{
     parentCollectionId CollectionToCollection[] @relation(name: "ChildToParent")
     storyIdList StoryToCollection[]
     favedBy ProfileToCollection[]
+    roles RoleToCollection[]
     isOpenCollaboration Boolean @default(false)
     updated DateTime? @default(now())
     created DateTime? @default(now())

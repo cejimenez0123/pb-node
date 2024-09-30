@@ -38,10 +38,42 @@ module.exports = function (){
                 id: generateMongoId(req.params.id)
             }
         }})
-        console.log(profiles)
+        
         res.status(200).json({profiles:profiles})
 
     })
-    return router
+    router.get("/:id/collection",async (req,res)=>{
 
+        let bookmarks = await prisma.profileToCollection.findMany({
+            where:{
+                profile:{
+                    id: req.params.id
+                }
+            }
+        })
+        res.json({bookmarks})
+    })
+    router.post("/:id/collection/:colId",async (req,res)=>{
+        
+            const bookmark = await prisma.profileToCollection.create({
+                data:{
+                    collection:{
+                        connect:{
+                            id: req.params.colId
+                        }
+                    },
+                    profile:{
+                        connect:{
+                            id:req.params.id
+                        }
+                    }
+                }
+
+            })
+
+            res.json({bookmark})
+
+    })
+    return router
+    
 }
