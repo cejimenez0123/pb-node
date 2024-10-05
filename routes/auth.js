@@ -1,9 +1,10 @@
 const express = require('express');
 const prisma = require("../db");
-
+const resend = require("..")
 const jwt = require('jsonwebtoken');
 const generateMongoId = require("./generateMongoId");
 const lib = require('passport');
+const nodemailer = require('nodemailer');
 const router = express.Router()
 module.exports = function (){
     router.post("/user",async (req,res)=>{
@@ -11,7 +12,43 @@ module.exports = function (){
         let user = await prisma.user.create({email})
         res.json({user})
     })
-
+    router.post("/apply",async (req,res)=>{
+        const body = req.body
+        const {
+            igHandle,
+            fullName,
+            email,
+            whyApply,
+            howFindOut
+        }=body
+        let transporter = nodemailer.createTransport({
+            service: 'gmail', 
+            auth: {
+              user: process.env.pbEmail, 
+              pass: process.env.pbPassword 
+            }
+          });
+        //   await prisma.user.create({email:email,verified:false})
+            let mailOptions = {
+                from: process.env.myEmail,
+                to: process.env.myEmail, // Email to yourself
+                subject: 'New Plumbum Application',
+                text: ` \n
+                        \n
+                        Name: ${fullName}\n
+                        Email: ${email}\n
+                        Instagram Handle: ${igHandle}\n
+                        Why did they apply:${whyApply}\n
+                        How did they find out:${howFindOut}`
+              };
+              try {
+                await transporter.sendMail(mailOptions);
+                res.json({message:'Applied Successfully!'});
+              } catch (error) {
+                console.error(error);
+                res.json({error})
+              }
+    })
     router.post("/session",async (req,res)=>{
         const {uId}=req.body
 
