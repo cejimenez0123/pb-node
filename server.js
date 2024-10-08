@@ -7,8 +7,9 @@ const storyRoutes = require("./routes/story")
 const collectionRoutes = require("./routes/collection")
 const profileRoutes = require("./routes/profile")
 const passport = require("passport")
+const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT
 app.use(cors())
 app.use(bodyParser.urlencoded({ extended: false }))
 
@@ -24,19 +25,21 @@ app.get('/', (req, res, next) => {
 
     res.status(200).json({message:"Hello World"})
 })
-const authMiddleware = passport.authenticate('bearer', { session: false }); // Sessionless authentication
-
-app.use("/auth",authRoutes())
+const authMiddleware = passport.authenticate('bearer', { session: false });
+app.use("/auth",authRoutes(authMiddleware))
 app.use("/story",storyRoutes(authMiddleware))
-app.use("/profile",profileRoutes())
+app.use("/profile",profileRoutes(authMiddleware))
 app.use("/collection",collectionRoutes(authMiddleware))
+setUpPassportLocal(passport);
 app.use(
     session({
-    secret: process.env.JWT_SECRET??"SDFSDGds",resave: false,
+    secret: process.env.JWT_SECRET,resave: false,
     saveUninitialized: true,
     cookie: { secure: false },
     }))
+app.use(passport.session());
+app.use(passport.initialize());
 app.listen(PORT, () => {
-console.log(`Server is running on port `+PORT)
+console.log(`Server is running`+PORT)
 })
 module.exports = app

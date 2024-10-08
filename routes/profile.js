@@ -1,10 +1,9 @@
 const express = require('express');
 const prisma = require("../db");
-
 const generateMongoId = require("./generateMongoId")
 const router = express.Router()
 
-module.exports = function (){
+module.exports = function (authMiddleware){
     router.get("/",async (req,res)=>{
         const profiles = await prisma.profile.findMany()
 
@@ -32,10 +31,18 @@ module.exports = function (){
         }})
         res.json({profile})
     })
-    router.get("/user/:id",async (req,res)=>{
+    router.get("/user/:id/public",async (req,res)=>{
+       
         const profiles = await prisma.profile.findMany({where:{
             user:{
-                id: generateMongoId(req.params.id)
+                id: req.params.id
+            }
+        }})})
+    router.get("/user/:id/private",authMiddleware,async (req,res)=>{
+       
+        const profiles = await prisma.profile.findMany({where:{
+            user:{
+                id: req.user.id
             }
         }})
         

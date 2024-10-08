@@ -6,7 +6,7 @@ const generateMongoId = require("./generateMongoId");
 const lib = require('passport');
 const nodemailer = require('nodemailer');
 const router = express.Router()
-module.exports = function (){
+module.exports = function (authMiddleware){
     router.post("/user",async (req,res)=>{
         const {email}= req.body
         let user = await prisma.user.create({email})
@@ -50,22 +50,25 @@ module.exports = function (){
               }
     })
     router.post("/session",async (req,res)=>{
-        const {uId}=req.body
-
-   try{
-
-            const user = await prisma.user.findUnique({ where: {uId:uId} });
-            if (!user) {
-              return res.status(401).json({ message: 'Invalid email or password' });
-            }
-        
-            // Generate JWT token with user ID
-            const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' }); // Adjust expiration as needed
-        console.log("token",token)
-            res.json({ token });
-          } catch (error) {
-            res.status(402).json({ message: 'Error logging in' });
+        const { email, uId } = req.body;
+  
+        try {
+          
+          // Find user by username
+          const user = await prisma.user.findFirstOrThrow({ where: { uId:uId } });
+      
+          if (!user ) {
+            return res.status(401).json({ message: 'Invalid email or password' });
           }
+      
+        
+          const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
+
+      
+          res.json({ token });
+        } catch (error) {
+          res.status(402).json({ message: 'Error logging in' });
+        }
     })
     router.post("/verify",async (req,res)=>{
 
