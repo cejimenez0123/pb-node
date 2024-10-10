@@ -1,5 +1,6 @@
 const express = require('express');
 const prisma = require("../db");
+const { equal } = require('assert');
 
 
 const router = express.Router()
@@ -11,10 +12,27 @@ module.exports = function (authMiddleware){
        }})
         res.status(200).json({stories})
     })
-    router.get("/profile/:id",async (req,res)=>{
+    router.get("/profile/:id/private",authMiddleware,async (req,res)=>{
         const stories = await prisma.story.findMany({where:{
             author:{
                 id: req.params.id
+            }
+        }})
+        res.status(200).json({stories})
+    })
+    router.get("/profile/:id/public",async (req,res)=>{
+        const stories = await prisma.story.findMany({where:{
+            AND:{
+               author:{
+                id:{
+                    equals: req.params.id
+                }
+               },
+            isPrivate:{
+                equal:false
+                
+            }
+                
             }
         }})
         res.status(200).json({stories})

@@ -37,12 +37,15 @@ module.exports = function (authMiddleware){
             user:{
                 id: req.params.id
             }
-        }})})
+        }})
+    
+    res.json({profiles})
+})
     router.get("/user/:id/private",authMiddleware,async (req,res)=>{
        
         const profiles = await prisma.profile.findMany({where:{
             user:{
-                id: req.user.id
+                uId: req.user.uId
             }
         }})
         

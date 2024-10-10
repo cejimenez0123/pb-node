@@ -18,6 +18,40 @@ module.exports = function (authMiddleware){
 
 
     })
+    router.get("/profile/:id/private",authMiddleware,async (req,res)=>{
+        try{
+            let collections = await prisma.collection.findMany({where:{
+                profile:{
+                    id:{
+                        equals:req.params.id
+                    }
+                }
+            },include:{
+                storyIdList:true,
+                collectionIdList:true
+            }})
+            res.status(200).json({collections})
+        }catch(err){
+            res.status(400).send({error:err})
+        }
+    })
+    router.get("/profile/:id/public",async (req,res)=>{
+        try{
+            let collections = await prisma.collection.findMany({where:{
+                AND:{
+                    profile:{
+                        id:{
+                            equals:req.params.id
+                        }
+                    },
+                    isPrivate:false
+                }
+            }})
+            res.status(200).json({collections})
+        }catch(err){
+            res.status(400).send({error:err})
+        }
+    })
     router.get("/public/library",async (req,res)=>{
         // GETS ALL LIBRARIES
         try{

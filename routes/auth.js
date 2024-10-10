@@ -62,7 +62,7 @@ module.exports = function (authMiddleware){
           }
       
         
-          const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
+          const token = jwt.sign({ uId: user.uId }, process.env.JWT_SECRET, { expiresIn: '23h' });
 
       
           res.json({ token });

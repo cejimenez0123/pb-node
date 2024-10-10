@@ -13,7 +13,7 @@ passport.use(new BearerStrategy(async (token, done) => {
     }
     done(null,user);
   } catch (error) {
-    done(error); // Handle errors gracefully
+    done(error); // Handle errors gracefullyc
   }
 }))
 passport.serializeUser((user, done) => {
