@@ -27,8 +27,11 @@ module.exports = function (authMiddleware){
                     }
                 }
             },include:{
-                storyIdList:true,
-                collectionIdList:true
+                
+               storyIdList:true,
+               collectionIdList:true,
+            
+                
             }})
             res.status(200).json({collections})
         }catch(err){
@@ -236,6 +239,13 @@ module.exports = function (authMiddleware){
         }})
      
         res.status(202).json({message:"success"})
+    })
+    router.get("/profile/private",authMiddleware,async (req,res)=>{
+        //Library
+        let data = await prisma.collection.findMany({where:{
+          profileId:{equals:req.user.id}
+        }})
+        res.json({collections:data})
     })
     router.get("/profile/:id/library",async (req,res)=>{
         //Library

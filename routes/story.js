@@ -12,7 +12,7 @@ module.exports = function (authMiddleware){
        }})
         res.status(200).json({stories})
     })
-    router.get("/profile/:id/private",authMiddleware,async (req,res)=>{
+    router.get("/profile/private",authMiddleware,async (req,res)=>{
         const stories = await prisma.story.findMany({where:{
             author:{
                 id: req.params.id
@@ -37,10 +37,26 @@ module.exports = function (authMiddleware){
         }})
         res.status(200).json({stories})
     })
-    router.get("/:id",async (req,res)=>{
+    router.get("/:id/protected",authMiddleware,async (req,res)=>{
+
         let story = await prisma.story.findFirst({where: {
             id:req.params.id}})
-        res.status(200).json({story})
+        if(story){
+            res.status(200).json({story})
+
+        }else{
+            res.status(404).json({message:"Story not found"})
+        }
+    })
+    router.get("/:id/public",async (req,res)=>{
+        let story = await prisma.story.findFirst({where: {
+            id:req.params.id,isPrivate:false}})
+        if(story){
+                res.status(200).json({story})
+    
+        }else{
+                res.status(404).json({message:"Story not found"})
+        }
     })
     router.post("/:id/role",async (req,res)=>{
         const {profileId,role} = req.body
@@ -60,23 +76,18 @@ module.exports = function (authMiddleware){
 })
     router.put("/:id", async (req,res)=>{
 
-        const {title,data,isPrivate,commentable,type}= req.body.data
-
+        const {title,data,isPrivate,commentable,type}= req.body
+    
         const story = await prisma.story.update({where:{
-            id:req.params.id,
-            data:{
-                title:title,
-                data:data,
-                isPrivate:isPrivate,
-                author:{
-                connect:{
-                    id:authorId
-                }
-                },
-                commentable:commentable,
-                type:type
-        }}}) 
-        res.status(200).json(story)
+            id:req.params.id
+        },data:{
+            title,
+            data,
+            isPrivate,
+            commentable,
+            type
+        }})
+        res.status(200).json({story})
     })
     router.delete(":/id",async (req,res)=>{
         let story = prisma.story.delete({where:{id:req.params.id}})
