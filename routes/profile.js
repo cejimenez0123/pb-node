@@ -42,7 +42,7 @@ module.exports = function (authMiddleware){
     res.json({profiles})
 })
     router.get("/user/:id/private",authMiddleware,async (req,res)=>{
-       
+        try{
         const profiles = await prisma.profile.findMany({where:{
             user:{
                 uId: req.user.uId
@@ -50,7 +50,9 @@ module.exports = function (authMiddleware){
         }})
         
         res.status(200).json({profiles:profiles})
-
+    }catch(e){
+        res.status(404).json({message:"User not found"})
+    }
     })
     router.get("/:id/collection",async (req,res)=>{
 

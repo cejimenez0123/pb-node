@@ -13,9 +13,14 @@ module.exports = function (authMiddleware){
         res.status(200).json({stories})
     })
     router.get("/profile/private",authMiddleware,async (req,res)=>{
+        const profile = await prisma.profile.findFirst({where:{
+            userId:{
+                equals:req.user.id
+            } 
+        }})
         const stories = await prisma.story.findMany({where:{
             author:{
-                id: req.params.id
+                id:{equals:profile.id}
             }
         }})
         res.status(200).json({stories})

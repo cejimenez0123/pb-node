@@ -125,18 +125,17 @@ module.exports = function (authMiddleware){
     })
     router.get("/public/book",async (req,res)=>{
         //GET ALL PUBLIC BOOKS
-        const books  = await prisma.collection.findMany({
-            
-            where:{
-                AND:{  
-                isPrivate:{equals:false},
-                collectionIdList:{
-                    none:{}
-                },
-                storyIdList:{
-                    some:{}
-                }
-
+        const books  = 
+            await prisma.collection.findMany({
+                where:{
+                    AND:{  
+                        isPrivate:{equals:false},
+                            collectionIdList:{
+                                none:{}
+                            },
+                        storyIdList:{
+                            some:{}
+                            }
             }}
         })
         res.json({books})
@@ -242,8 +241,13 @@ module.exports = function (authMiddleware){
     })
     router.get("/profile/private",authMiddleware,async (req,res)=>{
         //Library
+        const profile = await prisma.profile.findFirst({where:{
+            userId:{
+                equals: req.user.id
+            }
+        }})
         let data = await prisma.collection.findMany({where:{
-          profileId:{equals:req.user.id}
+          profileId:{equals:profile.id}
         }})
         res.json({collections:data})
     })
