@@ -7,7 +7,7 @@ passport.use(new BearerStrategy(async (token, done) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.uId;
     const user = await prisma.user.findFirst({ where: { uId: userId } });
-
+    
     if (!user) {
       return done(null, false); // Invalid token or user not found
     }

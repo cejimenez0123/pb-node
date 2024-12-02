@@ -225,7 +225,7 @@ module.exports = function (authMiddleware){
     })
     router.delete("/:id",async (req,res)=>{
         //DELETE COLLECTION
-        const doc = req.body.data
+        const doc = req.body
         const {id}= doc
         await prisma.collectionToCollection.delete({where:{
             parentCollectionId: id
@@ -290,7 +290,7 @@ module.exports = function (authMiddleware){
         res.json({collection:data})
     })
     router.post("/",authMiddleware,async (req,res)=>{
-        const doc = req.body.data
+        const doc = req.body
         const {title,purpose,isPrivate,profileId,isOpenCollaboration}=doc
         const collection = await prisma.collection.create({data:{
             title:title,
@@ -305,7 +305,7 @@ module.exports = function (authMiddleware){
         }})
         
         
-        res.status(201).json({colelction:collection})
+        res.status(201).json({collection:collection})
     })
 
     return router
