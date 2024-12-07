@@ -239,6 +239,7 @@ module.exports = function (authMiddleware){
      
         res.status(202).json({message:"success"})
     })
+    
     router.put("/collection/:id",authMiddleware,async(req,res)=>{
            let {storyIdList,collectionIdList} = req.body
             const {id }= req.params
