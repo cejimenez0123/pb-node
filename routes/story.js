@@ -10,7 +10,7 @@ module.exports = function (authMiddleware){
        let stories = await prisma.story.findMany({where:{
         isPrivate:{equals: false}
        }})
-        res.status(200).json({stories})
+        res.json({stories})
     })
     router.get("/collection/:id/public",async (req,res)=>{
         let list = await prisma.storyToCollection.findMany({where:{

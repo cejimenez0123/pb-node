@@ -239,6 +239,36 @@ module.exports = function (authMiddleware){
      
         res.status(202).json({message:"success"})
     })
+    router.put("/collection/:id",authMiddleware,async(req,res)=>{
+           let {storyIdList,collectionIdList} = req.body
+            const {id }= req.params
+        let storyPromises=   storyIdList.map(story=>{
+            return prisma.storyToCollection.upsert({
+            where:{
+                AND:[{story:{id:{equals:story.id}}},
+                                {collectionId:{equals:id}}
+                            ]
+            },create:{story:{connect:{id:story.id}},
+        collection:{connect:{id:id}}}
+           })})
+       const colPromises=    collectionIdList.map(col=>{
+            return prisma.collectionToCollection.upsert({
+            where:{
+                AND:[{parentCollection:{id:{equals:id}}},
+                                {childCollection:{id:{equals:col.id}}}
+                            ]
+            },create:{parentCollection:{connect:{id:id}},
+        childCollection:{connect:{id:col.id}}}
+           })})
+
+           await Promise.all(storyPromises)
+           await Promise.all(colPromises)
+        const col = await prisma.collection.findFirst({where:{id:id},include:{
+            storyIdList:true,
+            collectionIdList:true
+        }})
+        res.json(col)
+    })
     router.get("/profile/private",authMiddleware,async (req,res)=>{
         //Library
         const profile = await prisma.profile.findFirst({where:{
@@ -248,6 +278,9 @@ module.exports = function (authMiddleware){
         }})
         let data = await prisma.collection.findMany({where:{
           profileId:{equals:profile.id}
+        },include:{
+            collectionIdList:true,
+            storyIdList:true 
         }})
         res.json({collections:data})
     })
