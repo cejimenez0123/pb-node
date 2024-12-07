@@ -12,6 +12,30 @@ module.exports = function (authMiddleware){
        }})
         res.status(200).json({stories})
     })
+    router.get("/collection/:id/public",async (req,res)=>{
+        let list = await prisma.storyToCollection.findMany({where:{
+            AND:{
+                collectionId:{
+                    equals:req.params.id
+                },
+                story:{
+                    isPrivate:false
+                }
+            }
+
+        },include:{
+            story:true
+        }})
+        res.json({list})
+    })
+    router.get("/collection/:id/protected",authMiddleware,async (req,res)=>{
+        let list = await prisma.storyToCollection.findMany({where:{
+            id:req.params.id
+        },include:{
+            story:true
+        }})
+        res.json({list})
+    })
     router.get("/profile/private",authMiddleware,async (req,res)=>{
         const profile = await prisma.profile.findFirst({where:{
             userId:{
