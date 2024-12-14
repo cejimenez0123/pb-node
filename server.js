@@ -6,6 +6,7 @@ const authRoutes = require("./routes/auth")
 const storyRoutes = require("./routes/story")
 const collectionRoutes = require("./routes/collection")
 const profileRoutes = require("./routes/profile")
+const commentRoutes = require("./routes/comment.js")
 const passport = require("passport")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const app = express();
@@ -30,6 +31,7 @@ app.use("/auth",authRoutes(authMiddleware))
 app.use("/story",storyRoutes(authMiddleware))
 app.use("/profile",profileRoutes(authMiddleware))
 app.use("/collection",collectionRoutes(authMiddleware))
+app.use("/comment",commentRoutes(authMiddleware))
 setUpPassportLocal(passport);
 app.use(
     session({

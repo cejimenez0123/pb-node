@@ -35,7 +35,8 @@ model Profile{
     stories Story[]
     collections Collection[] 
     rolesToStory RoleToStory[]
-    rolesToCollection RoleToCollection[] 
+    rolesToCollection RoleToCollection[]
+    comments Comment[] 
     created DateTime? @default(now())
 }
 model ProfileToCollection{
@@ -88,6 +89,25 @@ enum Role {
   commenter
   writer
 }
+model Comment {
+     id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  profileId String? @db.ObjectId
+  profile Profile? @relation(fields: [storyId], references: [id])
+  storyId String    @db.ObjectId
+  story      Story      @relation(fields: [storyId], references: [id])
+  parentId String?  @db.ObjectId
+  parent Comment? @relation(name: "ChildToParent", fields: [parentId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+  updated DateTime? @default(now())
+  created DateTime? @default(now())
+
+
+  
+
+  children Comment[] @relation(name: "ChildToParent")
+}
+
+
 model Collection{
     id    String @id @default(auto()) @map("_id") @db.ObjectId
     title String @default("Untitled")
@@ -115,6 +135,7 @@ model Story{
    author Profile @relation(fields: [authorId], references: [id],onDelete:Cascade,onUpdate:Cascade)
    commentable Boolean
    betaReaders RoleToStory[]
+   comments Comment[]
    type StoryType @default(html)
    collections StoryToCollection[]
    updated DateTime? @default(now())
