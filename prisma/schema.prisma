@@ -47,14 +47,7 @@ model ProfileToCollection{
   profile Profile?@relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
   created DateTime? @default(now())
 }
-model CollectionToCollection {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-  parentCollection Collection @relation(name: "ChildToParent", fields: [parentCollectionId], references: [id])
-  parentCollectionId String @db.ObjectId
-  childCollectionId  String  @db.ObjectId
-  childCollection Collection @relation(name: "ParentToChild",fields: [childCollectionId], references: [id])
-  created DateTime? @default(now())
-}
+
 model StoryToCollection {
   id String @id @default(auto()) @map("_id") @db.ObjectId
   storyId String? @db.ObjectId
@@ -93,7 +86,7 @@ model Comment {
      id      String  @id @default(auto()) @map("_id") @db.ObjectId
   content   String
   profileId String? @db.ObjectId
-  profile Profile? @relation(fields: [storyId], references: [id])
+  profile Profile? @relation(fields: [profileId], references: [id])
   storyId String    @db.ObjectId
   story      Story      @relation(fields: [storyId], references: [id])
   parentId String?  @db.ObjectId
@@ -115,8 +108,8 @@ model Collection{
     isPrivate Boolean? @default(true)
     profileId String? @db.ObjectId
     profile Profile? @relation(fields: [profileId], references: [id])
-    collectionIdList CollectionToCollection[] @relation(name: "ParentToChild") 
-    parentCollectionId CollectionToCollection[] @relation(name: "ChildToParent")
+    childCollections CollectionToCollection[] @relation(name: "ChildToParent")
+    parentCollections CollectionToCollection[] @relation(name: "ParentToChild")
     storyIdList StoryToCollection[]
     favedBy ProfileToCollection[]
     roles RoleToCollection[]
@@ -124,7 +117,14 @@ model Collection{
     updated DateTime? @default(now())
     created DateTime? @default(now())
 }
-
+model CollectionToCollection {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  parentCollection Collection @relation(name: "ChildToParent", fields: [parentCollectionId], references: [id])
+  parentCollectionId String @db.ObjectId
+  childCollectionId  String  @db.ObjectId
+  childCollection Collection @relation(name: "ParentToChild",fields: [childCollectionId], references: [id])
+  created DateTime? @default(now())
+}
 model Story{
    id    String @id @default(auto()) @map("_id") @db.ObjectId
    title String

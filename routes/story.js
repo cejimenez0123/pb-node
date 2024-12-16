@@ -26,15 +26,27 @@ module.exports = function (authMiddleware){
         },include:{
             story:true
         }})
+
         res.json({list})
     })
     router.get("/collection/:id/protected",authMiddleware,async (req,res)=>{
+       
         let list = await prisma.storyToCollection.findMany({where:{
-            id:req.params.id
+            collectionId:req.params.id
         },include:{
             story:true
         }})
+    
         res.json({list})
+    })
+    router.get("/:id/comment",authMiddleware,async (req,res)=>{
+       let comments =await prisma.comment.findMany({where:{
+            storyId:{
+                equals:req.params.id
+            }
+        },include:{profile:true}})
+        console.log(comments)
+        res.json({comments})
     })
     router.get("/profile/private",authMiddleware,async (req,res)=>{
         const profile = await prisma.profile.findFirst({where:{

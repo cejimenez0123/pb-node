@@ -1,5 +1,6 @@
 const express = require('express');
 const prisma = require("../db");
+const { profile } = require('console');
 
 
 
@@ -8,17 +9,55 @@ const router = express.Router()
 module.exports = function (authMiddleware){
 
 router.post("/",authMiddleware,async(req,res)=>{
-    const {text,profile}=req.body
+ 
+ try{   const {profileId,storyId,text,parentId}=req.body
+console.log(req.body)
+   if(profileId.length>0){
+    if(parentId.length>0 ){
+
     let com = await prisma.comment.create({data:{
-        text:text,
+        content:text,
+        story:{
+            connect:{
+                id:storyId
+            }
+        },
+        parent:{
+            connect:{
+                id: parentId
+            }
+        },
         profile:{
             connect:{
-                id: profile.id
+                id: profileId
             }
         }
     }})
-
-    res.json({comment:com})
+    let comment =await prisma.comment.findFirst({where:{id:com.id},include:{profile:true}})
+    res.json({comment:comment})
+}else{
+    let com = await prisma.comment.create({data:{
+        content:text,
+        story:{
+            connect:{
+                id:storyId
+            }
+        },
+     
+       profile:{
+            connect:{
+                id: profileId
+            }
+        }
+    }})
+    let comment =await prisma.comment.findFirst({where:{id:com.id},include:{profile:true}})
+    res.json({comment:comment})}
+}else{
+    throw new Error("no profile")
+}
+}catch(e){
+    res.json({error:e})
+}
 })
 
 router.delete("/:id",authMiddleware,async (req,res)=>{
