@@ -20,7 +20,7 @@ router.post("/",authMiddleware,async(req,res)=>{
 
     res.json({comment:com})
 })
-}
+
 router.delete("/:id",authMiddleware,async (req,res)=>{
     const {profile}=req.body
     const { id}= req.params
@@ -57,4 +57,7 @@ router.patch("/:id",authMiddleware,async(req,res)=>{
         res.status(403).json({message:"Unauthorized"})
     }
 
-})
+}
+)
+return router
+}

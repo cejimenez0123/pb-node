@@ -151,10 +151,13 @@ module.exports = function (authMiddleware){
         }})
         res.status(200).json({collection:collection})
     })
-    router.post("/:id/collection/:childId",authMiddleware,async (req,res)=>{
-        //ADD COLLECTION TO COLLECTION
-        const {id,childId}=req.params
-        const joint = await prisma.collectionToCollection.create({
+
+router.post("/:id/collection/",authMiddleware,async (req,res)=>{
+    //ADD COLLECTION TO COLLECTION
+    const {id}=req.params
+    const {list}=req.body
+    let promises = list.map(childId=>{
+        return prisma.collectionToCollection.create({
             data:{
                 childCollection:{
                     connect:{
@@ -168,8 +171,43 @@ module.exports = function (authMiddleware){
                 }
             }
         })
-        res.status(201).json({data: joint})
-    }
+    })
+    let joint = await Promise.all(promises)
+    let col = prisma.collection.findFirst({where:{id:id},include:{
+        storyIdList:true,
+        collectionIdList:true
+    }})
+    res.status(201).json({collection:col})
+}
+)
+router.post("/:id/story",authMiddleware,async (req,res)=>{
+    //ADD story TO COLLECTION
+    const {id}=req.params
+    const {list}=req.body
+    let promises = list.map(childId=>{
+        return prisma.storyToCollection.create({
+            data:{
+                story:{
+                    connect:{
+                        id:childId
+                    }
+                },
+                collection:{
+                    connect:{
+                        id:id
+                    }
+                }
+        
+            }
+        })
+    })
+    let joint = await Promise.all(promises)
+    let col = prisma.collection.findFirst({where:{id:id},include:{
+        storyIdList:true,
+        collectionIdList:true
+    }})
+    res.status(201).json({collection:col})
+}
 )
     router.delete("/:id/collection/:childId",async (req,res)=>{
         //REMOVE COLLECTION FROM COLLECTION
