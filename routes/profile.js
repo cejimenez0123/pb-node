@@ -1,8 +1,9 @@
 const express = require('express');
 const prisma = require("../db");
-const generateMongoId = require("./generateMongoId")
+const generateMongoId = require("./generateMongoId");
 const router = express.Router()
-
+const jwt = require('jsonwebtoken');
+const bcrypt = require("bcryptjs")
 module.exports = function (authMiddleware){
     router.get("/",async (req,res)=>{
         const profiles = await prisma.profile.findMany()
@@ -11,6 +12,45 @@ module.exports = function (authMiddleware){
 
 
 
+    })
+    router.post("/",authMiddleware,async(req,res)=>{
+      const  {password,username,profilePicture,selfStatement,privacy}=req.body
+    try{
+        const hashedPassword = await bcrypt.hash(password, 10);
+         await prisma.user.update({
+            where:{
+                id:req.user.id
+            },data:{
+                password:hashedPassword,
+                verified:true
+            }
+        })
+try{
+        let profile = await prisma.profile.create({data:{
+            user:{
+                connect:{
+                    id:req.user.id,
+                   
+                }
+            },
+            profilePic:profilePicture,
+             username:username,
+            selfStatement:selfStatement,
+            isPrivate:privacy
+        }})
+        const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
+        res.json({profile:profile,token:verifiedToken})
+    }catch(error){
+        console.log("1",error)
+        res.status(402).json({message:"Username already taken"})
+    }
+    }catch(error){
+        console.log("2",error)
+        res.status(402).json({error})
+    }
+    
+    
+    
     })
     router.get("/:id",async (req,res)=>{
         const profile = await prisma.profile.findFirst({where:{

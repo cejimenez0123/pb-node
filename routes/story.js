@@ -46,6 +46,7 @@ module.exports = function (authMiddleware){
             }
         },include:{profile:true}})
         console.log(comments)
+        
         res.json({comments})
     })
     router.get("/profile/private",authMiddleware,async (req,res)=>{

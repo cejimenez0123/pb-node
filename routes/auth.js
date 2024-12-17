@@ -1,6 +1,8 @@
 const express = require('express');
 const prisma = require("../db");
 const resend = require("..")
+const bcrypt = require("bcryptjs")
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const generateMongoId = require("./generateMongoId");
 const lib = require('passport');
@@ -12,15 +14,123 @@ module.exports = function (authMiddleware){
         let user = await prisma.user.create({email})
         res.json({user})
     })
+    router.post("/referral",authMiddleware,async (req,res)=>{
+    const {email}=req.body
+const referralToken = crypto.randomBytes(32).toString('hex');
+        let referral = await prisma.referral.create({
+            data:{
+        email:email,
+        referralToken:referralToken,
+        isUsed:false
+            }})
+    let transporter = nodemailer.createTransport({
+        service: 'gmail', 
+        auth: {
+          user: process.env.pbEmail, 
+          pass: process.env.pbPassword 
+        }
+      });
+    //   await prisma.user.create({email:email,verified:false})
+        let mailOptions = {
+            from:  process.env.pbEmail,
+            to:email ,// Email to yourself
+            subject: 'You’ve Been Invited to Join Plumbum!',
+              html: `
+                
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Plumbum Referral</title>
+      <style>
+        body {
+          font-family: 'Arial', sans-serif;
+          background-color: #2E2E2E;
+          color: #D4D4D4;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+        }
+        .container {
+          text-align: center;
+          background-color: #1D1D1D;
+          border-radius: 10px;
+          padding: 40px 30px;
+          width: 80%;
+          max-width: 600px;
+          box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+          font-size: 3em;
+          color: #A9C5D3;
+          margin-bottom: 20px;
+          letter-spacing: 2px;
+        }
+        p {
+          font-size: 1.2em;
+          margin: 20px 0;
+          color: #D4D4D4;
+        }
+        a {
+          font-size: 1.4em;
+          color: #B1A7D5;
+          text-decoration: none;
+          padding: 10px 20px;
+          border: 2px solid #B1A7D5;
+          border-radius: 5px;
+          transition: background-color 0.3s, color 0.3s;
+        }
+        a:hover {
+          background-color: #B1A7D5;
+          color: #1D1D1D;
+        }
+        .footer {
+          margin-top: 30px;
+          font-size: 0.9em;
+          color: #A9C5D3;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>Plumbum</h1>
+        <p>Hello,</p>
+        <p>You've been invited to join Plumbum, a place where creativity and community come together. We believe your voice can make a difference in this artistic space.</p>
+        <p>To get started, simply click the link below and sign up:</p>
+        <a href="${process.env.DOMAIN}/signup?token=${referralToken}" target="_blank">Join Plumbum</a>
+        <p class="footer">If you did not request this invitation, feel free to ignore this email.</p>
+      </div>
+    </body>
+    </html>
+              `
+          };
+          try {
+            await transporter.sendMail(mailOptions);
+            res.json({message:'Applied Successfully!'});
+          } catch (error) {
+            console.error(error);
+            res.json({error})
+          }})
+
     router.post("/apply",async (req,res)=>{
-        const body = req.body
         const {
             igHandle,
             fullName,
             email,
             whyApply,
             howFindOut
-        }=body
+        } = req.body
+
+    try{
+       let user = await prisma.user.create({data:{
+            email:email,
+            preferredName:fullName,
+            igHandle:igHandle,
+        }})
         let transporter = nodemailer.createTransport({
             service: 'gmail', 
             auth: {
@@ -30,16 +140,78 @@ module.exports = function (authMiddleware){
           });
         //   await prisma.user.create({email:email,verified:false})
             let mailOptions = {
-                from: process.env.myEmail,
-                to: process.env.myEmail, // Email to yourself
+                from: email,
+                to: process.env.pbEmail, // Email to yourself
                 subject: 'New Plumbum Application',
-                text: ` \n
-                        \n
-                        Name: ${fullName}\n
-                        Email: ${email}\n
-                        Instagram Handle: ${igHandle}\n
-                        Why did they apply:${whyApply}\n
-                        How did they find out:${howFindOut}`
+                  html: `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                      <meta charset="UTF-8">
+                      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                      <title>Application Review</title>
+                      <style>
+                        body {
+                          font-family: Arial, sans-serif;
+                          background-color: #f9f9f9;
+                          color: #333;
+                          padding: 20px;
+                        }
+                        .container {
+                          background: #fff;
+                          padding: 20px;
+                          border-radius: 8px;
+                          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        }
+                        .header {
+                          font-size: 1.5em;
+                          margin-bottom: 20px;
+                        }
+                        .info {
+                          margin-bottom: 20px;
+                        }
+                        .info p {
+                          margin: 5px 0;
+                        }
+                        .form {
+                          margin-top: 20px;
+                        }
+                        button {
+                          background: #4CAF50;
+                          color: white;
+                          border: none;
+                          padding: 10px 20px;
+                          font-size: 1em;
+                          border-radius: 5px;
+                          cursor: pointer;
+                          transition: background 0.3s;
+                        }
+                        button:hover {
+                          background: #45a049;
+                        }
+                      </style>
+                    </head>
+                    <body>
+                      <div class="container">
+                        <div class="header">Review Plumbum Applicant</div>
+                        <div class="info">
+                        <p><strong>Name:</strong> ${fullName}</p>
+                        <p><strong>Email:</strong> ${email}</p>
+                        <p><strong>Instagram Handle:</strong> ${igHandle}</p>
+                        <p><strong>Why did they apply:</strong> ${whyApply}</p>
+                        <p><strong>How did they find out:</strong> ${howFindOut}</p>
+                        </div>
+                        <div class="form">
+                          <form action="${process.env.BASEPATH+"/auth/review"}" method="POST">
+                            <input type="hidden" name="applicantId" value="${user.id}" />
+                            <button type="submit" name="action" value="approve">Approve</button>
+                          
+                          </form>
+                        </div>
+                      </div>
+                    </body>
+                    </html>
+                  `
               };
               try {
                 await transporter.sendMail(mailOptions);
@@ -48,24 +220,122 @@ module.exports = function (authMiddleware){
                 console.error(error);
                 res.json({error})
               }
+
+            }catch(error){
+                console.log(error)
+                if(error.message.includes("Unique")){
+                    res.json({message:"User has already applied"})
+                }
+            }
     })
+    router.post('/review', async (req, res) => {
+        const { applicantId, action } = req.body;
+      
+        try {
+          if (!applicantId || !action) {
+            return res.status(400).json({ message: 'Missing applicantId or action' });
+          }
+          let transporter = nodemailer.createTransport({
+            service: 'gmail', 
+            auth: {
+              user: process.env.pbEmail, 
+              pass: process.env.pbPassword 
+            }
+          });
+          const token = jwt.sign({ applicantId }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+          // Define the secure sign-up link
+          const signupLink = process.env.DOMAIN+`/signup?token=${token}`;
+      
+          const user = await prisma.user.update({
+            where:{
+                id:applicantId
+            },
+            data:{
+                verified:true
+            }
+        })
+         
+          if (user) {
+            if (action === 'approve') {
+             
+
+
+                const mailOptions = {
+                    from: process.env.pbEmail, // Sender address
+                    to: user.email, // Recipient's email
+                    subject: 'Congratulations! Your Application Has Been Approved 🎉',
+                    html: `
+                      <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
+                        <h1 style="color: #5A5A5A;">Welcome to Plumbum, ${user.preferredName}!</h1>
+                        <p style="font-size: 16px; color: #5A5A5A;">
+                          We’re thrilled to let you know that your application has been approved. 
+                          You’re now part of a vibrant community of creators, thinkers, and writers.
+                        </p>
+                        <p style="font-size: 16px; color: #5A5A5A;">
+                          Click the button below to log in and start exploring:
+                        </p>
+                        <a href="${signupLink}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                        Complete Sign-Up
+                      </a>
+                        <p style="font-size: 14px; color: #5A5A5A; margin-top: 20px;">
+                          If you have any questions, feel free to reach out to us at plumbumapp@gmail.com
+                        </p>
+                        <footer style="font-size: 12px; color: #9E9E9E; margin-top: 20px;">
+                          &copy; ${new Date().getFullYear()} Plumbum. All rights reserved.
+                        </footer>
+                      </div>
+                    `,
+                  };
+                  await transporter.sendMail(mailOptions);
+           
+            } else if (action === 'reject') {
+         
+            } else {
+              return res.status(400).json({ message: 'Invalid action' });
+            }
+      
+            // await user.save();
+            return res.status(200).json({ message: `User ${action}'d successfully` });
+          }
+      
+          // If no application or user is found
+          res.status(404).json({ message: 'Applicant not found' });
+      
+        } catch (error) {
+          console.error('Error processing application:', error);
+          res.status(500).json({ message: 'Internal server error' });
+        }
+      });
     router.post("/session",async (req,res)=>{
-        const { email, uId } = req.body;
+        const { email, password, uId } = req.body;
   
         try {
-          
-          // Find user by username
+          if(uId){
+         
           const user = await prisma.user.findFirstOrThrow({ where: { uId:uId } });
       
           if (!user ) {
             return res.status(401).json({ message: 'Invalid email or password' });
           }
-      
+          
         
-          const token = jwt.sign({ uId: user.uId }, process.env.JWT_SECRET, { expiresIn: '23h' });
+          const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
 
       
           res.json({ token });
+        }else{
+            try{
+            const user = await prisma.user.findUnique({ where: { email:email.toLowerCase() } });
+            if (!user || !bcrypt.compareSync(password, user.password)) {
+                return res.status(401).json({ message: 'Invalid email or password' });
+            }
+            const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '2d' });
+            res.json({ token });
+            } catch (error) {
+                res.status(402).json({ message: 'Error logging in' });
+            }
+        }
         } catch (error) {
           res.status(402).json({ message: 'Error logging in' });
         }
@@ -73,12 +343,24 @@ module.exports = function (authMiddleware){
     router.post("/verify",async (req,res)=>{
 
     })
-    router.post("/register",async (req,res)=>{
-        const{ id, uId,email,password,username,
+    router.post("/register",authMiddleware,async (req,res)=>{
+        const{ id, token, uId,email,password,username,
         profilePicture,selfStatement,privacy
        }=req.body
         let mongoId = generateMongoId(uId)
-
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Missing required fields' });
+          }
+      
+    
+      
+        //   // Hash password securely (at least 10 rounds)
+          const hashedPassword = await bcrypt.hash(password, 10);
+          const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
+        //   // Create new user in Prisma
+        //   const user = await prisma.user.create({
+        //     data: { email, password: hashedPassword },
+        //   });
         const user = await prisma.user.upsert({where:{
             id: id
         },data:{
@@ -116,8 +398,7 @@ module.exports = function (authMiddleware){
         try{
            
                 const {id,email,uId,profile,pages,books,libraries}= req.body
-            console.log(email,profile)
-               let mongoId = generateMongoId(id)
+            
         
         let user = await  prisma.user.create({data:{
             email:email,

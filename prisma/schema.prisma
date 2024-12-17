@@ -17,7 +17,10 @@ datasource db {
 model User{
   id    String @id @default(auto()) @map("_id") @db.ObjectId
   email String @unique
-  uId String 
+  preferredName String @default("")
+  uId String?
+  password String?
+  igHandle String? 
   profiles Profile[]
   verified Boolean @default(false)
   created DateTime? @default(now())
@@ -93,12 +96,17 @@ model Comment {
   parent Comment? @relation(name: "ChildToParent", fields: [parentId], references: [id],onDelete:NoAction,onUpdate:NoAction)
   updated DateTime? @default(now())
   created DateTime? @default(now())
-
-
-  
-
   children Comment[] @relation(name: "ChildToParent")
 }
+model Referral{
+  id String  @id @default(auto()) @map("_id") @db.ObjectId
+  email String 
+  referralToken String
+  isUsed Boolean
+  createdAt DateTime @default(now())
+}
+
+ 
 
 
 model Collection{
