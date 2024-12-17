@@ -16,20 +16,22 @@ module.exports = function (authMiddleware){
     router.post("/",authMiddleware,async(req,res)=>{
       const  {password,username,profilePicture,selfStatement,privacy}=req.body
     try{
+        const applicant = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
         const hashedPassword = await bcrypt.hash(password, 10);
-         await prisma.user.update({
+         let user = await prisma.user.update({
             where:{
-                id:req.user.id
+                id:applicant.applicantId
             },data:{
                 password:hashedPassword,
                 verified:true
             }
         })
 try{
+   
         let profile = await prisma.profile.create({data:{
             user:{
                 connect:{
-                    id:req.user.id,
+                    id:user.id,
                    
                 }
             },
@@ -39,14 +41,14 @@ try{
             isPrivate:privacy
         }})
         const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
-        res.json({profile:profile,token:verifiedToken})
+        res.json({profile,token:verifiedToken})
     }catch(error){
-        console.log("1",error)
-        res.status(402).json({message:"Username already taken"})
+        
+        res.status(409).json({error: new Error("Username already taken")})
     }
     }catch(error){
-        console.log("2",error)
-        res.status(402).json({error})
+    
+        res.status(409).json({error})
     }
     
     
@@ -81,15 +83,22 @@ try{
     
     res.json({profiles})
 })
-    router.get("/user/:id/private",authMiddleware,async (req,res)=>{
+    router.get("/user/protected",authMiddleware,async (req,res)=>{
         try{
-        const profiles = await prisma.profile.findMany({where:{
-            user:{
-                uId: req.user.uId
-            }
-        }})
-        
-        res.status(200).json({profiles:profiles})
+            console.log(res.user)
+        if(req.user){
+            const profiles = await prisma.profile.findMany({where:{
+                user:{
+                    id: req.user.id
+                }
+            }})
+          
+             
+                res.status(200).json({profiles:profiles})
+    
+     
+        }
+     
     }catch(e){
         res.status(404).json({message:"User not found"})
     }

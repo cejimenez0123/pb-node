@@ -309,37 +309,34 @@ const referralToken = crypto.randomBytes(32).toString('hex');
       });
     router.post("/session",async (req,res)=>{
         const { email, password, uId } = req.body;
-  
-        try {
-          if(uId){
-         
-          const user = await prisma.user.findFirstOrThrow({ where: { uId:uId } });
-      
-          if (!user ) {
-            return res.status(401).json({ message: 'Invalid email or password' });
-          }
-          
+       try{
+        if(uId){
+        const user = await prisma.user.findFirstOrThrow({ where: { uId:uId } });
+    
+        if (!user || user.email!=email) {
+          return res.status(401).json({ message: 'Invalid email or password' });
+        }
         
-          const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
+      
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
 
       
-          res.json({ token });
-        }else{
-            try{
-            const user = await prisma.user.findUnique({ where: { email:email.toLowerCase() } });
-            if (!user || !bcrypt.compareSync(password, user.password)) {
-                return res.status(401).json({ message: 'Invalid email or password' });
-            }
-            const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '2d' });
-            res.json({ token });
-            } catch (error) {
-                res.status(402).json({ message: 'Error logging in' });
-            }
+        res.json({ token,user });
+      }else{
+        
+        const user = await prisma.user.findFirstOrThrow({ where: { email:{equals:email} }});
+      
+        if (!user || !bcrypt.compareSync(password, user.password)) {
+            return res.status(401).json({ message: 'Invalid email or password' });
         }
-        } catch (error) {
-          res.status(402).json({ message: 'Error logging in' });
-        }
-    })
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '2d' });
+        res.json({ token,user });
+       }
+
+
+}catch(error){
+  res.status(409).json({error})
+}})
     router.post("/verify",async (req,res)=>{
 
     })
@@ -366,6 +363,7 @@ const referralToken = crypto.randomBytes(32).toString('hex');
         },data:{
             id:mongoId,
             email:email,
+            password:hashedPassword,
             verified:true
         }})
         const profile = await prisma.profile.create({
@@ -381,7 +379,7 @@ const referralToken = crypto.randomBytes(32).toString('hex');
                 }
             }
         })
-        res.json({profile})
+        res.json({profile,token:verifiedToken})
     })
     router.post("/referral",async (req,res)=>{
 

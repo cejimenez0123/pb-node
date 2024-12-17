@@ -5,8 +5,10 @@ function setUpPassportLocal(passport){
 passport.use(new BearerStrategy(async (token, done) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.uId;
-    const user = await prisma.user.findFirst({ where: { uId: userId } });
+    
+    const user = await prisma.user.findFirst({ where: { id:{
+      equals:decoded.userId
+    }} });
     
     if (!user) {
       return done(null, false); // Invalid token or user not found
