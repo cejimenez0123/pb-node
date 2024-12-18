@@ -41,7 +41,21 @@ model Profile{
     rolesToStory RoleToStory[]
     rolesToCollection RoleToCollection[]
     comments Comment[] 
+
     created DateTime? @default(now())
+}
+model HashtagStory{
+ id        String  @id @default(auto()) @map("_id") @db.ObjectId
+ hashtagId String @db.ObjectId
+ hashtag Hashtag  @relation(fields: [hashtagId], references: [id])
+ storyId String @db.ObjectId
+ story Story @relation(fields: [storyId], references: [id])
+ created DateTime? @default(now())
+}
+model Hashtag {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  stories   HashtagStory[]  
 }
 model ProfileToCollection{
   id String @id @default(auto()) @map("_id") @db.ObjectId
@@ -145,6 +159,7 @@ model Story{
    commentable Boolean
    betaReaders RoleToStory[]
    comments Comment[]
+   hashtags HashtagStory[]
    type StoryType @default(html)
    collections StoryToCollection[]
    updated DateTime? @default(now())

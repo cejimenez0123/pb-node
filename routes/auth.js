@@ -15,14 +15,20 @@ module.exports = function (authMiddleware){
         res.json({user})
     })
     router.post("/referral",authMiddleware,async (req,res)=>{
-    const {email}=req.body
-const referralToken = crypto.randomBytes(32).toString('hex');
-        let referral = await prisma.referral.create({
-            data:{
-        email:email,
-        referralToken:referralToken,
-        isUsed:false
-            }})
+    const {email,name}=req.body
+
+
+// const hashReferralToken = await bcrypt.hash(referralToken, 10)
+const user = await prisma.user.create({
+  data:{
+    email:email,
+    verified:false,
+  }
+})
+
+const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+   
     let transporter = nodemailer.createTransport({
         service: 'gmail', 
         auth: {
@@ -30,7 +36,7 @@ const referralToken = crypto.randomBytes(32).toString('hex');
           pass: process.env.pbPassword 
         }
       });
-    //   await prisma.user.create({email:email,verified:false})
+
         let mailOptions = {
             from:  process.env.pbEmail,
             to:email ,// Email to yourself
@@ -98,11 +104,13 @@ const referralToken = crypto.randomBytes(32).toString('hex');
     <body>
       <div class="container">
         <h1>Plumbum</h1>
-        <p>Hello,</p>
+        <p>Hello ${name},</p>
         <p>You've been invited to join Plumbum, a place where creativity and community come together. We believe your voice can make a difference in this artistic space.</p>
         <p>To get started, simply click the link below and sign up:</p>
-        <a href="${process.env.DOMAIN}/signup?token=${referralToken}" target="_blank">Join Plumbum</a>
+
+        <a href="${process.env.DOMAIN}/signup?token=${token}" target="_blank">Join Plumbum</a>
         <p class="footer">If you did not request this invitation, feel free to ignore this email.</p>
+     
       </div>
     </body>
     </html>
@@ -110,7 +118,7 @@ const referralToken = crypto.randomBytes(32).toString('hex');
           };
           try {
             await transporter.sendMail(mailOptions);
-            res.json({message:'Applied Successfully!'});
+            res.json({message:'Referred Succesfully!'});
           } catch (error) {
             console.error(error);
             res.json({error})
@@ -380,9 +388,6 @@ const referralToken = crypto.randomBytes(32).toString('hex');
             }
         })
         res.json({profile,token:verifiedToken})
-    })
-    router.post("/referral",async (req,res)=>{
-
     })
     router.get("/user/:userId/profile",async (req,res)=>{
         const {userId} = req.params
