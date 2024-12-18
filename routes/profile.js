@@ -16,7 +16,14 @@ module.exports = function (authMiddleware){
     router.post("/",authMiddleware,async(req,res)=>{
       const  {password,username,profilePicture,selfStatement,privacy}=req.body
     try{
+
         const applicant = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
+        
+        // const referralToken = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
+        
+        // prisma.referral.findFirst({where:{
+        //     referralToken:referralToken
+        // }})
         const hashedPassword = await bcrypt.hash(password, 10);
          let user = await prisma.user.update({
             where:{
@@ -60,9 +67,9 @@ try{
         }})
         res.status(200).json({profile:profile})
     })
-    router.put("/:id",async (req,res)=>{
+    router.put("/:id",authMiddleware,async (req,res)=>{
         const {username,profilePicture,selfStatement,privacy} = req.body
-      
+      try{
         const profile = await prisma.profile.update({where:{
             id: req.params.id
         },data:{
@@ -72,6 +79,10 @@ try{
             isPrivate:privacy
         }})
         res.json({profile})
+
+    }catch(e){
+        res.status(409).json({error:e})
+    }
     })
     router.get("/user/:id/public",async (req,res)=>{
        

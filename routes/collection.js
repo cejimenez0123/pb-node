@@ -60,17 +60,14 @@ module.exports = function (authMiddleware){
         try{
         const libraries = await prisma.collection.findMany({
             where:{
-                AND:{  
-                isPrivate:{equals:false},
-                chldCollections:{
-                    some:{}
-                },
-                storyIdList:{
-                    some:{}
-                }
-
-            }}
-        })
+                AND:[{isPrivate:{
+                    equals:false
+                }},{
+                    childCollections:{
+                        some: {}
+                    }
+                }]
+            }})
         res.json({libraries})
     }catch(e){
       
@@ -237,10 +234,11 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         })
     })
     let joint = await Promise.all(promises)
-    let col = prisma.collection.findFirst({where:{id:id},include:{
+    let col = await prisma.collection.findFirst({where:{id:id},include:{
         storyIdList:true,
         childCollections:true
     }})
+    console.log(col)
     res.status(201).json({collection:col})
 }
 )
