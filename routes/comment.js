@@ -55,14 +55,16 @@ console.log(req.body)
 }else{
     throw new Error("no profile")
 }
-}catch(e){
-    res.json({error:e})
+}catch(err){
+    console.log(err)
+    res.status(409).json({error:err})
 }
 })
 
 router.delete("/:id",authMiddleware,async (req,res)=>{
     const {profile}=req.body
     const { id}= req.params
+    try{
     let comment = await prisma.comment.findFirst({where:{
         id:id
     }})
@@ -73,10 +75,16 @@ router.delete("/:id",authMiddleware,async (req,res)=>{
     }else{
         res.status(403).json({message:"Unauthorized"})
     }
-})
+    }catch(err){
+        console.log(err)
+        res.status(409).json({error:err})
+    }}
+)
 router.patch("/:id",authMiddleware,async(req,res)=>{
+
     const {text,profile}=req.body
     const { id}= req.params
+    try{
     let comment = await prisma.comment.findFirst({where:{
         id:id
     }})
@@ -95,7 +103,10 @@ router.patch("/:id",authMiddleware,async(req,res)=>{
     }else{
         res.status(403).json({message:"Unauthorized"})
     }
-
+}catch(err){
+    console.log(err)
+    res.status(409).json({error:err})
+}
 }
 )
 return router

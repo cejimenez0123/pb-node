@@ -39,8 +39,26 @@ module.exports = function (authMiddleware){
     
         res.json({list})
     })
-    router.get("/:id/comment",authMiddleware,async (req,res)=>{
-       let comments =await prisma.comment.findMany({where:{
+    router.get("/:id/comment/public",async (req,res)=>{
+
+        try{
+        let comments =await prisma.comment.findMany({where:{
+             storyId:{
+                 equals:req.params.id
+             }
+         },include:{profile:true}})
+        
+         
+         res.json({comments})
+
+        }catch(error){
+            console.log(error)
+            res.status(404).json({error})
+        }
+     })
+    router.get("/:id/comment/protected",authMiddleware,async (req,res)=>{
+      try{
+        let comments =await prisma.comment.findMany({where:{
             storyId:{
                 equals:req.params.id
             }
@@ -48,6 +66,10 @@ module.exports = function (authMiddleware){
         console.log(comments)
         
         res.json({comments})
+    }catch(error){
+        console.log(error)
+        res.status(404).json({error})
+    }
     })
     router.get("/profile/private",authMiddleware,async (req,res)=>{
         const profile = await prisma.profile.findFirst({where:{

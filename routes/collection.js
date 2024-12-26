@@ -183,10 +183,25 @@ router.get("/:id/collection/public",authMiddleware,async (req,res)=>{
 })
 router.post("/:id/collection",authMiddleware,async (req,res)=>{
     //ADD COLLECTION TO COLLECTION
-    const {id}=req.params
+   
+   try{ const {id}=req.params
     const {list}=req.body
+  
 
-    let promises = list.map(childId=>{
+
+
+    let promises = list.filter(async childId=>{
+
+        let collt = await prisma.collectionToCollection.findFirst({where:{childCollectionId:{
+            equals: childId
+        },parentCollectionId:{
+            equals:id
+        }
+            
+        }})
+        return !collt
+
+    }).map(async childId=>{
         return prisma.collectionToCollection.create({
             data:{
                 childCollection:{
@@ -204,13 +219,16 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
     })
     let joint = await Promise.all(promises)
     
-    let col = await prisma.collection.findFirst({where:{id:id},
+    let collection = await prisma.collection.findFirst({where:{id:id},
         include:{
         storyIdList:true,
         childCollections:true
     }})
-res.json(col)
-}
+res.json({collection})
+}catch(error){
+    console.log({error})
+    res.json(409).json({error})
+}}
 )
 router.post("/:id/story",authMiddleware,async (req,res)=>{
     //ADD story TO COLLECTION

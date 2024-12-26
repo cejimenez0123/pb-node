@@ -8,6 +8,7 @@ const collectionRoutes = require("./routes/collection")
 const profileRoutes = require("./routes/profile")
 const commentRoutes = require("./routes/comment.js")
 const passport = require("passport")
+const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const app = express();
 const PORT = process.env.PORT
@@ -27,6 +28,7 @@ app.get('/', (req, res, next) => {
     res.status(200).json({message:"Hello World"})
 })
 const authMiddleware = passport.authenticate('bearer', { session: false });
+app.use("/hashtag",hashtagRoutes(authMiddleware))
 app.use("/auth",authRoutes(authMiddleware))
 app.use("/story",storyRoutes(authMiddleware))
 app.use("/profile",profileRoutes(authMiddleware))

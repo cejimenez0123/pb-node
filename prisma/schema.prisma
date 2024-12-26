@@ -34,8 +34,10 @@ model Profile{
     selfStatement String @default("")
     userId String? @db.ObjectId
     writerLevel Int? @default(1)
+    hashtag HashtagComment[]
     user User? @relation(fields: [userId], references: [id])
     isPrivate Boolean?
+    hashtags HashtagStory[]
     stories Story[]
     collections Collection[] 
     rolesToStory RoleToStory[]
@@ -49,12 +51,15 @@ model HashtagStory{
  hashtagId String @db.ObjectId
  hashtag Hashtag  @relation(fields: [hashtagId], references: [id])
  storyId String @db.ObjectId
+ profileId String @db.ObjectId
+ profile Profile @relation(fields: [profileId], references: [id])
  story Story @relation(fields: [storyId], references: [id])
  created DateTime? @default(now())
 }
 model Hashtag {
   id        String  @id @default(auto()) @map("_id") @db.ObjectId
   name      String   @unique
+  comments HashtagComment[]
   stories   HashtagStory[]  
 }
 model ProfileToCollection{
@@ -109,6 +114,7 @@ model Comment {
   story      Story      @relation(fields: [storyId], references: [id])
   parentId String?  @db.ObjectId
   parent Comment? @relation(name: "ChildToParent", fields: [parentId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+  hashtags HashtagComment[]
   updated DateTime? @default(now())
   created DateTime? @default(now())
   children Comment[] @relation(name: "ChildToParent")
@@ -139,6 +145,15 @@ model Collection{
     isOpenCollaboration Boolean @default(false)
     updated DateTime? @default(now())
     created DateTime? @default(now())
+}
+model HashtagComment{
+    id String @id @default(auto()) @map("_id") @db.ObjectId
+    hashtagId String @db.ObjectId
+    hashtag Hashtag @relation(fields: [hashtagId], references: [id])
+    commentId String @db.ObjectId
+    comment Comment @relation(fields: [commentId], references: [id])
+    profileId String @db.ObjectId
+    profile Profile @relation(fields: [profileId], references: [id])
 }
 model CollectionToCollection {
   id String @id @default(auto()) @map("_id") @db.ObjectId

@@ -54,7 +54,7 @@ try{
         res.status(409).json({error: new Error("Username already taken")})
     }
     }catch(error){
-    
+    console.log(error)
         res.status(409).json({error})
     }
     
@@ -62,10 +62,16 @@ try{
     
     })
     router.get("/:id",async (req,res)=>{
+        try{
         const profile = await prisma.profile.findFirst({where:{
             id: req.params.id
         }})
         res.status(200).json({profile:profile})
+
+    }catch(err){
+        console.log(err)
+        res.status(409).json({error:err})
+    }
     })
     router.put("/:id",authMiddleware,async (req,res)=>{
         const {username,profilePicture,selfStatement,privacy} = req.body
@@ -85,7 +91,7 @@ try{
     }
     })
     router.get("/user/:id/public",async (req,res)=>{
-       
+       try{
         const profiles = await prisma.profile.findMany({where:{
             user:{
                 id: req.params.id
@@ -93,10 +99,14 @@ try{
         }})
     
     res.json({profiles})
+}catch(err){
+    console.log(err)
+    res.status(409).json({error:err})
+    }
 })
     router.get("/user/protected",authMiddleware,async (req,res)=>{
         try{
-            console.log(res.user)
+          
         if(req.user){
             const profiles = await prisma.profile.findMany({where:{
                 user:{
@@ -115,7 +125,7 @@ try{
     }
     })
     router.get("/:id/collection",async (req,res)=>{
-
+try{
         let bookmarks = await prisma.profileToCollection.findMany({
             where:{
                 profile:{
@@ -124,9 +134,13 @@ try{
             }
         })
         res.json({bookmarks})
+    }catch(err){
+        console.log(err)
+        res.status(409).json({error:err})
+    }
     })
     router.post("/:id/collection/:colId",async (req,res)=>{
-        
+        try{
             const bookmark = await prisma.profileToCollection.create({
                 data:{
                     collection:{
@@ -144,7 +158,10 @@ try{
             })
 
             res.json({bookmark})
-
+        }catch(err){
+            console.log(err)
+            res.status(409).json({error:err})
+        }
     })
     return router
     
