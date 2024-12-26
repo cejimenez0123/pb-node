@@ -86,11 +86,9 @@ try{
                 }}
                 })
         let newRoles = await Promise.all(updated)
-        console.log(newRoles)
         res.json({roles:newRoles.filter(role=>!!role)})
 
             }catch(error){
-                console.log(error)
                 res.json({error})
             }
     })
@@ -142,7 +140,7 @@ try{
                 }}
                 })
         let newRoles = await Promise.all(updated)
-        console.log(newRoles)
+       
         res.json({roles:newRoles.filter(role=>!!role)})
 
             }catch(error){

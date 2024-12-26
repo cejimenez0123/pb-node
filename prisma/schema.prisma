@@ -75,6 +75,7 @@ model StoryToCollection {
   id String @id @default(auto()) @map("_id") @db.ObjectId
   storyId String? @db.ObjectId
   story Story? @relation(fields: [storyId], references: [id])
+  index Int?
   collection Collection @relation(fields: [collectionId], references: [id])
   collectionId String @db.ObjectId
   created DateTime? @default(now())
