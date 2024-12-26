@@ -14,39 +14,89 @@ module.exports = function (authMiddleware){
       res.json({hashtags})
     })
     router.post("/story/:storyId",authMiddleware,async(req,res)=>{
-            const {name,profileId}=req.body
+            const {name,profile}=req.body
             try{
                 let hashtag = await prisma.hashtag.findFirst({where:{name:{equals:name}}})
-               if(hashtag){
-                const hs = await prisma.hashtagStory.create({
+               
+               
+                if(hashtag){
+                    let found = await prisma.hashtagStory.findFirst({where:{
+                        AND:[{hashtagId:{
+                            equals:hashtag.id
+                        }},{storyId:{equals:req.params.storyId}},{profileId:{
+                            equals:profile.id
+                        }}]
+                    }})
+           let story = await prisma.story.findFirst({where:{
+                id:{
+                    equals:req.params.storyId
+                }
+            },include:{
+                hashtags:true
+            }})
+           
+            if(!found ){
+               
+            if(story.hashtags.length<=5){
+              
+                    const hs = await prisma.hashtagStory.create({
                     data:{
-                        profile:{
-                            connect:{id:profileId.id}
-                        },
-                        story:{connect:{id:req.params.storyId}},
-                        hashtag:{
-                            connect:{id:hashtag.id}
-                        },
-                    hashtagId:hashtag.id}}
+                    profile:{connect:{
+                        id:profile.id
+                    }},
+                hashtag:{connect:{
+                    id:hashtag.id
+                }},
+            story:{
+                connect:{
+                    id:req.params.storyId
+                }
+            }},include:{
+                        hashtag:true,
+                        story:true,
+                        profile:true
+                    }}
                         )
                 res.json({hashtag:hs})
+
+                    }else{
+                        res.status(409).json({message:"Max User Hashtags"})
+                    }}else{
+                       
+                        res.status(409).json({message:"Already Exists"})
+                       
+                    }
                }else{
-                let hashtag = await prisma.hashtag.create({data:{
+              const newHashtag = await prisma.hashtag.create({data:{
                     name:name
                 }})
-               }
+                
+                
+               
+                    if(story.hashtags.length<=5){ 
                const hs = await prisma.hashtagStory.create({
                 data:{
-                    profile:{
-                        connect:{id:profileId.id}
-                    },
-                    story:{connect:{id:req.params.storyId}},
-                    hashtag:{
-                        connect:{id:hashtag.id}
-                    },
-                hashtagId:hashtag.id}}
+                    hashtag:{connect:{
+                        id:newHashtag.id
+                    }},
+                    profile:{connect:{
+                        id:profile.id
+                    }},
+                    story:{
+                        connect:{
+                            id:req.params.storyId
+                        }
+                    }
+                },include:{
+                    hashtag:true,
+                    story:true,
+                    profile:true
+                }}
                     )
-            res.json({hashtag:hs})
+            res.json({hashtag:hs})  }else{
+                res.status(409).json({message:"Max User Hashtags"})
+            }
+        }
             }catch(err){
                 console.log(err)
                 res.status(409).json({error:err})
@@ -115,7 +165,41 @@ module.exports = function (authMiddleware){
         console.log(err)
         res.status(409).json({error:err})
     }
-})
+})  
+    router.get("/story/:storyId/protected",authMiddleware,async (req,res)=>{
+            
+        try{
+            let hashtags = await prisma.hashtagStory.findMany({where:{
+                storyId:{
+                    equals:req.params.storyId
+                }
+            },include:{hashtag:true}})
+            res.json({hashtags})
+        }catch(error){
+            console.log(error)
+            res.status(409).json({error})
+        }
+    })
+    router.get("/story/:storyId/public",async (req,res)=>{
+       try{
+        let story = await prisma.story.findFirst({where:{
+            id:{equals:req.params.storyId}
+        }})
+        if(!story.isPrivate){
+            let hashtags = await prisma.hashtagStory.findMany({where:{
+                storyId:{equals:req.params.storyId}
+            }})
+            res.json(hashtags)
+        }else{
+            throw new Error("Missing Access")
+        }
+
+
+    }catch(error){
+        res.status(409).json({error})
+    }
+      
+    })
     router.delete("/story/:id",authMiddleware,async(req,res)=>{
         try{
             await prisma.hashtagStory.delete({where:{
