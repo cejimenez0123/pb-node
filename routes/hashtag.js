@@ -10,7 +10,7 @@ module.exports = function (authMiddleware){
 
     router.get("/",async(req,res)=>{
 
-      let hashtags = await  prisma.hashtag.findMany()
+      let hashtags = await prisma.hashtag.findMany()
       res.json({hashtags})
     })
     router.post("/story/:storyId",authMiddleware,async(req,res)=>{
@@ -82,7 +82,11 @@ module.exports = function (authMiddleware){
            connect:{
             id: hashtag.id
            }
-        }}})
+        }},include:{
+            hashtag:true,
+            comment:true,
+            profile:true
+        }})
                 
     
             res.json({hashtag:hs})
@@ -97,7 +101,11 @@ module.exports = function (authMiddleware){
            connect:{
             id: hashtag.id
            }
-        }}})
+        }},include:{
+            profile:true,
+            comment:true,
+            hashtag:true
+        }})
                 
         
             res.json({hashtag:hs})
