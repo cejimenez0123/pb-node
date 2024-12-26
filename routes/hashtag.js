@@ -17,8 +17,6 @@ module.exports = function (authMiddleware){
             const {name,profile}=req.body
             try{
                 let hashtag = await prisma.hashtag.findFirst({where:{name:{equals:name}}})
-               
-               
                 if(hashtag){
                     let found = await prisma.hashtagStory.findFirst({where:{
                         AND:[{hashtagId:{
@@ -34,67 +32,33 @@ module.exports = function (authMiddleware){
             },include:{
                 hashtags:true
             }})
-           
+           console.log(story.hashtags.length)
             if(!found ){
-               
-            if(story.hashtags.length<=5){
-              
-                    const hs = await prisma.hashtagStory.create({
-                    data:{
-                    profile:{connect:{
-                        id:profile.id
-                    }},
-                hashtag:{connect:{
-                    id:hashtag.id
-                }},
-            story:{
-                connect:{
-                    id:req.params.storyId
-                }
-            }},include:{
-                        hashtag:true,
-                        story:true,
-                        profile:true
-                    }}
-                        )
+                    if(story.hashtags.length<5){
+                let hs = await createHashStory(hashtag,profile,story.id)
+                    
                 res.json({hashtag:hs})
 
                     }else{
-                        res.status(409).json({message:"Max User Hashtags"})
+                        res.json({message:"Max User Hashtags"})
                     }}else{
                        
-                        res.status(409).json({message:"Already Exists"})
+                        res.json({message:"Already Exists"})
                        
                     }
-               }else{
+                }else{
+                 
+                    if(story.hashtags.length<5){ 
               const newHashtag = await prisma.hashtag.create({data:{
                     name:name
                 }})
-                
-                
-               
-                    if(story.hashtags.length<=5){ 
-               const hs = await prisma.hashtagStory.create({
-                data:{
-                    hashtag:{connect:{
-                        id:newHashtag.id
-                    }},
-                    profile:{connect:{
-                        id:profile.id
-                    }},
-                    story:{
-                        connect:{
-                            id:req.params.storyId
-                        }
-                    }
-                },include:{
-                    hashtag:true,
-                    story:true,
-                    profile:true
-                }}
-                    )
-            res.json({hashtag:hs})  }else{
-                res.status(409).json({message:"Max User Hashtags"})
+                   
+               const hs = await createHashStory(newHashtag,profile,req.params.storyId)
+ 
+            res.json({hashtag:hs}) 
+        
+        }else{
+            res.json({message:"Max User Hashtags"})
             }
         }
             }catch(err){
@@ -103,6 +67,27 @@ module.exports = function (authMiddleware){
             }
          
     })
+    async function createHashStory(hashtag,profile,storyId){
+        const hs = await prisma.hashtagStory.create({
+            data:{
+            profile:{connect:{
+                id:profile.id
+            }},
+        hashtag:{connect:{
+            id:hashtag.id
+        }},
+    story:{
+        connect:{
+            id:storyId
+        }
+    }},include:{
+                hashtag:true,
+                story:true,
+                profile:true
+            }}
+                )
+                return hs
+    }
     router.get("/profile/:profileId/comment",authMiddleware,async(req,res)=>{
         try{     
         let hashtags = await prisma.hashtagComment.findMany({where:{
@@ -203,12 +188,11 @@ module.exports = function (authMiddleware){
     router.delete("/story/:id",authMiddleware,async(req,res)=>{
         try{
             await prisma.hashtagStory.delete({where:{
-                id:{
-                    equal:req.params.id
-                }
+                id:req.params.id
             }})
         res.json({message:"Deleted Successfully"})
     }catch(err){
+        console.log({err})
         res.status(409).json({error:err})
     }
 })

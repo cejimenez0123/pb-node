@@ -2,6 +2,7 @@ const express = require("express");
 let session = require('cookie-session');
 const bodyParser = require("body-parser")
 const cors = require('cors')
+const roleRoutes = require("./routes/role.js")
 const authRoutes = require("./routes/auth")
 const storyRoutes = require("./routes/story")
 const collectionRoutes = require("./routes/collection")
@@ -29,6 +30,7 @@ app.get('/', (req, res, next) => {
 })
 const authMiddleware = passport.authenticate('bearer', { session: false });
 app.use("/hashtag",hashtagRoutes(authMiddleware))
+app.use("/role",roleRoutes(authMiddleware))
 app.use("/auth",authRoutes(authMiddleware))
 app.use("/story",storyRoutes(authMiddleware))
 app.use("/profile",profileRoutes(authMiddleware))
