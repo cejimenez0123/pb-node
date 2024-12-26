@@ -6,7 +6,23 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs");
 
 module.exports = function (authMiddleware){
-    router.get("/story/:id",authMiddleware,async(req,res)=>{
+    router.get("/collection/:id",authMiddleware,async(req,res)=>{
+try{
+          let roles= await prisma.roleToCollection.findMany({where:{
+                collecitonId:{
+                    equals:req.params.id
+                }
+            },include:{
+            collection:true,
+            profile:true
+            }})
+
+            res.json({roles})
+        }catch(error){
+            res.json({error})
+        }
+    })
+      router.get("/story/:id",authMiddleware,async(req,res)=>{
 try{
           let roles= await prisma.roleToStory.findMany({where:{
                 storyId:{
@@ -21,6 +37,62 @@ try{
         }catch(error){
             res.json({error})
         }
+    })
+      router.put("/collection",authMiddleware,async(req,res)=>{
+        try{
+            const {roles}=req.body
+          
+            let updated= roles.map(role=>{
+
+                if(role.role=="role"){
+                    if(role.id){
+                    return prisma.roleToCollection.delete({where:{id:role.id}})
+                    }
+                }else{
+                    if(roles.role && roles.id.length>10){
+                return prisma.roleToCollection.upsert({
+                    where:{
+                        id:role.id
+                    },
+                    update:{
+                        role:role.role,
+                    },
+                    create:{
+                        role:role.role,
+                        profileId:role.profile.id,
+                        collecitonId:role.colleciton.id
+                    }
+                   , include:{
+                        colleciton:true,
+                        profile:true
+                    }})
+                }else{
+                    return prisma.roleToCollection.create({data:{
+                        role:role.role,
+                        profile:{
+                            connect:{
+                                id:role.profile.id
+                            }
+                        },
+                        collection:{
+                            connect:{
+                                id:role.collection.id
+                            }
+                        }
+                    },include:{
+                        collection:true,
+                        profile:true
+                    }})
+                }}
+                })
+        let newRoles = await Promise.all(updated)
+        console.log(newRoles)
+        res.json({roles:newRoles.filter(role=>!!role)})
+
+            }catch(error){
+                console.log(error)
+                res.json({error})
+            }
     })
     router.put("/story",authMiddleware,async(req,res)=>{
         try{
