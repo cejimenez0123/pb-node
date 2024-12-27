@@ -55,6 +55,22 @@ module.exports = function (authMiddleware){
             res.status(400).send({error:err})
         }
     })
+    router.get("/profile/:id/protected",async (req,res)=>{
+        try{
+            let collections = await prisma.collection.findMany({where:{
+                AND:{
+                    profile:{
+                        id:{
+                            equals:req.params.id
+                        }
+                    }
+                }
+            }})
+            res.status(200).json({collections})
+        }catch(err){
+            res.status(400).send({error:err})
+        }
+    })
     router.get("/public/library",async (req,res)=>{
         // GETS ALL LIBRARIES
         try{
@@ -296,52 +312,76 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
 
 
     })
-    router.delete("/:id",async (req,res)=>{
+    router.delete("/collection/",authMiddleware,async (req,res)=>{
+
+    })
+    router.delete("/:id",authMiddleware,async (req,res)=>{
         //DELETE COLLECTION
-        const doc = req.body
-        const {id}= doc
-        await prisma.collectionToCollection.delete({where:{
-            parentCollectionId: id
+        try{
+        const {id} = req.params
+        await prisma.storyToCollection.deleteMany({where:{
+            collection:{
+                id:{equals:id}
+            }
         }})
-        await prisma.storyToCollection.delete({where:{
-            collectionId: id
+        await prisma.collectionToCollection.deleteMany({where:{
+            parentCollection:{
+                id:{equals:id}
+            }
+        }})
+        await prisma.collectionToCollection.deleteMany({where:{
+            childCollection:{
+                id:{equals:id}
+            }
         }})
         await prisma.collection.delete({where:{
             id: id
         }})
      
         res.status(202).json({message:"success"})
+    }catch(error){
+        console.log(error)
+        res.json({error})
+    }
     })
     
-    router.put("/collection/:id",authMiddleware,async(req,res)=>{
-           let {storyIdList,collectionIdList} = req.body
-            const {id }= req.params
-        let storyPromises=   storyIdList.map(story=>{
-            return prisma.storyToCollection.upsert({
-            where:{
-                AND:[{story:{id:{equals:story.id}}},
-                                {collectionId:{equals:id}}
-                            ]
-            },create:{story:{connect:{id:story.id}},
-        collection:{connect:{id:id}}}
-           })})
-       const colPromises=    collectionIdList.map(col=>{
-            return prisma.collectionToCollection.upsert({
-            where:{
-                AND:[{parentCollection:{id:{equals:id}}},
-                                {childCollection:{id:{equals:col.id}}}
-                            ]
-            },create:{parentCollection:{connect:{id:id}},
-        childCollection:{connect:{id:col.id}}}
-           })})
+    router.patch("/:id",authMiddleware,async(req,res)=>{
+        const [storyToCol,colToCol] = req.body
+        const {id}=params
+        storyToCol.map(sTc=>{
 
-           await Promise.all(storyPromises)
-           await Promise.all(colPromises)
-        const col = await prisma.collection.findFirst({where:{id:id},include:{
-            storyIdList:true,
-            childCollections:true
-        }})
-        res.json(col)
+
+
+            return 
+        })
+    //        let {storyIdList,collectionIdList} = req.body
+    //         const {id }= req.params
+    //     let storyPromises=   storyIdList.map(story=>{
+    //         return prisma.storyToCollection.upsert({
+    //         where:{
+    //             AND:[{story:{id:{equals:story.id}}},
+    //                             {collectionId:{equals:id}}
+    //                         ]
+    //         },create:{story:{connect:{id:story.id}},
+    //     collection:{connect:{id:id}}}
+    //        })})
+    //    const colPromises=    collectionIdList.map(col=>{
+    //         return prisma.collectionToCollection.upsert({
+    //         where:{
+    //             AND:[{parentCollection:{id:{equals:id}}},
+    //                             {childCollection:{id:{equals:col.id}}}
+    //                         ]
+    //         },create:{parentCollection:{connect:{id:id}},
+    //     childCollection:{connect:{id:col.id}}}
+    //        })})
+
+    //        await Promise.all(storyPromises)
+    //        await Promise.all(colPromises)
+    //     const col = await prisma.collection.findFirst({where:{id:id},include:{
+    //         storyIdList:true,
+    //         childCollections:true
+    //     }})
+    //     res.json(col)
     })
     router.get("/profile/private",authMiddleware,async (req,res)=>{
         //Library

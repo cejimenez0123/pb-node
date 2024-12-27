@@ -39,6 +39,16 @@ module.exports = function (authMiddleware){
     
         res.json({list})
     })
+    router.patch("/collection/:id/",authMiddleware,async (req,res)=>{
+    
+        let list = await prisma.storyToCollection.findMany({where:{
+            collectionId:req.params.id
+        },include:{
+            story:true
+        }})
+    
+        res.json({list})
+    })
     router.get("/:id/comment/public",async (req,res)=>{
 
         try{
@@ -85,6 +95,7 @@ module.exports = function (authMiddleware){
         res.status(200).json({stories})
     })
     router.get("/profile/:id/public",async (req,res)=>{
+        try{
         const stories = await prisma.story.findMany({where:{
             AND:{
                author:{
@@ -93,13 +104,16 @@ module.exports = function (authMiddleware){
                 }
                },
             isPrivate:{
-                equal:false
+                equals:false
                 
             }
                 
             }
         }})
         res.status(200).json({stories})
+    }catch(error){
+        res.json({error})
+    }
     })
     router.get("/:id/protected",authMiddleware,async (req,res)=>{
 
