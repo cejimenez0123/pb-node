@@ -30,14 +30,21 @@ module.exports = function (authMiddleware){
         res.json({list})
     })
     router.get("/collection/:id/protected",authMiddleware,async (req,res)=>{
-       
+       try{
         let list = await prisma.storyToCollection.findMany({where:{
             collectionId:req.params.id
         },include:{
-            story:true
+            story:true,
+            profile:true,
+            collection:true
         }})
     
         res.json({list})
+
+    }catch(error){
+        console.log("/collection/:id/protected",error)
+        res.json({error})
+    }
     })
     router.patch("/collection/:id/",authMiddleware,async (req,res)=>{
     

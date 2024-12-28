@@ -71,10 +71,10 @@ module.exports = function (authMiddleware){
             res.status(400).send({error:err})
         }
     })
+    
     router.get("/public/library",async (req,res)=>{
-        // GETS ALL LIBRARIES
         try{
-        const libraries = await prisma.collection.findMany({
+            const libraries = await prisma.collection.findMany({
             where:{
                 AND:[{isPrivate:{
                     equals:false
@@ -84,8 +84,8 @@ module.exports = function (authMiddleware){
                     }
                 }]
             }})
-        res.json({libraries})
-    }catch(e){
+            res.json({libraries})
+        }catch(e){
       
         res.json({error:e})
         }
@@ -174,8 +174,11 @@ router.get("/:id/collection/protected",authMiddleware,async (req,res)=>{
                 equals:id
             }
         },include:{
-            childCollection:true
+            childCollection:true,
+            parentCollection:true,
+            profile:true
         }})
+   
         res.json({collections})
 })
 router.get("/:id/collection/public",authMiddleware,async (req,res)=>{
@@ -346,42 +349,84 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
     })
     
     router.patch("/:id",authMiddleware,async(req,res)=>{
-        const [storyToCol,colToCol] = req.body
-        const {id}=params
-        storyToCol.map(sTc=>{
+        try{
+        const {storyToCol,colToCol,col} = req.body
 
+        let initCol = await prisma.collection.findFirst({where:{
+            id:col.id
+        },include:{
+            storyIdList:true,
+            childCollections:true
+        }})
+ 
 
-
-            return 
+        let storyPromises = storyToCol.map(sTc=>{
+console.log(sTc)
+            
+            return prisma.storyToCollection.upsert({where:{id:sTc.id},   
+                update:{
+                    index:sTc.index
+                },
+                create:{
+                   profileId:sTc.profile.id,
+                   collectionId:sTc.collection.id,
+                   storyId:sTc.story.id,
+                   index:sTc.index
+                    }
+                }
+        )
         })
-    //        let {storyIdList,collectionIdList} = req.body
-    //         const {id }= req.params
-    //     let storyPromises=   storyIdList.map(story=>{
-    //         return prisma.storyToCollection.upsert({
-    //         where:{
-    //             AND:[{story:{id:{equals:story.id}}},
-    //                             {collectionId:{equals:id}}
-    //                         ]
-    //         },create:{story:{connect:{id:story.id}},
-    //     collection:{connect:{id:id}}}
-    //        })})
-    //    const colPromises=    collectionIdList.map(col=>{
-    //         return prisma.collectionToCollection.upsert({
-    //         where:{
-    //             AND:[{parentCollection:{id:{equals:id}}},
-    //                             {childCollection:{id:{equals:col.id}}}
-    //                         ]
-    //         },create:{parentCollection:{connect:{id:id}},
-    //     childCollection:{connect:{id:col.id}}}
-    //        })})
+        let colPromises = colToCol.map(cTc=>{
+            return prisma.collectionToCollection.upsert({where:{
+                id:cTc.id
+            },update:{
+                index:cTc.index
+            },create:{
+                childCollectionId:cTc.childCollection.id,
+                parentCollectionId:cTc.parentCollection.id,
+                index:cTc.index,
+                profileId:cTc.profile.id
+            }})
+        })
+        let tbdStory = initCol.storyIdList.filter(sTc=>{
 
-    //        await Promise.all(storyPromises)
-    //        await Promise.all(colPromises)
-    //     const col = await prisma.collection.findFirst({where:{id:id},include:{
-    //         storyIdList:true,
-    //         childCollections:true
-    //     }})
-    //     res.json(col)
+            let found = storyToCol.find(storyCol=>{
+                 return storyCol.id === sTc.storyId
+             })
+             return !found
+     })
+     let tbdCol = initCol.childCollections.filter(sTc=>{
+
+         let found = colToCol.find(col=>{
+              return col.id === sTc.storyId
+          })
+          return !found
+  })
+ let deleteColPromises = tbdCol.map(col=>{
+     return prisma.collectionToCollection.delete({where:{
+         id:col.id
+     }})
+  })
+  let deleteStoryromises = tbdStory.map(story=>{
+     return prisma.storyToCollection.delete({where:{
+         id:story.id
+     }})
+  })
+        await Promise.all(deleteColPromises)
+        await Promise.all(deleteStoryromises)
+       await Promise.all(storyPromises)
+       await Promise.all(colPromises)
+       let updatedCol = await prisma.collection.findFirst({where:{
+        id:col.id
+    },include:{
+        storyIdList:true,
+        childCollections:true
+    }})
+    res.json({collection:updatedCol})
+        }catch(error){
+            console.log("collection/patch(/id",{error})
+            res.json({error})
+        }
     })
     router.get("/profile/private",authMiddleware,async (req,res)=>{
         //Library

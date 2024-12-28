@@ -13,7 +13,7 @@ const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const app = express();
 const PORT = process.env.PORT
-app.use(cors())
+app.use(cors({origin: true, credentials: true}))
 app.use(bodyParser.urlencoded({ extended: false }))
 
 const logger = (req, _res, next) => {

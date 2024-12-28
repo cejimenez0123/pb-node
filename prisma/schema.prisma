@@ -37,8 +37,11 @@ model Profile{
     hashtag HashtagComment[]
     user User? @relation(fields: [userId], references: [id])
     isPrivate Boolean?
+    requests AccessRequest[]
     hashtags HashtagStory[]
     stories Story[]
+    storyToCollections StoryToCollection[]
+    collectionToCollections CollectionToCollection[]
     collections Collection[] 
     rolesToStory RoleToStory[]
     rolesToCollection RoleToCollection[]
@@ -70,7 +73,15 @@ model ProfileToCollection{
   profile Profile?@relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
   created DateTime? @default(now())
 }
-
+model AccessRequest {
+    id String @id @default(auto()) @map("_id") @db.ObjectId
+    role Role
+    profileId String @db.ObjectId
+    profile Profile @relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+    objId String
+    objType Content
+    created DateTime? @default(now())
+}
 model StoryToCollection {
   id String @id @default(auto()) @map("_id") @db.ObjectId
   storyId String? @db.ObjectId
@@ -78,6 +89,9 @@ model StoryToCollection {
   index Int?
   collection Collection @relation(fields: [collectionId], references: [id])
   collectionId String @db.ObjectId
+  profileId String? @db.ObjectId
+  profile Profile? @relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+    
   created DateTime? @default(now())
 }
 model RoleToCollection{
@@ -100,11 +114,17 @@ model RoleToStory{
   updated DateTime? @default(now())
   created DateTime? @default(now())
 }
+
 enum Role {
   reader
   editor
   commenter
   writer
+}
+enum Content{
+  profile
+  collection
+  story
 }
 model Comment {
      id      String  @id @default(auto()) @map("_id") @db.ObjectId
@@ -155,13 +175,17 @@ model HashtagComment{
     comment Comment @relation(fields: [commentId], references: [id])
     profileId String @db.ObjectId
     profile Profile @relation(fields: [profileId], references: [id])
+  created DateTime? @default(now())
 }
 model CollectionToCollection {
   id String @id @default(auto()) @map("_id") @db.ObjectId
+  index Int?
   parentCollection Collection @relation(name: "ChildToParent", fields: [parentCollectionId], references: [id])
   parentCollectionId String @db.ObjectId
   childCollectionId  String  @db.ObjectId
   childCollection Collection @relation(name: "ParentToChild",fields: [childCollectionId], references: [id])
+  profileId String? @db.ObjectId
+  profile Profile? @relation(fields: [profileId], references: [id])
   created DateTime? @default(now())
 }
 model Story{
