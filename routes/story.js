@@ -128,7 +128,7 @@ module.exports = function (authMiddleware){
     }
     })
     router.get("/:id/protected",authMiddleware,async (req,res)=>{
-
+try{
         let story = await prisma.story.findFirst({where: {
             id:req.params.id}})
         if(story){
@@ -137,6 +137,10 @@ module.exports = function (authMiddleware){
         }else{
             res.status(404).json({message:"Story not found"})
         }
+
+    }catch(error){
+        res.status({error})
+    }
     })
     router.get("/:id/public",async (req,res)=>{
         let story = await prisma.story.findFirst({where: {
@@ -185,9 +189,20 @@ try{
         }
     }
     })
-    router.delete(":/id",async (req,res)=>{
-        let story = prisma.story.delete({where:{id:req.params.id}})
-        res.status(202).json({message:"success"})
+    router.delete("/:id",authMiddleware,async (req,res)=>{
+        try{
+            let story = await prisma.story.findFirst({where:{id:req.params.id}})
+            if(story){
+                await prisma.story.delete({where:{id:story.id}})
+          
+            }
+            res.status(202).json({message:"Deleted Successesfully"})
+
+        }catch(error){
+            console.log(error)
+            res.json({error})
+        }
+
     })
     router.post("/",authMiddleware,async (req,res)=>{
     // try{
