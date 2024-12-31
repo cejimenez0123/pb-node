@@ -73,6 +73,20 @@ try{
         res.status(409).json({error:err})
     }
     })
+    // const recommendStories = async (userId) => {
+    //     // Fetch user history
+    //     const user = await prisma.user.findUnique({
+    //       where: { id: userId },
+    //       include: { likedStory: true, history: true },
+    //     });
+      
+    //     // Fetch recommendations (dummy example)
+    //     const recommendations = await prisma.story.findMany({
+    //       where: { hashtags: { hasSome: user.likedStory[0]?.hashtags } },
+    //     });
+      
+    //     return recommendations;
+    //   };
     router.put("/:id",authMiddleware,async (req,res)=>{
         const {username,profilePicture,selfStatement,privacy} = req.body
       try{

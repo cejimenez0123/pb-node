@@ -90,21 +90,63 @@ module.exports = function (authMiddleware){
         res.json({error:e})
         }
     })
-    router.post("/:id/role",async (req,res)=>{
-            const {profileId,role} = req.body
-         let roleToCollection = await prisma.roleToCollection.create({data:{
-            colleciton:{
-                connect:{
-                    id:req.params.id,
-                }},
-            profile:{
-                connect:{
-                    id: profileId
+    router.patch("/:id/role",async (req,res)=>{
+        const {roles}=req.body
+        try{
+          
+        let updated= roles.map(role=>{
+
+            if(role.role=="role"){
+                if(role.id){
+                return prisma.roleToStory.delete({where:{id:role.id}})
                 }
-            },
-            role:role
-          }})  
-        res.json({role:roleToCollection})
+            }else{
+                if(roles.role && roles.id.length>10){
+            return prisma.roleToCollection.upsert({
+                where:{
+                    id:role.id
+                },
+                update:{
+                    role:role.role,
+                },
+                create:{
+                    role:role.role,
+                    profileId:role.profile.id,
+                    collecitonId:role.item.id
+                }
+               , include:{
+                    collection:true,
+                    profile:true
+                }})
+            }else{
+                return prisma.roleToCollection.create({data:{
+                    role:role.role,
+                    profile:{
+                        connect:{
+                            id:role.profile.id
+                        }
+                    },
+                    collection:{
+                        connect:{
+                            id:role.item.id
+                        }
+                    }
+                },include:{
+                    collection:true,
+                    profile:true
+                }})
+            }}
+            })
+    let newRoles = await Promise.all(updated)
+   
+    res.json({roles:newRoles.filter(role=>!!role)})
+
+        }catch(error){
+            console.log(error)
+            res.json({error})
+        }
+
+        
     })
     router.get("/:id/profile/:profileId",async (req,res)=>{
         try{

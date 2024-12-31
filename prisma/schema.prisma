@@ -40,10 +40,13 @@ model Profile{
     requests AccessRequest[]
     hashtags HashtagStory[]
     stories Story[]
+    likedStories UserStoryLike[]
+    historyStories UserStoryHistory[]
     storyToCollections StoryToCollection[]
     collectionToCollections CollectionToCollection[]
     collections Collection[] 
     rolesToStory RoleToStory[]
+    collectionHistory UserCollectionHistory[]
     rolesToCollection RoleToCollection[]
     comments Comment[] 
 
@@ -64,6 +67,14 @@ model Hashtag {
   name      String   @unique
   comments HashtagComment[]
   stories   HashtagStory[]  
+}
+model UserCollectionHistory {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  collection Collection? @relation( fields: [collectionId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+  collectionId String? @db.ObjectId
+  profileId String @db.ObjectId
+  profile Profile?@relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+  created DateTime? @default(now())
 }
 model ProfileToCollection{
   id String @id @default(auto()) @map("_id") @db.ObjectId
@@ -166,6 +177,8 @@ model Collection{
     isOpenCollaboration Boolean @default(false)
     updated DateTime? @default(now())
     created DateTime? @default(now())
+
+    userHistory UserCollectionHistory[]
 }
 model HashtagComment{
     id String @id @default(auto()) @map("_id") @db.ObjectId
@@ -188,6 +201,23 @@ model CollectionToCollection {
   profile Profile? @relation(fields: [profileId], references: [id])
   created DateTime? @default(now())
 }
+model UserStoryLike {
+    id    String @id @default(auto()) @map("_id") @db.ObjectId
+    storyId String @db.ObjectId
+   story Story @relation(fields: [storyId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+   profile Profile @relation(fields: [profileId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+   profileId String @db.ObjectId
+   created DateTime? @default(now())
+}
+model UserStoryHistory{
+    id    String @id @default(auto()) @map("_id") @db.ObjectId
+    storyId String @db.ObjectId
+    story Story @relation(fields: [storyId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+    profile Profile @relation(fields: [profileId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+    profileId String @db.ObjectId
+    created DateTime? @default(now())
+}
+
 model Story{
    id    String @id @default(auto()) @map("_id") @db.ObjectId
    title String
@@ -195,8 +225,11 @@ model Story{
    approvalScore Int @default(0)
    isPrivate Boolean @default(true)
    authorId String @db.ObjectId
+ 
    author Profile @relation(fields: [authorId], references: [id],onDelete:Cascade,onUpdate:Cascade)
    commentable Boolean
+    storyLikes UserStoryLike[]
+    storyHistory UserStoryHistory[]
    betaReaders RoleToStory[]
    comments Comment[]
    hashtags HashtagStory[]
@@ -204,6 +237,8 @@ model Story{
    collections StoryToCollection[]
    updated DateTime? @default(now())
    created DateTime? @default(now())
+
+   
 }
 enum StoryType {
   html

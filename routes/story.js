@@ -1,16 +1,19 @@
 const express = require('express');
 const prisma = require("../db");
-const { equal } = require('assert');
-
 
 const router = express.Router()
 
 module.exports = function (authMiddleware){
     router.get("/",async (req,res)=>{
-       let stories = await prisma.story.findMany({where:{
+        try{
+       let stories = await prisma.story.findMany({ where:{
         isPrivate:{equals: false}
        }})
         res.json({stories})
+    }catch(error){
+        console.log({error})
+        res.json({error})
+    }
     })
     router.get("/collection/:id/public",async (req,res)=>{
         let list = await prisma.storyToCollection.findMany({where:{
@@ -160,7 +163,7 @@ module.exports = function (authMiddleware){
     res.json({role:roleToCollection})
 })
     router.put("/:id", async (req,res)=>{
-
+try{
         const {title,data,isPrivate,commentable,type}= req.body
     
         const story = await prisma.story.update({where:{
@@ -170,9 +173,15 @@ module.exports = function (authMiddleware){
             data,
             isPrivate,
             commentable,
-            type
+            type,
+            updated: new Date()
         }})
         res.status(200).json({story})
+    }catch(error){
+        return{
+            error
+        }
+    }
     })
     router.delete(":/id",async (req,res)=>{
         let story = prisma.story.delete({where:{id:req.params.id}})

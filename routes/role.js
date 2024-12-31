@@ -114,7 +114,7 @@ try{
                     create:{
                         role:role.role,
                         profileId:role.profile.id,
-                        storyId:role.story.id
+                        storyId:role.item.id
                     }
                    , include:{
                         story:true,
@@ -130,7 +130,7 @@ try{
                         },
                         story:{
                             connect:{
-                                id:role.story.id
+                                id:role.item.id
                             }
                         }
                     },include:{
