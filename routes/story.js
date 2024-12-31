@@ -6,7 +6,9 @@ const router = express.Router()
 module.exports = function (authMiddleware){
     router.get("/",async (req,res)=>{
         try{
-       let stories = await prisma.story.findMany({ where:{
+       let stories = await prisma.story.findMany({orderBy:{
+        created:"desc"
+       }, where:{
         isPrivate:{equals: false}
        }})
         res.json({stories})
