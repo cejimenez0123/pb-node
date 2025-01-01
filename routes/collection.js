@@ -10,11 +10,14 @@ const router = express.Router()
 module.exports = function (authMiddleware){
     router.get("/",async (req,res)=>{
         //GET ALL PUBLIC COLLECTIONS
+        try{
         const collection = await prisma.collection.findMany(
             {where:{isPrivate:{equals:false}}})
 
         res.status(200).json({data:collection})
-
+        }catch(error){
+            res.json({error})
+        }
 
 
     })
@@ -180,6 +183,7 @@ module.exports = function (authMiddleware){
     })
     router.get("/public/book",async (req,res)=>{
         //GET ALL PUBLIC BOOKS
+        try{
         const books  = 
             await prisma.collection.findMany({
                 where:{
@@ -194,22 +198,29 @@ module.exports = function (authMiddleware){
             }}
         })
         res.json({books})
+    }catch(error){
+        res.json({error})
+    }
     })
     router.get("/:id",async (req,res)=>{
 
         //GET COLLECTION
+        try{
         const collection = await prisma.collection.findFirst({where:{
             id: req.params.id
         },include:{
             storyIdList:true,
             childCollections:true
         }})
-        console.log("colds",collection)
+       
         res.status(200).json({collection:collection})
+    }catch(error){
+        res.json({error})
+    }
     })
 router.get("/:id/collection/protected",authMiddleware,async (req,res)=>{
     const {id}=req.params
-
+try{
     const collections =await prisma.collectionToCollection.findMany(
         {where:
             {parentCollectionId:{
@@ -222,10 +233,13 @@ router.get("/:id/collection/protected",authMiddleware,async (req,res)=>{
         }})
    
         res.json({collections})
+    }catch(error){
+        res.json({error})
+    }
 })
 router.get("/:id/collection/public",authMiddleware,async (req,res)=>{
     const {id}=req.params
-
+try{
     let collections = await prisma.collectionToCollection.findMany(
         {where:
             {AND:
@@ -241,6 +255,10 @@ router.get("/:id/collection/public",authMiddleware,async (req,res)=>{
             childCollection:true
         }})
     res.json({collections})
+}catch(error){
+    console.log(error)
+    res.json({error})
+}
 })
 router.post("/:id/collection",authMiddleware,async (req,res)=>{
     //ADD COLLECTION TO COLLECTION
@@ -293,6 +311,7 @@ res.json({collection})
 )
 router.post("/:id/story",authMiddleware,async (req,res)=>{
     //ADD story TO COLLECTION
+    try{
     const {id}=req.params
     const {list}=req.body
     let promises = list.map(childId=>{
@@ -319,10 +338,14 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
     }})
     console.log(col)
     res.status(201).json({collection:col})
+}catch(error){
+    res.json({error})
+}
 }
 )
     router.delete("/:id/collection/:childId",async (req,res)=>{
         //REMOVE COLLECTION FROM COLLECTION
+        try{
     const {id,childId}=req.params
     const joint = await prisma.collectionToCollection.deleteMany({
         data:{
@@ -338,12 +361,16 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
             }
         }
     })
-    res.status(204)
+    res.status(204).json({message:"Deleted Successfully"})
+}catch(error){
+    res.json({error})
+}
 }
 )
 
     router.delete("/:id/story/:storyId",async (req,res)=>{
         //DELETE STORY FROM COLLECTION
+        try{
         const {storyId,id}=req.params
         await prisma.storyToCollection.deleteMany({where:{
             story:{
@@ -354,7 +381,9 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
             }
         }})
 
-
+    }catch(error){
+        res.json({error})
+    }
 
     })
     router.delete("/collection/",authMiddleware,async (req,res)=>{
@@ -472,6 +501,7 @@ console.log(sTc)
     })
     router.get("/profile/private",authMiddleware,async (req,res)=>{
         //Library
+        try{
         const profile = await prisma.profile.findFirst({where:{
             userId:{
                 equals: req.user.id
@@ -484,17 +514,25 @@ console.log(sTc)
             storyIdList:true 
         }})
         res.json({collections:data})
+    }catch(error){
+        res.json({error})
+    }
     })
     router.get("/profile/:id/library",async (req,res)=>{
         //Library
+        try{
         let data = await prisma.collection.findMany({where:{
            profile:{
             id: req.params.id
            }
         }})
         res.json({collection:data})
+    }catch(error){
+        res.json({error})
+    }
     })
     router.get("/profile/:id/book",async (req,res)=>{
+        try{
         let data = await prisma.collection.findMany({where:{
            
             AND:{  
@@ -506,9 +544,13 @@ console.log(sTc)
                 }
         }}})
         res.json({collections:data})
+    }catch(error){
+        res.json({error})
+    }
     })
     router.put("/:id",async (req,res)=>{
-     const {title,purpose,isPrivate,isOpenCollaboration}=doc
+        try{
+     const {title,purpose,isPrivate,isOpenCollaboration}=req.body
         let data = await prisma.collection.update({
             where:{
                 id:req.params.id
@@ -522,9 +564,13 @@ console.log(sTc)
         })
 
         res.json({collection:data})
+    }catch(error){
+        res.json({error})
+    }
     })
     router.post("/",authMiddleware,async (req,res)=>{
         const doc = req.body
+        try{
         const {title,purpose,isPrivate,profileId,isOpenCollaboration}=doc
         const collection = await prisma.collection.create({data:{
             title:title,
@@ -540,6 +586,9 @@ console.log(sTc)
         
         
         res.status(201).json({collection:collection})
+    }catch(error){
+        res.json({error})
+    }
     })
 
     return router
