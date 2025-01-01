@@ -16,7 +16,7 @@ module.exports = function (authMiddleware){
     })
     router.post("/referral",authMiddleware,async (req,res)=>{
     const {email,name}=req.body
-
+try{
 
 // const hashReferralToken = await bcrypt.hash(referralToken, 10)
 const user = await prisma.user.create({
@@ -122,7 +122,9 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
           } catch (error) {
             console.error(error);
             res.json({error})
-          }})
+}}catch(error){
+  res.json({error})
+}})
 
     router.post("/apply",async (req,res)=>{
         const {
@@ -221,20 +223,20 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
                     </html>
                   `
               };
-              try {
+            
                 await transporter.sendMail(mailOptions);
                 res.json({message:'Applied Successfully!'});
-              } catch (error) {
-                console.error(error);
-                res.json({error})
-              }
+        
 
             }catch(error){
                 console.log(error)
                 if(error.message.includes("Unique")){
                     res.json({message:"User has already applied"})
+                }else{
+                  res.json({error})
                 }
             }
+
     })
     router.post('/review', async (req, res) => {
         const { applicantId, action } = req.body;
@@ -352,6 +354,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
         const{ id, token, uId,email,password,username,
         profilePicture,selfStatement,privacy
        }=req.body
+       try{
         let mongoId = generateMongoId(uId)
         if (!email || !password) {
             return res.status(400).json({ message: 'Missing required fields' });
@@ -388,13 +391,20 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
             }
         })
         res.json({profile,token:verifiedToken})
+      }catch(error){
+        res.json({error})
+      }
     })
     router.get("/user/:userId/profile",async (req,res)=>{
         const {userId} = req.params
+        try{
         const profiles = await prisma.profile.findMany({where:{user:{
             id:userId
         }}})
         res.status(200).json({data:profiles})
+      }catch(error){
+        res.json({error})
+      }
     })
 
     router.post("/",async (req,res)=>{
