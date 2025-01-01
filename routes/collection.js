@@ -215,6 +215,7 @@ module.exports = function (authMiddleware){
        
         res.status(200).json({collection:collection})
     }catch(error){
+        console.log(error)
         res.json({error})
     }
     })
