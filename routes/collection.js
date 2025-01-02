@@ -323,12 +323,12 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
     try{
     const {id}=req.params
     const {list}=req.body
-    let promises = list.map(childId=>{
+    let promises = list.map(story=>{
         return prisma.storyToCollection.create({
             data:{
                 story:{
                     connect:{
-                        id:childId
+                        id:story.id
                     }
                 },
                 collection:{
@@ -345,9 +345,10 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         storyIdList:true,
         childCollections:true
     }})
-    console.log(col)
-    res.status(201).json({collection:col})
+   
+    res.json({collection:col})
 }catch(error){
+    console.log({error})
     res.json({error})
 }
 }
@@ -370,7 +371,8 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
             }
         }
     })
-    res.status(204).json({message:"Deleted Successfully"})
+    let collection = await prisma.collection.findFirst({where:{id:{equals:req.params.id}}})
+    res.status(204).json({collection,message:"Deleted Successfully"})
 }catch(error){
     res.json({error})
 }
@@ -389,8 +391,13 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
                 id:id
             }
         }})
-
+        let collection = await prisma.collection.findFirst({where:{id:{equals:req.params.id}},include:{
+            storyIdList:true,
+            childCollections:true
+        }})
+        res.json({collection,message:"Deleted Successfully"})
     }catch(error){
+        console.log(error)
         res.json({error})
     }
 
