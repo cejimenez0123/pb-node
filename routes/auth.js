@@ -128,11 +128,19 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
 
     router.post("/apply",async (req,res)=>{
         const {
+        
             igHandle,
             fullName,
             email,
             whyApply,
-            howFindOut
+            howFindOut,
+            communityNeeds,
+            workshopPreference,
+            feedbackFrequency,
+        
+            comfortLevel,
+            platformFeatures,
+            genres
         } = req.body
 
     try{
@@ -209,7 +217,18 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
                         <p><strong>Email:</strong> ${email}</p>
                         <p><strong>Instagram Handle:</strong> ${igHandle}</p>
                         <p><strong>Why did they apply:</strong> ${whyApply}</p>
+                        
                         <p><strong>How did they find out:</strong> ${howFindOut}</p>
+                        <p><strong>Community Need:</strong> ${communityNeeds}</p>
+                        <p><strong>Comfort Level:</strong> ${comfortLevel}</p>
+                        <p><strong>platform features:</strong> ${platformFeatures}</p>
+                        <p><strong>Workshop Preference:</strong>${workshopPreference}</p>
+                        <p><strong>Feedback Frequency:</strong>${feedbackFrequency}</p>
+                        <p><strong>Genres:</strong></p>
+                        <ul>
+                        ${genres.map(genre=>{
+                        return(`<li><p>${genre}</p></li>`)})}
+                        </ul>
                         </div>
                         <div class="form">
                           <form action="${process.env.BASEPATH+"/auth/review"}" method="POST">
