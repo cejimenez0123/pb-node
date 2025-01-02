@@ -235,27 +235,35 @@ try{
    
         res.json({collections})
     }catch(error){
+        console.log(error)
         res.json({error})
     }
 })
-router.get("/:id/collection/public",authMiddleware,async (req,res)=>{
+router.get("/:id/collection/public",async (req,res)=>{
     const {id}=req.params
 try{
+    let collection = await prisma.collection.findFirst({where:{
+        id:{equals:id}
+    }})
+    if(collection.isPrivate==false){
+
+  
     let collections = await prisma.collectionToCollection.findMany(
         {where:
             {AND:
-                [{parentCollectionId:{equals:id}},
-                {childCollection:{
-                    isPrivate:{
-                        equals:false
-                    }
-                }
-            }
+                [{parentCollectionId:{equals:id}}
+               
+
             ]}
         ,include:{
-            childCollection:true
+            childCollection:true,
+            parentCollection:true,
+            profile:true
         }})
-    res.json({collections})
+    res.json({list:collections})
+    }else{
+        throw new Error("Private")
+    }
 }catch(error){
     console.log(error)
     res.json({error})

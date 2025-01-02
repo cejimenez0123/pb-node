@@ -18,14 +18,16 @@ module.exports = function (authMiddleware){
     }
     })
     router.get("/collection/:id/public",async (req,res)=>{
+try{
+    const {id}=req.params
+        let collection = await prisma.collection.findFirst({where:{id:{equals:id}}})
+
+    if(!collection.isPrivate){
         let list = await prisma.storyToCollection.findMany({where:{
             AND:{
                 collectionId:{
-                    equals:req.params.id
+                    equals:id
                 },
-                story:{
-                    isPrivate:false
-                }
             }
 
         },include:{
@@ -33,6 +35,12 @@ module.exports = function (authMiddleware){
         }})
 
         res.json({list})
+    }else{
+        throw new Error("is Private")
+    }
+    }catch(error){
+        res.json(error)
+    }
     })
     router.get("/collection/:id/protected",authMiddleware,async (req,res)=>{
        try{
