@@ -635,7 +635,9 @@ console.log(sTc)
             userId:{
                 equals: req.user.id
             }
-        }})
+        },include:{likedStories:true,
+            historyStories:true,
+            collectionHistory:true,}})
         let data = await prisma.collection.findMany({where:{
           profileId:{equals:profile.id}
         },include:{

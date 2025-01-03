@@ -71,6 +71,11 @@ try{
         try{
         const profile = await prisma.profile.findFirst({where:{
             id: req.params.id
+        },include:{
+            likedStories:true,
+            historyStories:true,
+            collectionHistory:true,
+         
         }})
         res.status(200).json({profile:profile})
 

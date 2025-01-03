@@ -7,7 +7,7 @@ const bcrypt = require("bcryptjs");
 const { connect } = require('http2');
 
 module.exports = function (authMiddleware){
-    router.post("/",authMiddleware,async(req,res)=>{
+    router.post("/story",authMiddleware,async(req,res)=>{
         const {profile,story}=req.body
         try{
        let like = await prisma.userStoryLike.create({data:{
@@ -33,10 +33,11 @@ module.exports = function (authMiddleware){
         }})
         res.json({profile:updatedProfile})
     }catch(error){
+        console.log({error})
         res.json({error})
     }
     })
-    router.delete("/:id",authMiddleware,async(req,res)=>{
+    router.delete("/story/like/:id",authMiddleware,async(req,res)=>{
         try{
            await prisma.userStoryLike.delete({where:{
                 id:req.params.id

@@ -18,7 +18,6 @@ module.exports = function (authMiddleware){
     const {email,name}=req.body
 try{
 
-// const hashReferralToken = await bcrypt.hash(referralToken, 10)
 const user = await prisma.user.create({
   data:{
     email:email,
@@ -419,7 +418,9 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
         try{
         const profiles = await prisma.profile.findMany({where:{user:{
             id:userId
-        }}})
+        }},include:{likedStories:true,
+          historyStories:true,
+          collectionHistory:true}})
         res.status(200).json({data:profiles})
       }catch(error){
         res.json({error})
