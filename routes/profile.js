@@ -46,6 +46,12 @@ try{
              username:username,
             selfStatement:selfStatement,
             isPrivate:privacy
+        },include:{
+            likedStories:true,
+            historyStories:true,
+            collectionHistory:true,
+            collections:true,
+            stories:true
         }})
         const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
         res.json({profile,token:verifiedToken})
@@ -97,6 +103,12 @@ try{
             profilePic:profilePicture,
             selfStatement:selfStatement,
             isPrivate:privacy
+        },include:{
+            likedStories:true,
+            historyStories:true,
+            collectionHistory:true,
+            collections:true,
+            stories:true
         }})
         res.json({profile})
 
@@ -110,7 +122,11 @@ try{
             user:{
                 id: req.params.id
             }
-        }})
+        },include:{   likedStories:true,
+            historyStories:true,
+            collectionHistory:true,
+            collections:true,
+            stories:true}})
     
     res.json({profiles})
 }catch(err){
@@ -126,6 +142,12 @@ try{
                 user:{
                     id: req.user.id
                 }
+            },include:{
+                likedStories:true,
+                historyStories:true,
+                collectionHistory:true,
+                collections:true,
+                stories:true
             }})
           
              

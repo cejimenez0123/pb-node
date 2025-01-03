@@ -32,7 +32,13 @@ module.exports = function (authMiddleware){
             },include:{
                 
                storyIdList:true,
-               childCollections:true
+               childCollections:true,
+               roles:{
+                include:{
+                    profile:true,
+                }
+            },
+            profile:true
             
                 
             }})
@@ -192,11 +198,18 @@ module.exports = function (authMiddleware){
                             childCollections:{
                                 none:{}
                             },
-                        storyIdList:{
-                            some:{}
-                            }
+                        
             }}
-        })
+        ,include:{
+            childCollections:true,
+            storyIdList:true,
+            roles:{
+                include:{
+                    profile:true,
+                }
+            },
+            profile:true
+        }})
         res.json({books})
     }catch(error){
         res.json({error})
@@ -207,15 +220,47 @@ module.exports = function (authMiddleware){
         //GET COLLECTION
         try{
         const collection = await prisma.collection.findFirst({where:{
-            id: req.params.id
+            AND:[{id:{equals:req.params.id}},{isPrivate:false}]
+            
         },include:{
             storyIdList:true,
-            childCollections:true
+            childCollections:true,
+            roles:{
+                include:{
+                    profile:true,
+                }
+            },
+            profile:true
+            
         }})
        
         res.status(200).json({collection:collection})
     }catch(error){
         console.log(error)
+        res.json({error})
+    }
+    })
+    router.get("/:id/protected",authMiddleware,async (req,res)=>{
+
+        //GET COLLECTION
+        try{
+        const collection = await prisma.collection.findFirst({where:{
+            id: req.params.id
+        },include:{
+            storyIdList:true,
+            childCollections:true,
+            roles:{
+                include:{
+                    profile:true,
+                }
+            },
+            profile:true
+            
+        }})
+       
+        res.status(200).json({collection:collection})
+    }catch(error){
+    
         res.json({error})
     }
     })
@@ -228,9 +273,20 @@ try{
                 equals:id
             }
         },include:{
-            childCollection:true,
+            childCollection:{
+                include:{
+                    storyIdList:true,
+                    childCollections:true,
+                    roles:{
+                        include:{
+                            profile:true,
+                        }
+                    },
+                    profile:true
+                }
+            },
             parentCollection:true,
-            profile:true
+            profile:true,
         }})
    
         res.json({collections})
@@ -256,7 +312,19 @@ try{
 
             ]}
         ,include:{
-            childCollection:true,
+            childCollection:{
+                include:{
+                        storyIdList:true,
+                        childCollections:true,
+                        roles:{
+                            include:{
+                                profile:true,
+                            }
+                        },
+                        profile:true
+                    
+                }
+            },
             parentCollection:true,
             profile:true
         }})
@@ -273,7 +341,7 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
     //ADD COLLECTION TO COLLECTION
    
    try{ const {id}=req.params
-    const {list}=req.body
+    const {list,profile}=req.body
   
 
 
@@ -301,6 +369,11 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
                   connect:{
                     id: id
                   }
+                },
+                profile:{
+                    connect:{
+                        id:profile.id
+                    }
                 }
             }
         })
@@ -310,7 +383,13 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
     let collection = await prisma.collection.findFirst({where:{id:id},
         include:{
         storyIdList:true,
-        childCollections:true
+        childCollections:true,
+        roles:{
+            include:{
+                profile:true,
+            }
+        },
+        profile:true
     }})
 res.json({collection})
 }catch(error){
@@ -322,7 +401,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
     //ADD story TO COLLECTION
     try{
     const {id}=req.params
-    const {list}=req.body
+    const {list,profile}=req.body
     let promises = list.map(story=>{
         return prisma.storyToCollection.create({
             data:{
@@ -336,6 +415,11 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
                         id:id
                     }
                 }
+                ,profile:{
+                    connect:{
+                        id:profile.id
+                    }
+                }
         
             }
         })
@@ -343,7 +427,13 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
     let joint = await Promise.all(promises)
     let col = await prisma.collection.findFirst({where:{id:id},include:{
         storyIdList:true,
-        childCollections:true
+        childCollections:true,
+        roles:{
+            include:{
+                profile:true,
+            }
+        },
+        profile:true
     }})
    
     res.json({collection:col})
@@ -393,7 +483,13 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         }})
         let collection = await prisma.collection.findFirst({where:{id:{equals:req.params.id}},include:{
             storyIdList:true,
-            childCollections:true
+            childCollections:true,
+            roles:{
+                include:{
+                    profile:true,
+                }
+            },
+            profile:true
         }})
         res.json({collection,message:"Deleted Successfully"})
     }catch(error){
@@ -437,13 +533,24 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
     
     router.patch("/:id",authMiddleware,async(req,res)=>{
         try{
-        const {storyToCol,colToCol,col} = req.body
+        const {id,title,purpose,isPrivate,isOpenCollaboration,storyToCol,colToCol,col,profile} = req.body
 
-        let initCol = await prisma.collection.findFirst({where:{
+        let initCol = await prisma.collection.update({where:{
             id:col.id
+        },data:{
+            purpose:purpose,
+            title:title,
+            isPrivate,
+            isOpenCollaboration
         },include:{
             storyIdList:true,
-            childCollections:true
+            childCollections:true,
+            roles:{
+                include:{
+                    profile:true,
+                }
+            },
+            profile:true
         }})
  
 
@@ -507,7 +614,13 @@ console.log(sTc)
         id:col.id
     },include:{
         storyIdList:true,
-        childCollections:true
+        childCollections:true,
+        roles:{
+            include:{
+                profile:true,
+            }
+        },
+        profile:true
     }})
     res.json({collection:updatedCol})
         }catch(error){
@@ -527,7 +640,13 @@ console.log(sTc)
           profileId:{equals:profile.id}
         },include:{
             childCollections:true,
-            storyIdList:true 
+            storyIdList:true,
+            roles:{
+                include:{
+                    profile:true,
+                }
+            },
+            profile:true
         }})
         res.json({collections:data})
     }catch(error){

@@ -189,29 +189,37 @@ try{
             profile:true,
             collection:true
         }})
-
-        res.json({role})
-    }catch(err){
-        res.status(409).json({error:err})
+        let collection = await prisma.collection.findFirst({where:{
+           id:collectionId
+        },include:{
+            roles:true,
+            childCollections:true,
+            storyIdList:true
+        }})
+        res.json({role,collection})
+    }catch(error){
+        console.log({error})
+        res.status(409).json({error})
     }
     })
-    router.post("/collection/:id",authMiddleware,async(req,res)=>{
+    router.delete("/collection/:id",authMiddleware,async(req,res)=>{
      
 try{
-       await prisma.roleToCollection.delete({where:{id:req.params.id}})
-
-        res.json({message:"Success"})
+       let data = await prisma.roleToCollection.delete({where:{id:req.params.id}})
+console.log(data)
+        res.json({message:"Deleted Successfully"})
 
 }catch(err){
+    
     res.status(409).json({error:err})
 }
     })
-    router.post("/story/:id",authMiddleware,async(req,res)=>{
+    router.delete("/story/:id",authMiddleware,async(req,res)=>{
         try{
 
-        let role= await prisma.roleToStory.delete({where:{id:req.params.id}})
+         await prisma.roleToStory.delete({where:{id:req.params.id}})
   
-          res.json({role})
+          res.json({message:"Deleted Succesfully"})
         }catch(err){
             res.status(409).json({error:err})
         }
@@ -222,8 +230,17 @@ try{
                await prisma.roleToCollection.update({where:{id:req.params.id},data:{
                role:req.body.role
                }})
-        
-                res.json({message:"Success"})
+                let collection = await prisma.collection.findFirst({where:{
+                    id:{
+                        equals:req.params.id
+                    }
+                },include:{
+                    roles:true,
+                    storyIdList:true,
+                    childCollections:true,
+                    
+                }})
+                res.json({collection})
         
         }catch(err){
             res.status(409).json({error:err})
