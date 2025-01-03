@@ -1,19 +1,16 @@
 const express = require('express');
 const prisma = require("../db");
-const resend = require("..")
 const bcrypt = require("bcryptjs")
-const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const generateMongoId = require("./generateMongoId");
-const lib = require('passport');
 const nodemailer = require('nodemailer');
 const router = express.Router()
 module.exports = function (authMiddleware){
-    router.post("/user",async (req,res)=>{
-        const {email}= req.body
-        let user = await prisma.user.create({email})
-        res.json({user})
-    })
+    // router.post("/user",async (req,res)=>{
+    //     const {email}= req.body
+    //     let user = await prisma.user.create({email})
+    //     res.json({user})
+    // })
     router.post("/referral",authMiddleware,async (req,res)=>{
     const {email,name}=req.body
 try{
@@ -345,15 +342,14 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
           return res.status(401).json({ message: 'Invalid email or password' });
         }
         
-      
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
 
       
         res.json({ token,user });
       }else{
-        
+        console.log("poop",user)
         const user = await prisma.user.findFirstOrThrow({ where: { email:{equals:email} }});
-      
+    
         if (!user || !bcrypt.compareSync(password, user.password)) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
@@ -363,7 +359,8 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
 
 
 }catch(error){
-  res.status(409).json({error})
+  console.log({error})
+  res.json({error})
 }})
     router.post("/verify",async (req,res)=>{
 
@@ -409,19 +406,6 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
             }
         })
         res.json({profile,token:verifiedToken})
-      }catch(error){
-        res.json({error})
-      }
-    })
-    router.get("/user/:userId/profile",async (req,res)=>{
-        const {userId} = req.params
-        try{
-        const profiles = await prisma.profile.findMany({where:{user:{
-            id:userId
-        }},include:{likedStories:true,
-          historyStories:true,
-          collectionHistory:true}})
-        res.status(200).json({data:profiles})
       }catch(error){
         res.json({error})
       }
@@ -580,7 +564,31 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
         console.log(e)
     }
     })
-    
+    router.delete("/session",authMiddleware,async (req,res)=>{
+
+         try{     
+      if(req.user){
+        await prisma.profile.updateMany({where:{
+            userId:{equals:req.user.id}
+            
+        },data:{
+            isActive:false,
+        }})
+  
+      
+         
+        res.status(200).json({message:"Logged Out"})
+
+ 
+    }
+ 
+}catch(e){
+    res.status(404).json({message:"User not found"})
+}
+
+
+
+    })
     
 
     return router

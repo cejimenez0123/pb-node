@@ -19,11 +19,6 @@ module.exports = function (authMiddleware){
 
         const applicant = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
         
-        // const referralToken = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
-        
-        // prisma.referral.findFirst({where:{
-        //     referralToken:referralToken
-        // }})
         const hashedPassword = await bcrypt.hash(password, 10);
          let user = await prisma.user.update({
             where:{
@@ -84,20 +79,30 @@ try{
         res.status(409).json({error:err})
     }
     })
-    // const recommendStories = async (userId) => {
-    //     // Fetch user history
-    //     const user = await prisma.user.findUnique({
-    //       where: { id: userId },
-    //       include: { likedStory: true, history: true },
-    //     });
+    const recommendStories = async (profileId) => {
+        // Fetch user history
+        const profile = await prisma.profile.findFirst({where:{
+            id:{
+                equals:profileId
+            }
+        },include:{
+            likedStories:{
+                include:{
+                story:{
+                    include:{
+                        hashtags:true
+                    }
+                }
+                }
+            },
+        }})
+    
+        const recommendations = await prisma.story.findMany({
+          where: { hashtags: { hasSome: profile.likedStories[0]?.hashtags } },
+        });
       
-    //     // Fetch recommendations (dummy example)
-    //     const recommendations = await prisma.story.findMany({
-    //       where: { hashtags: { hasSome: user.likedStory[0]?.hashtags } },
-    //     });
-      
-    //     return recommendations;
-    //   };
+        return recommendations;
+      };
     router.put("/:id",authMiddleware,async (req,res)=>{
         const {username,profilePicture,selfStatement,privacy} = req.body
       try{
@@ -143,6 +148,12 @@ try{
         try{
           
         if(req.user){
+            await prisma.profile.updateMany({where:{
+                userId:{equals:req.user.id}
+            },data:{
+                isActive:true,
+                lastActive:new Date()
+            }})
             const profiles = await prisma.profile.findMany({where:{
                 user:{
                     id: req.user.id
@@ -161,7 +172,8 @@ try{
      
         }
      
-    }catch(e){
+    }catch(error){
+        console.log({error})
         res.status(404).json({message:"User not found"})
     }
     })

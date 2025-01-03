@@ -21,11 +21,21 @@ model User{
   googleId String?
   uId String?
   password String?
-  igHandle String? 
+  igHandle String?
+  locationId String? @db.ObjectId
+  location Location?  @relation(fields: [locationId], references: [id])
   profiles Profile[]
   verified Boolean @default(false)
   created DateTime? @default(now())
 }
+model Location {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  latitude  Float
+  longitude Float
+  user User[]
+  collection Collection[]
+}
+
 model Profile{
     id    String @id @default(auto()) @map("_id") @db.ObjectId
     profilePic String?
@@ -33,6 +43,8 @@ model Profile{
     profileToCollections ProfileToCollection[]
     selfStatement String @default("")
     userId String? @db.ObjectId
+    isActive Boolean? @default(false) 
+    lastActive  DateTime? @default(now())
     writerLevel Int? @default(1)
     hashtag HashtagComment[]
     user User? @relation(fields: [userId], references: [id])
@@ -49,7 +61,16 @@ model Profile{
     collectionHistory UserCollectionHistory[]
     rolesToCollection RoleToCollection[]
     comments Comment[] 
-
+    followers             Follow[]    @relation(name: "Followers")
+    following             Follow[]   @relation(name: "Following")
+    created DateTime? @default(now())
+}
+model Follow{
+    id String  @id @default(auto()) @map("_id") @db.ObjectId
+     followerId String @db.ObjectId
+    followingId String @db.ObjectId
+    follower       Profile  @relation(name: "Following", fields: [followerId], references: [id])
+    following      Profile  @relation(name: "Followers", fields: [followingId], references: [id])
     created DateTime? @default(now())
 }
 model HashtagStory{
@@ -176,6 +197,10 @@ model Collection{
     roles RoleToCollection[]
     followersAre Role? @default(commenter)
     isOpenCollaboration Boolean @default(false)
+    locationId String? @db.ObjectId
+    location      Location? @relation(fields: [locationId], references: [id])
+    startTime     DateTime? 
+  endTime       DateTime?
     updated DateTime? @default(now())
     created DateTime? @default(now())
 

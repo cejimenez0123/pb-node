@@ -2,6 +2,7 @@ const express = require("express");
 let session = require('cookie-session');
 const bodyParser = require("body-parser")
 const cors = require('cors')
+const http = require("http")
 const roleRoutes = require("./routes/role.js")
 const authRoutes = require("./routes/auth")
 const storyRoutes = require("./routes/story")
@@ -10,9 +11,13 @@ const profileRoutes = require("./routes/profile")
 const likeRoutes = require("./routes/like.js")
 const historyRoutes = require("./routes/history.js")
 const commentRoutes = require("./routes/comment.js")
+const workshopRoutes = require("./routes/workshop.js")
 const passport = require("passport")
 const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
+const { Server } = require('socket.io');
+
+const activeUsers = new Map()
 const app = express();
 const PORT = process.env.PORT
 app.use(cors({origin: true, credentials: true}))
@@ -40,6 +45,8 @@ app.use("/story",storyRoutes(authMiddleware))
 app.use("/profile",profileRoutes(authMiddleware))
 app.use("/collection",collectionRoutes(authMiddleware))
 app.use("/comment",commentRoutes(authMiddleware))
+app.use("/workshop",workshopRoutes(authMiddleware))
+
 setUpPassportLocal(passport);
 app.use(
     session({
@@ -49,7 +56,34 @@ app.use(
     }))
 app.use(passport.session());
 app.use(passport.initialize());
+    
+const server = http.createServer(app);
 app.listen(PORT, () => {
-console.log(`Server is running`+PORT)
-})
+    console.log(`Server is running`+PORT)
+    })
+    
+const io = new Server(server);
+io.on('connection', (socket) => {
+        console.log('A user connected:', socket.id);
+      
+        
+        socket.on('register', ({ userId, location }) => {
+          activeUsers.set(socket.id, { userId, location });
+          console.log(`User ${userId} registered at ${location.latitude}, ${location.longitude}`);
+        });
+      
+        // Handle user disconnection
+        socket.on('disconnect', () => {
+          const user = activeUsers.get(socket.id);
+          if (user) {
+            console.log(`User ${user.userId} disconnected`);
+            activeUsers.delete(socket.id);
+          }else{
+            console.log("Error")
+          }
+        });
+      });
+
+
+
 module.exports = app
