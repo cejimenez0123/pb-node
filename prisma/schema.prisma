@@ -131,8 +131,8 @@ model RoleToCollection{
   id String @id @default(auto()) @map("_id") @db.ObjectId
   profileId String  @db.ObjectId
   profile Profile @relation(fields: [profileId], references: [id])
-  collecitonId String @db.ObjectId
-  collection Collection @relation(fields: [collecitonId], references: [id])
+  collectionId String? @db.ObjectId
+  collection Collection? @relation(fields: [collectionId], references: [id])
   role Role @default(reader)
   updated DateTime? @default(now())
   created DateTime? @default(now())
@@ -196,6 +196,7 @@ model Collection{
     storyIdList StoryToCollection[]
     favedBy ProfileToCollection[]
     roles RoleToCollection[]
+    type CollectionType? @default(book)
     followersAre Role? @default(commenter)
     isOpenCollaboration Boolean @default(false)
     locationId String? @db.ObjectId
@@ -266,6 +267,11 @@ model Story{
     created DateTime? @default(now())
 
    
+}
+enum CollectionType{
+  feedback
+  book
+  library
 }
 enum StoryType {
   html

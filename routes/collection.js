@@ -1,5 +1,6 @@
 const express = require('express');
 const prisma = require("../db");
+const { createLocation } = require('../utils/locationUtil');
 const router = express.Router()
 
 module.exports = function (authMiddleware){
@@ -171,7 +172,7 @@ module.exports = function (authMiddleware){
                 create:{
                     role:role.role,
                     profileId:role.profile.id,
-                    collecitonId:role.item.id
+                    collectionId:role.item.id
                 }
                , include:{
                     collection:true,
@@ -428,19 +429,21 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
             }
         })
     })
+           let collection =  await prisma.collection.update({where:{id:id},data:{
+                type: "library"
+            },include:{
+                storyIdList:true,
+                childCollections:true,
+                roles:{
+                    include:{
+                        profile:true,
+                    }
+                },
+                profile:true
+            }})
     let joint = await Promise.all(promises)
     
-    let collection = await prisma.collection.findFirst({where:{id:id},
-        include:{
-        storyIdList:true,
-        childCollections:true,
-        roles:{
-            include:{
-                profile:true,
-            }
-        },
-        profile:true
-    }})
+    
 res.json({collection})
 }catch(error){
     console.log({error})
@@ -452,7 +455,8 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
     try{
     const {id}=req.params
     const {list,profile}=req.body
-    let promises = list.map(story=>{
+    const newList = list.filter(story=>story!=null)
+    let promises = newList.map(story=>{
         return prisma.storyToCollection.create({
             data:{
                 story:{
@@ -556,7 +560,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         try{
         const {id} = req.params
         await prisma.roleToCollection.deleteMany({where:{
-            collecitonId:{
+            collectionId:{
                 equals:id
             }
         }})
@@ -697,7 +701,7 @@ console.log(sTc)
             }
         },include:{likedStories:true,
             historyStories:true,
-            collectionHistory:true,}})
+            collectionHistory:true,location:true}})
         let cols = await prisma.collection.findMany({where:{
           profileId:{equals:profile.id}
         },include:{
@@ -730,9 +734,11 @@ console.log(sTc)
         }})
 
         let list = cTcs.map(cTc=>cTc.collection)
-
-        res.json({collections:[...cols,...list]})
+        const colList = [...cols,...list]
+        console.log(colList)
+        res.json({collections:colList})
     }catch(error){
+        console.log(error)
         res.json({error})
     }
     })
@@ -792,22 +798,48 @@ console.log(sTc)
     router.post("/",authMiddleware,async (req,res)=>{
         const doc = req.body
         try{
-        const {title,purpose,isPrivate,profileId,isOpenCollaboration}=doc
+        const {title,location,purpose,type,isPrivate,profileId,isOpenCollaboration}=doc
+        let locale = await createLocation(location)
+        console.log(locale)
+        let collectionType = type
+        if(collectionType!="feedback"){
+            collectionType="book"
+        }
         const collection = await prisma.collection.create({data:{
             title:title,
             purpose:purpose,
             isPrivate:isPrivate,
             isOpenCollaboration:isOpenCollaboration,
+            location:{
+                connect:{
+                    id:locale?locale.id:null,
+                }},
             profile:{
                 connect:{
                     id: profileId
                 }
-            }   
-        }})
+            }
+            ,type: collectionType
+        },
+            include:{
+    
+                storyIdList:true,
+                childCollections:true,
+                roles:{
+                 include:{
+                     profile:true,
+                 }
+             },
+             profile:true
+             
+                 
+             }
+        })
         
         
         res.status(201).json({collection:collection})
     }catch(error){
+        console.log(error)
         res.json({error})
     }
     })

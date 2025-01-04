@@ -75,7 +75,7 @@ io.on('connection', (socket) => {
   // Register user
   socket.on('register', async ({ profileId, location }) => {
     try {
-    
+       
       // Update the database
       let locale= null
     if(location){
@@ -111,7 +111,7 @@ try{
         }
       });
     
-      activeUsers.set(socket.id, updatedProfile.id);
+      activeUsers.set(socket.id, updatedProfile);
     }catch(error){
         console.error( error); 
     }}}catch(error){
@@ -120,7 +120,9 @@ try{
 
   // Handle user disconnection
   socket.on('disconnect', async () => {
-    const profileId = activeUsers.get(socket.id); // Lookup profileId
+    const profile = activeUsers.get(socket.id); // Lookup profileId
+   if(profile){
+    const profileId = profile.id
     if (profileId) {
       try {
         // Update the database
@@ -138,7 +140,7 @@ try{
       } catch (error) {
         console.error('Error during disconnection:', error.message);
       }
-    }
+    }}
   });
 });
 

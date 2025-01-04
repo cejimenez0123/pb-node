@@ -9,7 +9,7 @@ module.exports = function (authMiddleware){
     router.get("/collection/:id",authMiddleware,async(req,res)=>{
 try{
           let roles= await prisma.roleToCollection.findMany({where:{
-                collecitonId:{
+                collectionId:{
                     equals:req.params.id
                 }
             },include:{
@@ -60,10 +60,10 @@ try{
                     create:{
                         role:role.role,
                         profileId:role.profile.id,
-                        collecitonId:role.item.id
+                        collectionId:role.item.id
                     }
                    , include:{
-                        colleciton:true,
+                        collection:true,
                         profile:true
                     }})
                 }else{
@@ -86,13 +86,17 @@ try{
                 }}
                 })
         let newRoles = await Promise.all(updated)
-        let collection = await prisma.collection.findFirst({where:{id:{equals:roles[0].item.id}},include:{
-            roles:{
-                include:{
-                    profile:true
-                }
-            }
-        }})
+        let collection = await prisma.collection.findFirst({where:{id:{equals:roles[0].item.id}}
+            ,include:{
+                storyIdList:true,
+                childCollections:true,
+                roles:{
+                    include:{
+                        profile:true,
+                    }
+                },
+                profile:true
+            }})
         res.json({collection,roles:newRoles.filter(role=>!!role)})
 
             }catch(error){
