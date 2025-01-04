@@ -246,24 +246,24 @@ model UserStoryHistory{
 }
 
 model Story{
-   id    String @id @default(auto()) @map("_id") @db.ObjectId
-   title String
-   data String @default("")
-   approvalScore Int @default(0)
-   isPrivate Boolean @default(true)
-   authorId String @db.ObjectId
- 
-   author Profile @relation(fields: [authorId], references: [id],onDelete:Cascade,onUpdate:Cascade)
-   commentable Boolean
+    id    String @id @default(auto()) @map("_id") @db.ObjectId
+    title String
+    data String @default("")
+    approvalScore Int @default(0)
+    isPrivate Boolean @default(true)
+    authorId String @db.ObjectId
+    needsFeedback Boolean? @default(true)
+    author Profile @relation(fields: [authorId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+    commentable Boolean
     storyLikes UserStoryLike[]
     storyHistory UserStoryHistory[]
-   betaReaders RoleToStory[]
-   comments Comment[]
-   hashtags HashtagStory[]
-   type StoryType @default(html)
-   collections StoryToCollection[]
-   updated DateTime? @default(now())
-   created DateTime? @default(now())
+    betaReaders RoleToStory[]
+    comments Comment[]
+    hashtags HashtagStory[]
+    type StoryType @default(html)
+    collections StoryToCollection[]
+    updated DateTime? @default(now())
+    created DateTime? @default(now())
 
    
 }

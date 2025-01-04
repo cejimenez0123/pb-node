@@ -1,6 +1,5 @@
 const express = require('express');
 const prisma = require("../db");
-
 const router = express.Router()
 
 module.exports = function (authMiddleware){
@@ -41,6 +40,21 @@ try{
     }catch(error){
         res.json(error)
     }
+    })
+    router.get("/profile/private/draft",authMiddleware,async (req,res)=>{
+    
+            const profile = await prisma.profile.findFirst({where:{
+                userId:{
+                    equals:req.user.id
+                } 
+            }})
+            const stories = await prisma.story.findMany({where:{
+                AND:[{author:{
+                    id:{equals:profile.id}
+                }},{needsFeedback:{equals:true}}]
+            }})
+            res.status(200).json({stories})
+ 
     })
     router.get("/collection/:id/protected",authMiddleware,async (req,res)=>{
        try{
@@ -115,6 +129,28 @@ try{
         res.status(200).json({stories})
     })
     router.get("/profile/:id/public",async (req,res)=>{
+        try{
+        const stories = await prisma.story.findMany({where:{
+            AND:{
+               author:{
+                id:{
+                    equals: req.params.id
+                }
+               },
+            isPrivate:{
+                equals:false
+                
+            }
+                
+            }
+        }})
+      
+        res.status(200).json({stories})
+    }catch(error){
+        res.json({error})
+    }
+    })
+    router.get("/profile/:id/protected",async (req,res)=>{
         try{
         const stories = await prisma.story.findMany({where:{
             AND:{
