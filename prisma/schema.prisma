@@ -22,8 +22,7 @@ model User{
   uId String?
   password String?
   igHandle String?
-  locationId String? @db.ObjectId
-  location Location?  @relation(fields: [locationId], references: [id])
+
   profiles Profile[]
   verified Boolean @default(false)
   created DateTime? @default(now())
@@ -32,7 +31,7 @@ model Location {
   id    String @id @default(auto()) @map("_id") @db.ObjectId
   latitude  Float
   longitude Float
-  user User[]
+  profile Profile[]
   collection Collection[]
 }
 
@@ -46,6 +45,8 @@ model Profile{
     isActive Boolean? @default(false) 
     lastActive  DateTime? @default(now())
     writerLevel Int? @default(1)
+    locationId String? @db.ObjectId
+    location Location?  @relation(fields: [locationId], references: [id])
     hashtag HashtagComment[]
     user User? @relation(fields: [userId], references: [id])
     isPrivate Boolean?

@@ -1,6 +1,8 @@
 const express = require('express');
 const prisma = require("../db");
 const router = express.Router()
+const server = require("../server")
+const { Server } = require('socket.io');
 const activeUsers = new Map()
 const haversineDistance = (loc1, loc2) => {
     const toRad = (value) => (value * Math.PI) / 180;
@@ -39,36 +41,41 @@ function groupUsersByProximity(users, radius = 50){
   
     return groups;
   };
-module.exports = function (authMiddleware){
-    const activeUsers = new Map()
-    router.get('/active-users',async (req, res) => {
-        try{
-            const users = await prisma.profile.findMany({
-                where: { isActive: true },
-              });
-      res.json({profiles:users});
-
-    }catch(error){
-        res.json({error})
-    }
-    });
+module.exports = function (authMiddleware) {
     
+
+  
+    // Route: Get active users
+    router.get('/active-users', async (req, res) => {
+      try {
+        const users = await prisma.profile.findMany({
+          where: { isActive: true },
+        });
+        res.json({ profiles: users });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+  
     // Route: Get grouped users by proximity
-    router.get('/groups',async (req, res) => {
-        try{
-      const radius = req.query.radius || 50; // Default to 50 km
-      const users = Array.from(activeUsers.values());
-      const groups = groupUsersByProximity(users, radius);
-      console.log("groups",groups)
-      res.json({groups});
-
-        }catch(error){
-            console.log("Erri",error)
-            res.json({error})
-        }
+    router.get('/groups', async (req, res) => {
+      try {
+        const radius = parseFloat(req.query.radius) || 50; // Default to 50 km
+        const profiles = await prisma.profile.findMany({
+          where: { isActive: true },include:{
+            location:true
+          },
+        });
+        // console.log(profiles)
+        const groups = groupUsersByProximity(profiles, radius);
+        console.log("Group",groups)
+        res.json({ groups });
+      } catch (error) {
+        console.log(error)
+        res.status(500).json({ error: error.message });
+      }
     });
-    
-    return router
-
-    
-}
+  
+    return router;
+  };
+  
