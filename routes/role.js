@@ -60,7 +60,7 @@ try{
                     create:{
                         role:role.role,
                         profileId:role.profile.id,
-                        collecitonId:role.colleciton.id
+                        collecitonId:role.item.id
                     }
                    , include:{
                         colleciton:true,
@@ -76,7 +76,7 @@ try{
                         },
                         collection:{
                             connect:{
-                                id:role.collection.id
+                                id:role.item.id
                             }
                         }
                     },include:{
@@ -86,9 +86,17 @@ try{
                 }}
                 })
         let newRoles = await Promise.all(updated)
-        res.json({roles:newRoles.filter(role=>!!role)})
+        let collection = await prisma.collection.findFirst({where:{id:{equals:roles[0].item.id}},include:{
+            roles:{
+                include:{
+                    profile:true
+                }
+            }
+        }})
+        res.json({collection,roles:newRoles.filter(role=>!!role)})
 
             }catch(error){
+                console.log(error)
                 res.json({error})
             }
     })

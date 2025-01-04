@@ -46,7 +46,8 @@ try{
             historyStories:true,
             collectionHistory:true,
             collections:true,
-            stories:true
+            stories:true,
+            location:true
         }})
         const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
         res.json({profile,token:verifiedToken})
@@ -163,7 +164,8 @@ try{
                 historyStories:true,
                 collectionHistory:true,
                 collections:true,
-                stories:true
+                stories:true,
+                location:true
             }})
           
              

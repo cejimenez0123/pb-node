@@ -68,7 +68,7 @@ module.exports = function (authMiddleware) {
         });
         // console.log(profiles)
         const groups = groupUsersByProximity(profiles, radius);
-        console.log("Group",groups)
+    
         res.json({ groups });
       } catch (error) {
         console.log(error)

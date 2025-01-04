@@ -75,7 +75,7 @@ io.on('connection', (socket) => {
   // Register user
   socket.on('register', async ({ profileId, location }) => {
     try {
-        console.log("WEWE",{profileId,location})
+    
       // Update the database
       let locale= null
     if(location){
@@ -92,20 +92,11 @@ io.on('connection', (socket) => {
               latitude:location.latitude,
               longitude:location.longitude
            }})
-        
-        }
-    }else{
-        locale = await prisma.location.findFirst()
-        if(!locale){
-            locale = await prisma.location.create({data:{
-                latitude:40.7128,
-                longitude:74.0060
-            }})
+        }else{
+            locale = await prisma.location.findFirst()
+           
          }
-
-
-    }
-
+try{
       const updatedProfile = await prisma.profile.update({
         where: { id: profileId },
         data: {
@@ -120,14 +111,12 @@ io.on('connection', (socket) => {
         }
       });
     
-      // Save in-memory mapping
       activeUsers.set(socket.id, updatedProfile.id);
-
-    
-    } catch (error) {
-      console.error('Error during registration:', error.message);
-    }
-  });
+    }catch(error){
+        console.error( error); 
+    }}}catch(error){
+        console.log("Socket registration",error.message)
+    }})
 
   // Handle user disconnection
   socket.on('disconnect', async () => {
