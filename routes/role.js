@@ -185,7 +185,22 @@ try{
     router.post("/collection",authMiddleware,async(req,res)=>{
         let {type,profileId,collectionId}=req.body
         try{
-      let role= await prisma.roleToCollection.create({data:{
+      let role= await prisma.roleToCollection.findFirst({where:{
+        AND:[{profileId:{
+            equals:profileId
+        }},{collectionId:{
+            equals:collectionId
+        }}]
+
+      },include:{
+        profile:true,
+        collection:true
+    }})
+    
+    if(!role){
+
+    
+    role = await prisma.roleToCollection.create({data:{
             role:type,
             profile:{
                 connect:{
@@ -201,14 +216,26 @@ try{
             profile:true,
             collection:true
         }})
+    
         let collection = await prisma.collection.findFirst({where:{
-           id:collectionId
-        },include:{
-            roles:true,
-            childCollections:true,
-            storyIdList:true
-        }})
+            id:collectionId
+         },include:{
+             roles:true,
+             childCollections:true,
+             storyIdList:true
+         }})
         res.json({role,collection})
+    }else{
+        let collection = await prisma.collection.findFirst({where:{
+            id:collectionId
+         },include:{
+             roles:true,
+             childCollections:true,
+             storyIdList:true
+         }})
+        res.json({role,collection})
+    } 
+        
     }catch(error){
         console.log({error})
         res.status(409).json({error})

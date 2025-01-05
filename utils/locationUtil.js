@@ -3,7 +3,7 @@ const prisma = require("../db")
 const createLocation = async (location)=>{
     let locale= null
 
-if(location){
+    if(location){
     locale = await  prisma.location.findFirst({where:{
     latitude:{
         equals:location.latitude

@@ -19,32 +19,14 @@ const haversineDistance = (loc1, loc2) => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c; // Distance in km
   };
-function groupUsersByProximity({profile,users, radius = 50,collections}){
+function groupUsersByProximity({profile,items, radius = 50,}){
     const groups = [];
-    while (collections.length > 0) {
-        const col =collections.pop();
-        const group = col;
-        
-        collections = collections.filter((other) => {
-          const distance = haversineDistance(col.location, other.location);
-    
-          if (distance <= radius) {
-            groups.push(col);
-        
-            return false;
-          }
-          return true;
-        });
-        
-
-      
-      }
-    while (users.length > 0) {
-      const user = users.pop();
-      const group = [user];
+    while (items.length > 0) {
+      const item = items.pop();
+      const group = [item];
   
-      users = users.filter((other) => {
-        const distance = haversineDistance(user.location, other.location);
+      items = items.filter((other) => {
+        const distance = haversineDistance(item.location, other.location);
         if (distance <= radius) {
           group.push(other);
           return false;
@@ -54,7 +36,25 @@ function groupUsersByProximity({profile,users, radius = 50,collections}){
       
       groups.push(group);
     }
-  console.log(groups)
+    return groups;
+  };
+  function groupColsByProximity({profile,items, radius = 50,}){
+    const groups = [];
+    while (items.length > 0) {
+      const item = items.pop();
+    
+  
+      items = items.filter((other) => {
+        const distance = haversineDistance(profile.location, other.location);
+        if (distance <= radius) {
+          // group.push(other);
+          groups.push(other)
+          return false;
+        }
+        return true;
+      });
+      
+    }
     return groups;
   };
 module.exports = function (authMiddleware) {
@@ -107,9 +107,9 @@ module.exports = function (authMiddleware) {
           });
 
 
-      
-        const groups = groupUsersByProximity({profile,users:profiles, radius,collections});
- 
+        const cols = groupColsByProximity({profile:profile,items:collections,radius})
+        let groups = groupUsersByProximity({items:profiles, radius});
+        groups = [...groups,...cols]
         res.json({ groups });
       } catch (error) {
         console.log(error)
