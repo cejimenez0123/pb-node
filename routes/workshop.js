@@ -107,8 +107,10 @@ module.exports = function (authMiddleware) {
           });
 
 
-        const cols = groupColsByProximity({profile:profile,items:collections,radius})
+        let cols = groupColsByProximity({profile:profile,items:collections,radius})
         let groups = groupUsersByProximity({items:profiles, radius});
+        cols = cols.filter(col=> col.profileId != profile.id && !col.roles.find(role=>role.profileId == profile.id))
+        console.log(cols)
         groups = [...groups,...cols]
         res.json({ groups });
       } catch (error) {
