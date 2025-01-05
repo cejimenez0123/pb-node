@@ -1,9 +1,7 @@
 const express = require('express');
 const prisma = require("../db");
 const router = express.Router()
-const {authMiddleware}= require("../middleware/authMiddleware")
 const updateWriterLevelMiddleware = require("../middleware/updateWriterLevelMiddleware")
-const calculateStoryLimitMiddleware = require("../middleware/calculateStoryLimitMiddleware")
 module.exports = function ({authMiddleware}){
     const allMiddlewares = [authMiddleware,updateWriterLevelMiddleware];
     //update Writer Level always goest first
@@ -178,7 +176,10 @@ try{
     router.get("/:id/protected",authMiddleware,async (req,res)=>{
 try{
         let story = await prisma.story.findFirst({where: {
-            id:req.params.id}})
+            id:req.params.id},include:{
+                author:true,
+                comments:true,
+            }})
         if(story){
             res.status(200).json({story})
 
@@ -192,7 +193,10 @@ try{
     })
     router.get("/:id/public",async (req,res)=>{
         let story = await prisma.story.findFirst({where: {
-            id:req.params.id,isPrivate:false}})
+            id:req.params.id,isPrivate:false},include:{
+                author:true,
+                comments:true,
+            }})
         if(story){
                 res.status(200).json({story})
     
@@ -200,7 +204,8 @@ try{
                 res.status(404).json({message:"Story not found"})
         }
     })
-    router.post("/:id/role",async (req,res)=>{
+    router.post("/:id/role",...allMiddlewares,async (req,res)=>{
+        try{
         const {profileId,role} = req.body
      let roleToStory = await prisma.roleToStory.create({data:{
         story:{
@@ -215,8 +220,12 @@ try{
         role:role
       }})  
     res.json({role:roleToCollection})
+        }catch(error){
+            
+            res.json({error})
+        }
 })
-    router.put("/:id", async (req,res)=>{
+    router.put("/:id",...allMiddlewares,async (req,res)=>{
 try{
         const {title,data,isPrivate,commentable,type}= req.body
         let story = await prisma.story.findFirst({where:{
