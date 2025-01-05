@@ -347,7 +347,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
       
         res.json({ token,user });
       }else{
-        console.log("poop",user)
+       
         const user = await prisma.user.findFirstOrThrow({ where: { email:{equals:email} }});
     
         if (!user || !bcrypt.compareSync(password, user.password)) {

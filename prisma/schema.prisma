@@ -20,9 +20,10 @@ model User{
   preferredName String @default("")
   googleId String?
   uId String?
+  subscription SubscriptionLevel @default(basic)
   password String?
   igHandle String?
-
+  emailFrequncy Int? @default(1)
   profiles Profile[]
   verified Boolean @default(false)
   created DateTime? @default(now())
@@ -278,4 +279,8 @@ enum StoryType {
   image
   video
   link
+}
+enum SubscriptionLevel{
+  basic
+  premium
 }

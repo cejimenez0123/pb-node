@@ -619,7 +619,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
  
 
         let storyPromises = storyToCol.map(sTc=>{
-console.log(sTc)
+
             
             return prisma.storyToCollection.upsert({where:{id:sTc.id},   
                 update:{

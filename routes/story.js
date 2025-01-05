@@ -1,8 +1,12 @@
 const express = require('express');
 const prisma = require("../db");
 const router = express.Router()
-
-module.exports = function (authMiddleware){
+const {authMiddleware}= require("../middleware/authMiddleware")
+const updateWriterLevelMiddleware = require("../middleware/updateWriterLevelMiddleware")
+const calculateStoryLimitMiddleware = require("../middleware/calculateStoryLimitMiddleware")
+module.exports = function ({authMiddleware}){
+    const allMiddlewares = [authMiddleware,updateWriterLevelMiddleware];
+    //update Writer Level always goest first
     router.get("/",async (req,res)=>{
         try{
        let stories = await prisma.story.findMany({orderBy:{
@@ -215,8 +219,17 @@ try{
     router.put("/:id", async (req,res)=>{
 try{
         const {title,data,isPrivate,commentable,type}= req.body
-    
-        const story = await prisma.story.update({where:{
+        let story = await prisma.story.findFirst({where:{
+            id:{
+                equals:req.params.id
+            }
+        },include:{author:{
+            include:{
+                stories:true
+            }
+        }}})
+    const publicStories =  story.profile.stories.filter(story=>story.isPrivate==false)
+     story  = await prisma.story.update({where:{
             id:req.params.id
         },data:{
             title,
@@ -248,8 +261,9 @@ try{
         }
 
     })
-    router.post("/",authMiddleware,async (req,res)=>{
+    router.post("/",...allMiddlewares,async (req,res)=>{
     // try{
+       console.log(req.storyLimit)
         const doc = req.body
    
         const {title,data,isPrivate,authorId,commentable,type}= doc

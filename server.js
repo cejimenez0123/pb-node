@@ -17,6 +17,10 @@ const passport = require("passport")
 const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const { Server } = require('socket.io');
+const updateWriterLevelMiddleware = require("./middleware/updateWriterLevelMiddleware.js");
+const calculateStoryLimitMiddleware = require("./middleware/calculateStoryLimitMiddleware.js");
+
+
 const activeUsers = new Map()
 
 const app = express();
@@ -42,20 +46,35 @@ const io = new Server(server,{    cors: {
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 },});
 app.use(cors())
-const authMiddleware = passport.authenticate('bearer', { session: false });
+
+// const authMiddleware = passport.authenticate('bearer', { session: false });
+
+function authMiddleware(req, res, next) {
+  passport.authenticate('bearer', { session: false }, (err, user, info) => {
+    console.log("popbvv",user)
+    if (err) return next(err); // Handle errors gracefully
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    console.log("xena warriro",user)
+    req.user = user; 
+    next();
+  })(req, res, next);
+}
+setUpPassportLocal(passport);
+// app.use(passport.initialize());
+// const authMiddleware = passport.authenticate('bearer', { session: false });
 app.use("/history",historyRoutes(authMiddleware))
 app.use("/like",likeRoutes(authMiddleware))
 app.use("/hashtag",hashtagRoutes(authMiddleware))
 app.use("/role",roleRoutes(authMiddleware))
 app.use("/auth",authRoutes(authMiddleware))
-app.use("/story",storyRoutes(authMiddleware))
+app.use("/story",storyRoutes({authMiddleware}))
 app.use("/profile",profileRoutes(authMiddleware))
 app.use("/collection",collectionRoutes(authMiddleware))
 app.use("/comment",commentRoutes(authMiddleware))
 
 app.use("/workshop",workshopRoutes(authMiddleware))
 
-setUpPassportLocal(passport);
+
 app.use(
     session({
     secret: process.env.JWT_SECRET,resave: false,
@@ -63,9 +82,9 @@ app.use(
     cookie: { secure: false },
     }))
 
-app.use(passport.session());
-app.use(passport.initialize());
 
+    app.use(passport.session());
+    app.use(passport.initialize());
 
 
 io.on('connection', (socket) => {
