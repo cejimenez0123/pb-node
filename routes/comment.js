@@ -1,17 +1,17 @@
 const express = require('express');
 const prisma = require("../db");
 const { profile } = require('console');
+const updateWriterLevelMiddleware = require('../middleware/updateWriterLevelMiddleware');
 
 
 
 const router = express.Router()
 
 module.exports = function (authMiddleware){
-
-router.post("/",authMiddleware,async(req,res)=>{
+    let middlewareArr =[authMiddleware,updateWriterLevelMiddleware]
+router.post("/",...middlewareArr,async(req,res)=>{
  
  try{   const {profileId,storyId,text,parentId}=req.body
-console.log(req.body)
    if(profileId.length>0){
     if(parentId.length>0 ){
 

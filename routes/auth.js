@@ -561,7 +561,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
         }})
         res.json({profile})
     }catch(e){
-        console.log(e)
+       res.json({error})
     }
     })
     router.delete("/session",authMiddleware,async (req,res)=>{

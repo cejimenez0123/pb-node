@@ -2,6 +2,31 @@ const express = require('express');
 const prisma = require("../db");
 const router = express.Router()
 const updateWriterLevelMiddleware = require("../middleware/updateWriterLevelMiddleware")
+
+const recommendStories = async (profileId) => {
+    // Fetch user history
+    const profile = await prisma.profile.findFirst({where:{
+        id:{
+            equals:profileId
+        }
+    },include:{
+        likedStories:{
+            include:{
+            story:{
+                include:{
+                    hashtags:true
+                }
+            }
+            }
+        },
+    }})
+
+    const recommendations = await prisma.story.findMany({
+      where: { hashtags: { hasSome: profile.likedStories[0]?.hashtags } },
+    });
+  
+    return recommendations;
+  };
 module.exports = function ({authMiddleware}){
     const allMiddlewares = [authMiddleware,updateWriterLevelMiddleware];
     //update Writer Level always goest first
@@ -18,19 +43,22 @@ module.exports = function ({authMiddleware}){
         res.json({error})
     }
     })
-    router.get("/collection/:id/public",async (req,res)=>{
-try{
-    const {id}=req.params
-        let collection = await prisma.collection.findFirst({where:{id:{equals:id}}})
-
-    if(!collection.isPrivate){
-        let list = await prisma.storyToCollection.findMany({where:{
-            AND:{
-                collectionId:{
+    router.get("/collection/:id/public",async (req,res)=>{  
+    try{
+        const {id}=req.params
+        let collection = await prisma.collection.findFirst(
+                {where:{id:{
                     equals:id
-                },
-            }
+                }}
+            })
 
+        if(!collection.isPrivate){
+            let list = await prisma.storyToCollection.findMany({where:{
+                AND:{
+                    collectionId:{
+                        equals:id
+                    },
+                }
         },include:{
             story:true
         }})
@@ -42,6 +70,17 @@ try{
     }catch(error){
         res.json(error)
     }
+    })
+    router.get("/recommended",authMiddleware,async(req,res)=>{
+
+        try{
+        let profile = req.user.profiles[0]
+        let recommendations = await recommendStories(profile.id)
+
+        res.json({stories:recommendations})
+        }catch(error){
+            res.json({error})
+        }
     })
     router.get("/profile/private/draft",authMiddleware,async (req,res)=>{
     
@@ -75,7 +114,7 @@ try{
         res.json({error})
     }
     })
-    router.patch("/collection/:id/",authMiddleware,async (req,res)=>{
+    router.patch("/collection/:id/",[authMiddleware,updateWriterLevelMiddleware],async (req,res)=>{
     
         let list = await prisma.storyToCollection.findMany({where:{
             collectionId:req.params.id
@@ -152,7 +191,7 @@ try{
         res.json({error})
     }
     })
-    router.get("/profile/:id/protected",async (req,res)=>{
+    router.get("/profile/:id/protected",authMiddleware,async (req,res)=>{
         try{
         const stories = await prisma.story.findMany({where:{
             AND:{

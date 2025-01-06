@@ -55,7 +55,9 @@ function setUpPassportLocal(passport) {
 
         // Find user in the database
         const user = await prisma.user.findFirst({
-          where: { id: decoded.userId },
+          where: { id: decoded.userId },include:{
+            profiles:true
+          }
         });
       
         if (!user) {

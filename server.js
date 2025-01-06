@@ -13,6 +13,7 @@ const likeRoutes = require("./routes/like.js")
 const historyRoutes = require("./routes/history.js")
 const commentRoutes = require("./routes/comment.js")
 const workshopRoutes = require("./routes/workshop.js")
+const followRoutes = require("./routes/follow.js")
 const passport = require("passport")
 const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
@@ -51,10 +52,10 @@ app.use(cors())
 
 function authMiddleware(req, res, next) {
   passport.authenticate('bearer', { session: false }, (err, user, info) => {
-    console.log("popbvv",user)
+  
     if (err) return next(err); // Handle errors gracefully
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    console.log("xena warriro",user)
+  
     req.user = user; 
     next();
   })(req, res, next);
@@ -71,7 +72,7 @@ app.use("/story",storyRoutes({authMiddleware}))
 app.use("/profile",profileRoutes(authMiddleware))
 app.use("/collection",collectionRoutes(authMiddleware))
 app.use("/comment",commentRoutes(authMiddleware))
-
+app.use("/follow",followRoutes(authMiddleware))
 app.use("/workshop",workshopRoutes(authMiddleware))
 
 

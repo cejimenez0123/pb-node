@@ -7,28 +7,22 @@ const bcrypt = require("bcryptjs")
 module.exports = function (authMiddleware){
     router.get("/",async (req,res)=>{
         const profiles = await prisma.profile.findMany()
-
         res.status(200).json({profiles:profiles})
-
-
-
     })
     router.post("/",authMiddleware,async(req,res)=>{
-      const  {password,username,profilePicture,selfStatement,privacy}=req.body
+        const  {password,username,profilePicture,selfStatement,privacy}=req.body
+        try{
+            const applicant = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
+            const hashedPassword = await bcrypt.hash(password, 10);
+            let user = await prisma.user.update({
+                where:{
+                    id:applicant.applicantId
+                },data:{
+                    password:hashedPassword,
+                    verified:true
+                }
+            })
     try{
-
-        const applicant = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
-        
-        const hashedPassword = await bcrypt.hash(password, 10);
-         let user = await prisma.user.update({
-            where:{
-                id:applicant.applicantId
-            },data:{
-                password:hashedPassword,
-                verified:true
-            }
-        })
-try{
    
         let profile = await prisma.profile.create({data:{
             user:{
@@ -47,7 +41,9 @@ try{
             collectionHistory:true,
             collections:true,
             stories:true,
-            location:true
+            location:true,
+            followers:true,
+            following:true
         }})
         const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
         res.json({profile,token:verifiedToken})
@@ -71,6 +67,8 @@ try{
             likedStories:true,
             historyStories:true,
             collectionHistory:true,
+            followers:true,
+            following:true
          
         }})
         res.status(200).json({profile:profile})
@@ -165,7 +163,9 @@ try{
                 collectionHistory:true,
                 collections:true,
                 stories:true,
-                location:true
+                location:true,
+                followers:true,
+                following:true
             }})
           
              

@@ -90,7 +90,7 @@ module.exports = function (authMiddleware){
             res.status(400).send({error:err})
         }
     })
-    router.get("/profile/:id/protected",async (req,res)=>{
+    router.get("/profile/:id/protected",authMiddleware,async (req,res)=>{
         try{
             let colList = await prisma.collection.findMany({where:{
                 AND:{
@@ -446,7 +446,7 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
     
 res.json({collection})
 }catch(error){
-    console.log({error})
+
     res.json(409).json({error})
 }}
 )
@@ -547,7 +547,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         }})
         res.json({collection,message:"Deleted Successfully"})
     }catch(error){
-        console.log(error)
+
         res.json({error})
     }
 
@@ -676,19 +676,18 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
        await Promise.all(colPromises)
        let updatedCol = await prisma.collection.findFirst({where:{
         id:col.id
-    },include:{
-        storyIdList:true,
-        childCollections:true,
-        roles:{
-            include:{
-                profile:true,
-            }
-        },
-        profile:true
-    }})
-    res.json({collection:updatedCol})
+        },include:{
+            storyIdList:true,
+            childCollections:true,
+            roles:{
+                include:{
+                    profile:true,
+                    }
+                },
+                profile:true
+        }})
+            res.json({collection:updatedCol})
         }catch(error){
-            console.log("collection/patch(/id",{error})
             res.json({error})
         }
     })
