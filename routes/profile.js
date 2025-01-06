@@ -78,30 +78,7 @@ module.exports = function (authMiddleware){
         res.status(409).json({error:err})
     }
     })
-    const recommendStories = async (profileId) => {
-        // Fetch user history
-        const profile = await prisma.profile.findFirst({where:{
-            id:{
-                equals:profileId
-            }
-        },include:{
-            likedStories:{
-                include:{
-                story:{
-                    include:{
-                        hashtags:true
-                    }
-                }
-                }
-            },
-        }})
-    
-        const recommendations = await prisma.story.findMany({
-          where: { hashtags: { hasSome: profile.likedStories[0]?.hashtags } },
-        });
-      
-        return recommendations;
-      };
+
     router.put("/:id",authMiddleware,async (req,res)=>{
         const {username,profilePicture,selfStatement,privacy} = req.body
       try{
@@ -117,7 +94,8 @@ module.exports = function (authMiddleware){
             historyStories:true,
             collectionHistory:true,
             collections:true,
-            stories:true
+            stories:true,
+            followers:true
         }})
         res.json({profile})
 

@@ -77,7 +77,9 @@ function setUpPassportLocal(passport) {
 
   passport.deserializeUser(async (id, done) => {
     try {
-      const user = await prisma.user.findUnique({ where: { id } });
+      const user = await prisma.user.findUnique({ where: { id },include:{
+        profiles:true
+      } });
       done(null, user);
     } catch (error) {
       done(error);
