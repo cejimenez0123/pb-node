@@ -93,13 +93,13 @@ function checkIfAuthenticated(req, res, next) {
     return res.redirect('/login');
   }
 }
-function authMiddleware(req, res, next) {
-  passport.authenticate('bearer', { session: false }, (err, user, info) => {
-    if (err) return next(err); // Handle errors gracefully
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    req.user = user; 
-    next();
-  })(req, res, next);
-}
+// function authMiddleware(req, res, next) {
+//   passport.authenticate('bearer', { session: false }, (err, user, info) => {
+//     if (err) return next(err); // Handle errors gracefully
+//     if (!user) return res.status(401).json({ error: 'Unauthorized' });
+//     req.user = user; 
+//     next();
+//   })(req, res, next);
+// }
 
-module.exports = {authMiddleware, setUpPassportLocal, checkIfAuthenticated };
+module.exports = {setUpPassportLocal, checkIfAuthenticated };
