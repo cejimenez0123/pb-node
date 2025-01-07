@@ -24,6 +24,7 @@ model User{
   password String?
   igHandle String?
   emailFrequncy Int? @default(1)
+  lastEmailed   DateTime? 
   profiles Profile[]
   verified Boolean @default(false)
   created DateTime? @default(now())

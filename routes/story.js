@@ -14,22 +14,52 @@ const recommendStories = async (profileId) => {
             include:{
             story:{
                 include:{
-                    hashtags:true
-                }
+                    hashtags:true,
+                    author:true
+                },
+        
             }
             }
         },
     }})
 
     const recommendations = await prisma.story.findMany({
-      where: { hashtags: { hasSome: profile.likedStories[0]?.hashtags } },
+      where: { 
+        isPrivate:false,
+        hashtags: { hasSome: profile.likedStories[0]?.hashtags
+         } ,
+        betaReaders:{
+            
+        }},include:{
+        author:true
+      }
     });
   
     return recommendations;
   };
+// const getRecommendations = async (profileId) => {
+//     const user = await prisma.profile.findUnique({
+//       where: { id: profileId},
+//       include: { likedStory: true },
+//     });
+  
+//     const contentBasedScores = await getContentBasedScores(user.likedStory);
+//     const collaborativeScores = await getCollaborativeScores(profileId);
+  
+//     const hybridScores = {};
+//     for (let storyId in contentBasedScores) {
+//       hybridScores[storyId] =
+//         0.7 * contentBasedScores[storyId] + 0.3 * (collaborativeScores[storyId] || 0);
+//     }
+  
+//     return Object.entries(hybridScores)
+//       .sort((a, b) => b[1] - a[1]) // Sort by score
+//       .map(([storyId]) => storyId); // Return sorted story IDs
+//   };
+  
 module.exports = function ({authMiddleware}){
     const allMiddlewares = [authMiddleware,updateWriterLevelMiddleware];
-    //update Writer Level always goest first
+    
     router.get("/",async (req,res)=>{
         try{
        let stories = await prisma.story.findMany({orderBy:{
@@ -73,7 +103,7 @@ module.exports = function ({authMiddleware}){
         res.json(error)
     }
     })
-    router.get("/recommended",authMiddleware,async(req,res)=>{
+    router.get("/recommendations",authMiddleware,async(req,res)=>{
 
         try{
         let profile = req.user.profiles[0]
