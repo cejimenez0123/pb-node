@@ -62,7 +62,7 @@ module.exports = function ({authMiddleware}){
                     },
                 }
         },include:{
-            story:true
+            story:{include:{author:true}}
         }})
 
         res.json({list})
