@@ -74,8 +74,6 @@ app.use("/collection",collectionRoutes(authMiddleware))
 app.use("/comment",commentRoutes(authMiddleware))
 app.use("/follow",followRoutes(authMiddleware))
 app.use("/workshop",workshopRoutes(authMiddleware))
-
-
 app.use(
     session({
     secret: process.env.JWT_SECRET,resave: false,

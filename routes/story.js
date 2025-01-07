@@ -36,6 +36,8 @@ module.exports = function ({authMiddleware}){
         created:"desc"
        }, where:{
         isPrivate:{equals: false}
+       },include:{
+        author:true
        }})
         res.json({stories})
     }catch(error){
