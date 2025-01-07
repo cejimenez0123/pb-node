@@ -175,6 +175,8 @@ try{
                     id:storyId
                 }
             }
+        },include:{
+            profile:true
         }})
         res.json({message:"Success"})
 
@@ -244,8 +246,10 @@ try{
     router.delete("/collection/:id",authMiddleware,async(req,res)=>{
      
 try{
-       let data = await prisma.roleToCollection.delete({where:{id:req.params.id}})
-console.log(data)
+       let data = await prisma.roleToCollection.delete({where:{id:req.params.id},include:{
+    profile:true,
+    collection:true}
+       })
         res.json({message:"Deleted Successfully"})
 
 }catch(err){
