@@ -31,7 +31,7 @@ const recommendStories = async (profileId) => {
         betaReaders:{
             
         }},include:{
-        author:true
+            author:true
       }
     });
   
@@ -263,16 +263,27 @@ try{
     }
     })
     router.get("/:id/public",async (req,res)=>{
-        let story = await prisma.story.findFirst({where: {
-            id:req.params.id,isPrivate:false},include:{
+       try{
+            let story = await prisma.story.findFirstOrThrow({where: {
+                   AND:[{ 
+                    id:{equals:req.params.id}},{
+                    isPrivate:{
+                        equals:false
+                    }
+                   }]},include:{
                 author:true,
                 comments:true,
             }})
-        if(story){
+            if(story){    
                 res.status(200).json({story})
     
-        }else{
+            }else{
                 res.status(404).json({message:"Story not found"})
+            }
+            
+        }catch(error){
+            console.log(error)
+            res.json({error})
         }
     })
     router.post("/:id/role",...allMiddlewares,async (req,res)=>{
@@ -299,17 +310,7 @@ try{
     router.put("/:id",...allMiddlewares,async (req,res)=>{
 try{
         const {title,data,isPrivate,commentable,type}= req.body
-        let story = await prisma.story.findFirst({where:{
-            id:{
-                equals:req.params.id
-            }
-        },include:{author:{
-            include:{
-                stories:true
-            }
-        }}})
-    const publicStories =  story.profile.stories.filter(story=>story.isPrivate==false)
-     story  = await prisma.story.update({where:{
+        let story  = await prisma.story.update({where:{
             id:req.params.id
         },data:{
             title,
@@ -318,12 +319,15 @@ try{
             commentable,
             type,
             updated: new Date()
+        },include:{
+            author:true,
+            comments:true
         }})
         res.status(200).json({story})
     }catch(error){
-        return{
-            error
-        }
+        console.log("put/:id story",error)
+            res.json(error)
+        
     }
     })
     router.delete("/:id",authMiddleware,async (req,res)=>{

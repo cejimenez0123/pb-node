@@ -56,7 +56,7 @@ const updateWriterLevelMiddleware = asyncHandler(async (req, res, next) => {
       req.user = req.user
       req.profile = userProfile
       let writerLevel= Math.round(newStoryLimit/8)
-      console.log("VfvefVF",writerLevel)
+    
       // Update writer level only if the new limit differs from the current level
       if (writerLevel!== userProfile.writerLevel) {
         await prisma.profile.update({

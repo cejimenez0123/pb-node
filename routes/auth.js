@@ -6,11 +6,7 @@ const generateMongoId = require("./generateMongoId");
 const nodemailer = require('nodemailer');
 const router = express.Router()
 module.exports = function (authMiddleware){
-    // router.post("/user",async (req,res)=>{
-    //     const {email}= req.body
-    //     let user = await prisma.user.create({email})
-    //     res.json({user})
-    // })
+
     router.post("/referral",authMiddleware,async (req,res)=>{
     const {email,name}=req.body
 try{
@@ -337,11 +333,17 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
        try{
         if(uId){
         const user = await prisma.user.findFirstOrThrow({ where: { uId:uId } });
-    
+          
         if (!user || user.email!=email) {
           return res.status(401).json({ message: 'Invalid email or password' });
         }
-        
+        await prisma.profile.updateMany({where:{
+          userId:{
+            equals:user.id
+          }
+        },data:{
+          lastActive: new Date()
+        }})
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
 
       

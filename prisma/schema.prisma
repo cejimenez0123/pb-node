@@ -23,7 +23,7 @@ model User{
   subscription SubscriptionLevel @default(basic)
   password String?
   igHandle String?
-  emailFrequncy Int? @default(1)
+  emailFrequency Int? @default(1)
   lastEmailed   DateTime? 
   profiles Profile[]
   verified Boolean @default(false)
@@ -100,7 +100,7 @@ model UserCollectionHistory {
   profile Profile?@relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
   created DateTime? @default(now())
 }
-model ProfileToCollection{
+model ProfileToCollection {
   id String @id @default(auto()) @map("_id") @db.ObjectId
   collection Collection? @relation( fields: [collectionId], references: [id],onDelete:NoAction,onUpdate:NoAction)
   collectionId String? @db.ObjectId
