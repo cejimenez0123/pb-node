@@ -31,7 +31,9 @@ module.exports = function (authMiddleware){
                 }]
             },include:{
     
-               storyIdList:true,
+                storyIdList:{
+                    include:{story:{include:{author:true}}}  
+                  },
                childCollections:true,
                roles:{
                 include:{
@@ -57,7 +59,9 @@ module.exports = function (authMiddleware){
                 }
             },include:{
                 
-               storyIdList:true,
+                storyIdList:{
+                    include:{story:{include:{author:true}}}  
+                  },
                childCollections:true,
                roles:{
                 include:{
@@ -101,7 +105,9 @@ module.exports = function (authMiddleware){
                     }
                 }
             },include:{
-                storyIdList:true,
+                storyIdList:{
+                    include:{story:{include:{author:true}}}  
+                  },
                 profile:true,
                 childCollections:true,
                 location:true
@@ -116,7 +122,9 @@ module.exports = function (authMiddleware){
                         
                         include:{
             
-                            storyIdList:true,
+                            storyIdList:{
+                                include:{story:{include:{author:true}}}  
+                              },
                             profile:true,
                             childCollections:true,
                             location:true
@@ -253,7 +261,9 @@ module.exports = function (authMiddleware){
             }}
         ,include:{
             childCollections:true,
-            storyIdList:true,
+            storyIdList:{
+                include:{story:{include:{author:true}}}  
+              },
             roles:{
                 include:{
                     profile:true,
@@ -274,7 +284,9 @@ module.exports = function (authMiddleware){
             AND:[{id:{equals:req.params.id}},{isPrivate:false}]
             
         },include:{
-            storyIdList:true,
+            storyIdList:{
+                include:{story:{include:{author:true}}}  
+              },
             childCollections:true,
             roles:{
                 include:{
@@ -292,13 +304,13 @@ module.exports = function (authMiddleware){
     }
     })
     router.get("/:id/protected",authMiddleware,async (req,res)=>{
-
-        //GET COLLECTION
         try{
         const collection = await prisma.collection.findFirst({where:{
             id: req.params.id
         },include:{
-            storyIdList:true,
+            storyIdList:{
+              include:{story:{include:{author:true}}}  
+            },
             childCollections:true,
             roles:{
                 include:{
@@ -326,7 +338,9 @@ try{
         },include:{
             childCollection:{
                 include:{
-                    storyIdList:true,
+                    storyIdList:{
+                        include:{story:{include:{author:true}}}  
+                      },
                     childCollections:true,
                     roles:{
                         include:{
@@ -365,7 +379,9 @@ try{
         ,include:{
             childCollection:{
                 include:{
-                        storyIdList:true,
+                    storyIdList:{
+                        include:{story:{include:{author:true}}}  
+                      },
                         childCollections:true,
                         roles:{
                             include:{
@@ -432,7 +448,9 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
            let collection =  await prisma.collection.update({where:{id:id},data:{
                 type: "library"
             },include:{
-                storyIdList:true,
+                storyIdList:{
+                    include:{story:{include:{author:true}}}  
+                  },
                 childCollections:true,
                 roles:{
                     include:{
@@ -475,12 +493,20 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
                     }
                 }
         
+            },include:{
+                story:{
+                    include:{
+                        author:true
+                    }
+                }
             }
         })
     })
     let joint = await Promise.all(promises)
     let col = await prisma.collection.findFirst({where:{id:id},include:{
-        storyIdList:true,
+        storyIdList:{
+            include:{story:{include:{author:true}}}  
+          },
         childCollections:true,
         roles:{
             include:{
@@ -536,7 +562,9 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
             }
         }})
         let collection = await prisma.collection.findFirst({where:{id:{equals:req.params.id}},include:{
-            storyIdList:true,
+            storyIdList:{
+                include:{story:{include:{author:true}}}  
+              },
             childCollections:true,
             roles:{
                 include:{
@@ -607,7 +635,9 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
             isPrivate,
             isOpenCollaboration
         },include:{
-            storyIdList:true,
+            storyIdList:{
+                include:{story:{include:{author:true}}}  
+              },
             childCollections:true,
             roles:{
                 include:{
@@ -677,7 +707,9 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
        let updatedCol = await prisma.collection.findFirst({where:{
         id:col.id
         },include:{
-            storyIdList:true,
+            storyIdList:{
+                include:{story:{include:{author:true}}}  
+              },
             childCollections:true,
             roles:{
                 include:{
@@ -705,7 +737,9 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
           profileId:{equals:profile.id}
         },include:{
             childCollections:true,
-            storyIdList:true,
+            storyIdList:{
+                include:{story:{include:{author:true}}}  
+              },
             roles:{
                 include:{
                     profile:true,
@@ -721,7 +755,9 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
             collection:{
                 include:{
                     childCollections:true,
-                    storyIdList:true,
+                    storyIdList:{
+                        include:{story:{include:{author:true}}}  
+                      },
                     roles:{
                         include:{
                             profile:true,
@@ -822,7 +858,9 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         },
             include:{
     
-                storyIdList:true,
+                storyIdList:{
+                    include:{story:{include:{author:true}}}  
+                  },
                 childCollections:true,
                 roles:{
                  include:{

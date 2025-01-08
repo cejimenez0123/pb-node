@@ -125,6 +125,8 @@ module.exports = function ({authMiddleware}){
                 AND:[{author:{
                     id:{equals:profile.id}
                 }},{needsFeedback:{equals:true}}]
+            },include:{
+                author:true
             }})
             res.status(200).json({stories})
  
@@ -134,7 +136,11 @@ module.exports = function ({authMiddleware}){
         let list = await prisma.storyToCollection.findMany({where:{
             collectionId:req.params.id
         },include:{
-            story:true,
+            story:{
+                include:{
+                    author:true
+                }
+            },
             profile:true,
             collection:true
         }})
@@ -151,7 +157,7 @@ module.exports = function ({authMiddleware}){
         let list = await prisma.storyToCollection.findMany({where:{
             collectionId:req.params.id
         },include:{
-            story:true
+            story:{include:{author:true}}
         }})
     
         res.json({list})
@@ -189,6 +195,8 @@ module.exports = function ({authMiddleware}){
     }
     })
     router.get("/profile/private",authMiddleware,async (req,res)=>{
+        try{
+        
         const profile = await prisma.profile.findFirst({where:{
             userId:{
                 equals:req.user.id
@@ -198,8 +206,14 @@ module.exports = function ({authMiddleware}){
             author:{
                 id:{equals:profile.id}
             }
+        },include:{
+            author:true
         }})
         res.status(200).json({stories})
+
+    }catch(error){
+        res.json({error})
+    }
     })
     router.get("/profile/:id/public",async (req,res)=>{
         try{
@@ -216,6 +230,9 @@ module.exports = function ({authMiddleware}){
             }
                 
             }
+        },include:{
+            author:true,
+            comments:true
         }})
       
         res.status(200).json({stories})
@@ -232,12 +249,11 @@ module.exports = function ({authMiddleware}){
                     equals: req.params.id
                 }
                },
-            isPrivate:{
-                equals:false
                 
             }
-                
-            }
+        },include:{
+            author:true,
+            comments:true
         }})
         res.status(200).json({stories})
     }catch(error){
