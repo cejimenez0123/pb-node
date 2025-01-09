@@ -16,7 +16,7 @@
     "typescript": "^5.5.4"
   },
   "dependencies": {
-    "@prisma/client": "^6.1.0",
+    "@prisma/client": "^6.2.1",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
     "cookie-session": "^2.1.0",
@@ -33,6 +33,7 @@
     "passport": "^0.7.0",
     "passport-http-bearer": "^1.0.1",
     "passport-local": "^1.0.0",
+    "random-words": "^2.0.1",
     "socket.io": "^4.8.1"
   }
 }

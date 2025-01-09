@@ -29,12 +29,34 @@ model User{
   verified Boolean @default(false)
   created DateTime? @default(now())
 }
+model Story{
+    id    String @id @default(auto()) @map("_id") @db.ObjectId
+    title String
+    data String @default("")
+    approvalScore Int @default(0)
+    isPrivate Boolean @default(true)
+    authorId String @db.ObjectId
+    needsFeedback Boolean? @default(false)
+    author Profile @relation(fields: [authorId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+    commentable Boolean
+    storyLikes UserStoryLike[]
+    storyHistory UserStoryHistory[]
+    betaReaders RoleToStory[]
+    comments Comment[]
+    hashtags HashtagStory[]
+    type StoryType @default(html)
+    collections StoryToCollection[]
+    updated DateTime? @default(now())
+    created DateTime? @default(now())
+
+   
+}
 model Location {
   id    String @id @default(auto()) @map("_id") @db.ObjectId
   latitude  Float
   longitude Float
-  profile Profile[]
-  collection Collection[]
+  profiles Profile[]
+  collections Collection[]
 }
 
 model Profile{
@@ -92,7 +114,7 @@ model Hashtag {
   comments HashtagComment[]
   stories   HashtagStory[]  
 }
-model UserCollectionHistory {
+model UserCollectionHistory{
   id String @id @default(auto()) @map("_id") @db.ObjectId
   collection Collection? @relation( fields: [collectionId], references: [id],onDelete:NoAction,onUpdate:NoAction)
   collectionId String? @db.ObjectId
@@ -204,10 +226,9 @@ model Collection{
     locationId String? @db.ObjectId
     location      Location? @relation(fields: [locationId], references: [id])
     startTime     DateTime? 
-  endTime       DateTime?
+    endTime       DateTime?
     updated DateTime? @default(now())
     created DateTime? @default(now())
-
     userHistory UserCollectionHistory[]
 }
 model HashtagComment{
@@ -248,28 +269,7 @@ model UserStoryHistory{
     created DateTime? @default(now())
 }
 
-model Story{
-    id    String @id @default(auto()) @map("_id") @db.ObjectId
-    title String
-    data String @default("")
-    approvalScore Int @default(0)
-    isPrivate Boolean @default(true)
-    authorId String @db.ObjectId
-    needsFeedback Boolean? @default(true)
-    author Profile @relation(fields: [authorId], references: [id],onDelete:Cascade,onUpdate:Cascade)
-    commentable Boolean
-    storyLikes UserStoryLike[]
-    storyHistory UserStoryHistory[]
-    betaReaders RoleToStory[]
-    comments Comment[]
-    hashtags HashtagStory[]
-    type StoryType @default(html)
-    collections StoryToCollection[]
-    updated DateTime? @default(now())
-    created DateTime? @default(now())
 
-   
-}
 enum CollectionType{
   feedback
   book
