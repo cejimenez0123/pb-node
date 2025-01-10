@@ -26,7 +26,8 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
         auth: {
           user: process.env.pbEmail, 
           pass: process.env.pbPassword 
-        }
+        },
+        from:process.env.pbEmail
       });
 
         let mailOptions = {
@@ -146,7 +147,8 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
             auth: {
               user: process.env.pbEmail, 
               pass: process.env.pbPassword 
-            }
+            },
+            from:process.env.pbEmail
           });
         //   await prisma.user.create({email:email,verified:false})
             let mailOptions = {

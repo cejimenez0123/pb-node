@@ -467,7 +467,13 @@ module.exports = function (authMiddleware) {
                   }
                }}
                   const col = await prisma.collection.findFirst({where:{id:{equals:workshopCol.id}},include:{
-                    storyIdList:true,
+                    storyIdList:{include:{
+                      story:{
+                        include:{
+                          author:true
+                        }
+                      }
+                    }},
                     location:true,
                  profile:true,
                     roles:{

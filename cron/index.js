@@ -58,7 +58,8 @@ const sendEmailToUser=async ()=>{
         auth: {
           user: process.env.pbEmail, 
           pass: process.env.pbPassword 
-        }
+        },
+        from:process.env.pbEmail
       });
 
         let mailOptions = {
