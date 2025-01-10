@@ -185,7 +185,12 @@ module.exports = function (authMiddleware) {
       },data:{
         needsFeedback:true
       }})
-        res.json({ profile:prof,story:stor });
+     let profiles = await prisma.profile.findMany({where:{
+        isActive:{
+          equals:true
+        }
+      }})
+        res.json({ profile:prof,story:stor,profiles});
       } catch (error) {
         res.status(500).json({ error: error});
       }
@@ -253,12 +258,11 @@ module.exports = function (authMiddleware) {
               }
             }
           }})
-        let cols = groupColsByProximity({profile:profile,items:collections,radius})
+        let cols = groupColsByProximity({profile:prof,items:collections,radius})
         // let groups = groupUsersByProximity({items:profiles, radius});
-       let storis= groupStoryByProximity({profile,items:stories})
+       let storis= groupStoryByProximity({profile:prof,items:stories})
   
          cols = cols.filter(col=>{return col.roles.length<6})
-         console.log(cols)
       
          cols = cols.filter(col=>{
   
@@ -266,6 +270,7 @@ module.exports = function (authMiddleware) {
   return !two 
 })
         if(cols[0]){
+          console.log(1)
       
             const col = cols[0]
    
@@ -319,6 +324,7 @@ module.exports = function (authMiddleware) {
           }})
            res.json({collection:collect})
           }else if(storis[0]){
+            console.log(2)
               let storyGroup =storis[0]
               let colName = generate({ min: 3, max: 6,join:" " })
               const role = await prisma.roleToCollection.create({data:{
@@ -360,90 +366,79 @@ module.exports = function (authMiddleware) {
                   profile:true
                   }     
                 })
-
-                await prisma.storyToCollection.create({
-                  data:{
-                    collection:{
-                      connect:{
-                        id:role.collectionId
-                      }
-                    },
+                for(let i =0;i<i;i++){
+                  const otherStory = storyGroup[i]
+                  if(otherStory.authorId!=profile.id){
+        
+                  found = await prisma.storyToCollection.findFirst({where:{
+                    AND:[{story:{
+                         id:{equals:otherStory.id}
+                        }},{collection:{
+            id:{
+              equals:role.collectionId
+            }
+           }
+          }]},include:{
+          collection:{
+              include:{
+                location:true,
+                storyIdList:{
+                  include:{
                     story:{
-                      connect:{
-                        id:story.id
-                      }
-                    },profile:{
-                      connect:{
-                        id:prof.id
+                      include:{
+                        author:true
                       }
                     }
                   }
-                })
-      let found = null
-                
-      for(let i =0;i<i;i++){
-          const otherStory = storyGroup[i]
-          if(otherStory.authorId!=profile.id){
-
-          found = await prisma.storyToCollection.findFirst({where:{
-            AND:[{story:{
-                 id:{equals:otherStory.id}
-                }},{collection:{
-    id:{
-      equals:role.collectionId
-    }
-   }}]},include:{
-    collection:{
-      include:{
-        location:true,
-        storyIdList:{
-          include:{
-            story:{
-              include:{
-                author:true
+                }
+                ,roles:{
+                  include:{
+                    profile:true
+                  }
+                },
+                profile:true
               }
-            }
-          }
-        }
-        ,roles:{
-          include:{
-            profile:true
-          }
-        },
-        profile:true
-      }
-    
-    },
-    profile:true,
-  
-   }})}
- if(!found){
-  found =  await createStoryToCollection({storyId:otherStory.id,collectionId:role.collectionId,profileId:otherStory.authorId})
- }
-    }
-    let col = await prisma.collection.findFirst({where:{id:{equals:role.collectionId}},
-    include:{
-      storyIdList:{
-        include:{
-          story:{
+            
+            },
+            profile:true,
+          
+           }})
+
+
+if(role){
+            let sTc=   await prisma.storyToCollection.create({
+              data:{
+                collection:{
+                  connect:{
+                    id:role.collectionId
+                  }
+                },
+                story:{
+                  connect:{
+                    id:story.id
+                  }
+                },profile:{
+                  connect:{
+                    id:prof.id
+                  }
+                }
+              },
             include:{
-              author:true
-            }
-          }
-        }
-      },
-      location:true,
-      roles:{
-        include:{
-          profile:true
-        }
-      }
-    }})
-    console.log("FDFd",col)
-   res.json({collection:col})
-
-
-   }else{
+              profile:true,
+              collection:{
+                include:{
+                  location:true,
+              roles:true,
+        
+              
+              }
+              }}
+            })
+          
+            res.json({collection:sTc.collection})}     
+      
+          }else{
+   
           let colName = generate({ min: 3, max: 6,join:" " })
         const role = await prisma.roleToCollection.create({data:{
             role:"editor",
@@ -480,52 +475,11 @@ module.exports = function (authMiddleware) {
             },
             profile:true
             }     
-          })
-        const found = await prisma.storyToCollection.findFirst({where:{
-            AND:[{
-              profileId:{
-                equals:prof.id
-              }
-            },{storyId:{
-              equals:story.id
-            }},{
-              collectionId:{
-                equals:role.collectionId
-              }
-            }]
-          },include:{
-            collection:{
-              include:{
-                profile:true,
-              
-                roles:{
-                  include:{profile:true}
-                },
-                location:true,
-                storyIdList:{
-                  include:{
-                    story:{include:{
-                      author:true,
-                      
-                    }}
-                  }
-                }
-              }
-            }
-          }
-        })
-        if(found){ 
-        console.log(1,found.collection)
-            res.json({collection:found.collection})
-          }else{
-console.log("L")
-      let sTc = await createStoryToCollection({storyId:story.id,collectionId:role.collectionId,profileId:prof.id})
-      console.log(2,sTc.collection)
+          })}}
+       res.json({collection:role.collection})
  
-          res.json({collection:sTc.collection})
-  
-             }
-            }
+    }
+
             } catch (error) {
         console.log(error)
         res.status(500).json({ error: error.message });
