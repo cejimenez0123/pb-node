@@ -1,14 +1,12 @@
 const express = require('express');
 const prisma = require("../db");
 const router = express.Router()
-const server = require("../server")
 const{ generate} =require("random-words")
 const haversineDistance = (loc1, loc2) => {
     const toRad = (value) => (value * Math.PI) / 180;
     const R = 6371; // Earth radius in km
     const dLat = toRad(loc2.latitude - loc1.latitude);
     const dLon = toRad(loc2.longitude - loc1.longitude);
-  
     const lat1 = toRad(loc1.latitude);
     const lat2 = toRad(loc2.latitude);
   
@@ -187,9 +185,9 @@ module.exports = function (authMiddleware) {
       },data:{
         needsFeedback:true
       }})
-        res.json({ profiles: [prof],story:stor });
+        res.json({ profile:prof,story:stor });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error});
       }
     });
   
@@ -267,7 +265,6 @@ module.exports = function (authMiddleware) {
         let two = col.roles.find(role=>role.profile.id==prof.id)
   return !two 
 })
-console.log("BobS",cols[0])
         if(cols[0]){
       
             const col = cols[0]
@@ -320,11 +317,7 @@ console.log("BobS",cols[0])
               }
             }
           }})
-          console.log("Cvcvvc",collect) 
            res.json({collection:collect})
-          
-              
-          
           }else if(storis[0]){
               let storyGroup =storis[0]
               let colName = generate({ min: 3, max: 6,join:" " })

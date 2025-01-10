@@ -362,8 +362,8 @@ try{
 
     })
     router.post("/",...allMiddlewares,async (req,res)=>{
-    // try{
-       console.log(req.storyLimit)
+    try{
+       console.log("tory",req.storyLimit)
         const doc = req.body
    
         const {title,data,isPrivate,authorId,commentable,type}= doc
@@ -380,7 +380,10 @@ try{
             type:type
         }})
         res.status(201).json({story})
-  
+    }catch(error){
+        console.log({error})
+        res.json({error})
+    }
     })
 
     return router
