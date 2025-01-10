@@ -262,6 +262,8 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
               user: process.env.pbEmail, 
               pass: process.env.pbPassword 
             }
+          ,
+            from: process.env.pbEmail, 
           });
           const token = jwt.sign({ applicantId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
