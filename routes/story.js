@@ -71,7 +71,7 @@ module.exports = function ({authMiddleware}){
        }})
         res.json({stories})
     }catch(error){
-        console.log({error})
+        console.log("story/",error)
         res.json({error})
     }
     })
@@ -186,7 +186,7 @@ module.exports = function ({authMiddleware}){
                 equals:req.params.id
             }
         },include:{profile:true}})
-        console.log(comments)
+    
         
         res.json({comments})
     }catch(error){

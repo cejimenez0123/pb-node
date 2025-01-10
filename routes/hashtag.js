@@ -32,7 +32,7 @@ module.exports = function (authMiddleware){
             },include:{
                 hashtags:true
             }})
-           console.log(story.hashtags.length)
+
             if(!found ){
                     if(story.hashtags.length<5){
                 let hs = await createHashStory(hashtag,profile,story.id)
@@ -204,7 +204,7 @@ router.delete("/comment/:hashtagCommentId",authMiddleware,async(req,res)=>{
 
     res.json({message:"Deleted Successfully"})
 }catch(err){
-    console.log(err)
+    console.log({error:err})
     res.status(409).json({error:err})
 }
 

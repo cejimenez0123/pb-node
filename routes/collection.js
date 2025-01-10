@@ -771,7 +771,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
 
         let list = cTcs.map(cTc=>cTc.collection)
         const colList = [...cols,...list]
-        console.log(colList)
+
         res.json({collections:colList})
     }catch(error){
         console.log(error)

@@ -47,7 +47,7 @@ async function getProfileOfUsersToEmail() {
     });
     
     // Use profilesWithFilteredComments as the processed data for emailing
-    console.log(profilesWithFilteredComments);
+    // console.log(profilesWithFilteredComments);
     
 
 }
