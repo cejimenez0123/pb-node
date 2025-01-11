@@ -48,7 +48,7 @@ try{
        }})
 
     }
-    console.log(req.user)
+
        let profile = await prisma.profile.findFirst({where:{
         id: {equals:req.user.profiles[0].id}
        },include:{

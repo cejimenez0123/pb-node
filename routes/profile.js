@@ -9,19 +9,29 @@ module.exports = function (authMiddleware){
         const profiles = await prisma.profile.findMany()
         res.status(200).json({profiles:profiles})
     })
-    router.post("/",authMiddleware,async(req,res)=>{
-        const  {password,username,profilePicture,selfStatement,privacy}=req.body
+    router.post("/",async(req,res)=>{
+        const  {email,password,username,profilePicture,selfStatement,privacy}=req.body
         try{
-            const applicant = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
+            console.log(email)
+           let user = await prisma.user.findFirst({where:{
+            email:{
+                equals:email
+            }
+           }})
+            // const applicant = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
+            if(user){
             const hashedPassword = await bcrypt.hash(password, 10);
-            let user = await prisma.user.update({
+                 user = await prisma.user.update({
                 where:{
-                    id:applicant.applicantId
+                  id:user.id
                 },data:{
                     password:hashedPassword,
                     verified:true
                 }
             })
+        }else{
+            throw new Error("User not found")
+        }
     try{
    
         let profile = await prisma.profile.create({data:{

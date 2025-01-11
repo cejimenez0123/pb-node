@@ -18,7 +18,7 @@ const user = await prisma.user.create({
   }
 })
 
-const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
 
    
     let transporter = nodemailer.createTransport({
@@ -225,7 +225,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
                         </ul>
                         </div>
                         <div class="form">
-                          <form action="${process.env.BASEPATH+"/auth/review"}" method="POST">
+                          <form action={${process.env.BASEPATH+`/auth/review`} method="POST">
                             <input type="hidden" name="applicantId" value="${user.id}" />
                             <button type="submit" name="action" value="approve">Approve</button>
                           
@@ -267,7 +267,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET, { expire
           ,
             from: process.env.pbEmail, 
           });
-          const token = jwt.sign({ applicantId }, process.env.JWT_SECRET, { expiresIn: '7d' });
+          const token = jwt.sign({ applicantId }, process.env.JWT_SECRET);
 
           // Define the secure sign-up link
           const signupLink = process.env.DOMAIN+`/signup?token=${token}`;
