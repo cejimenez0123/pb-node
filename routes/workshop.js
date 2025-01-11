@@ -38,6 +38,7 @@ function groupUsersByProximity({profile,items, radius = 50,}){
   };
   const createNewWorkshopCollection=async ({profile})=>{
     let colName = generate({ min: 3, max: 6,join:" " })
+    if(profile.location){
  const role = await prisma.roleToCollection.create({data:{
       role:"editor",
       profile:{
@@ -75,6 +76,41 @@ collection:{
       }     
     })
 return role.collection
+  }else{
+    const role = await prisma.roleToCollection.create({data:{
+      role:"editor",
+      profile:{
+        connect:{id:profile.id}
+      },
+      collection:{
+        create:{
+          title:colName,
+          isPrivate:true,
+          purpose:"Let's get feedback",
+          isOpenCollaboration:false,
+          type:"feedback",
+          profile:{
+            connect:{id:profile.id}
+          },
+         
+          }
+        }
+      },include:{
+collection:{
+        include:{
+          roles:{
+            include:{
+              profile:true
+            }
+            
+          },storyIdList:{include:{profile:true,story:true}}
+        }
+      },
+      profile:true
+      }     
+    })
+return role.collection
+  }
   }
   const findStoryToCollection = ({collectionId,storyId,profileId})=>{
 
@@ -283,6 +319,31 @@ const findCollection= async({id})=>{
     }
     return groups;
   };
+  function groupItemsByCount({items,groupSize=6 }){
+
+    let groups = [];
+    while (items.length > 0) {
+  
+      let group = [];
+      let list = items;
+      let i = 0
+     while(group.length<groupSize&&i<6){
+      i+=1
+      const item = list.pop()
+      if(item && item.authorId){
+        const found = group.find(k=>k.authorId == item.authorId)
+        if(!found){
+          group.push(item)
+        }else{
+            [item,...list]
+        }
+      }
+    
+     }
+      groups.push(group);
+    }
+    return groups;
+  };
   function groupColsByProximity({profile,items, radius = 50,}){
     const groups = [];
     while (items.length > 0) {
@@ -316,16 +377,22 @@ module.exports = function (authMiddleware) {
       },data:{
         isActive:true
       }});
-      const stor = await prisma.story.update({where:{id:story.id
-      },data:{
-        needsFeedback:true
-      }})
+
     const profiles = await prisma.profile.findMany({where:{
         isActive:{
           equals:true
         }
       }})
-        res.json({ profile:prof,story:stor,profiles});
+      if(story){
+        const stor = await prisma.story.update({where:{id:story.id
+        },data:{
+          needsFeedback:true
+        }})
+            res.json({ profile:prof,story:stor,profiles});
+      }else{
+        res.json({ profile:prof,story:null,profiles});
+      }
+    
       } catch (error) {
         res.status(500).json({ error: error});
       }
@@ -344,6 +411,7 @@ module.exports = function (authMiddleware) {
         },include:{
           location:true
         }})
+      
         const radius = parseFloat(req.query.radius) || 50
       const profiles = await prisma.profile.findMany({where:{
         isActive:{
@@ -515,5 +583,190 @@ module.exports = function (authMiddleware) {
         
         
         })
+        router.post('/groups/global', authMiddleware,async (req, res) => {
+          try {
+       console.log("@")
+            const {story,profile}=req.body
+           
+            const prof = await prisma.profile.findFirst({where:{
+              id:{
+                equals:profile.id
+              }
+            }})
+          
+  
+          const profiles = await prisma.profile.findMany({where:{
+            isActive:{
+              equals:true
+            }},include:{
+                stories:{
+                  where:{
+                    needsFeedback:true
+                  }
+                }
+            }})
+      
+            const collections = await prisma.collection.findMany({
+                where: {
+                  type:{
+                    equals:"feedback",
+                  },
+                  OR:[{location:{
+                    is:null
+                  }},{isOpenCollaboration:{equals:true}}]
+                },
+                include: {
+                    roles: {
+                      include:{profile:true}
+                    },
+                    storyIdList:{
+                      include:{
+                      story:{include:{author:true}}
+                      }
+                    }
+                }
+              });
+            let stories= await prisma.story.findMany({where:{
+                author:{
+                 
+                  isActive:{
+                    equals:true
+                  }
+                  
+                },
+                needsFeedback:{
+                  equals:true
+                }
+              },include:{
+                author:{
+                  include:{
+                    location:true
+                  }
+                }
+              }})
+          let cols =  collections.filter(col=>{
+            return col.roles.length<6
+          })
+        
+          const groups = groupItemsByCount({items:profiles,groupSize:6}) 
+          const storis = groupItemsByCount({items:stories,groupSize:6})
+         
+             cols = cols.filter(col=>{
+            return !col.roles.find(role=>role.profile.id==prof.id)&&col.profileId!=prof.id
+    
+                })
+    
+    
+            if(cols[0]){
+                const col = cols[0]
+       
+                  let role = await prisma.roleToCollection.create({
+                  data:{
+                    role:"writer",
+                    profile:{
+                      connect:{
+                        id:prof.id
+                      }
+                    },
+                    collection:{
+                      connect:{
+                        id:col.id
+                      }
+                    }
+                  }
+                ,include:{
+                  collection:{
+                    include:{
+                      roles:{
+                        include:{
+                          profile:true
+                        }
+                      },
+                    }      
+                  },
+                  profile:true
+                }})
+                console.log("l")
+                if(story){
+                  let stc = await createStoryToCollection({storyId:story.id,collectionId:col.id,profileId:prof.id})
+                  await prisma.profile.update({where:{id:prof.id},data:{
+                    isActive:false
+                  }})
+                  res.json({collection:stc.collection})
+                }else{
+                  res.json({collection:role.collection})
+                }
+               
+              }else if(storis && storis.length>0){
+                  let storyGroup =storis[0]
+              
+                  const workshopCol= await createNewWorkshopCollection(
+                    {profile:prof}
+                  )
+                  if(story){
+                    const stc =  await createStoryToCollection({storyId:story.id,collectionId:workshopCol.id,profileId:prof.id})
+                  }
+                    for(let i =0;i<6;i++){
+                      const otherStory = storyGroup[i]
+                      if(otherStory && otherStory.authorId!=profile.id){
+                       let found = await findStoryToCollection({collectionId:workshopCol.id,storyId:otherStory.id,profileId:otherStory.authorId})
+                      
+                      
+                       if(!found){
+                        await createStoryToCollection({storyId:otherStory.id,collectionId:workshopCol.id,profileId:otherStory.authorId})
+                      }
+                   }
+                  
+                  }
+                      const col = await prisma.collection.findFirst({where:{id:{equals:workshopCol.id}},include:{
+                        storyIdList:{include:{
+                          story:{
+                            include:{
+                              author:true
+                            }
+                          }
+                        }},
+                     profile:true,
+                        roles:{
+                          include:{
+                            profile:true
+                          }
+                        }
+                      }})
+                      console.log("b")
+                      res.json({collection:col})
+                  }else{
+                   let index=  groups.findIndex(0)
+                  if(index>-1){
+                   const newWorkshop = await createNewWorkshopCollection({profile:prof})
+                   const group = groups[0]
+                   const promises = group.map(profile=>{
+                      let i = profile.stories.findIndex(0)
+                      if(i>-1){
+                       let story = profile.stories[0]
+                      return createStoryToCollection({storyId:story.id,collectionId:newWorkshop.id,profileId:profile.id})
+                      }
+                   })
+                   await Promise.all(promises)
+                   await prisma.profile.update({where:{
+                    id:prof.id
+                   },data:{
+                    isActive:false
+                   }})
+                   console.log("c")
+                  const col = await prisma.collection.findFirst({where:{id:{equals:newWorkshop.id}}})
+                  res.json({collection:col})
+                  return
+                }else{
+                  res.json({error:new Error("Not enough users active in your area. Increase your radius")})
+                }
+              }
+            } catch (error) {
+              console.log("gloval",error)
+            res.status(500).json({ error: error.message });
+              }
+            
+            
+            })
   
     return router;}

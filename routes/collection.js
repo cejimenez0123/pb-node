@@ -311,6 +311,15 @@ module.exports = function (authMiddleware){
             storyIdList:{
               include:{story:{include:{author:true}}}  
             },
+            parentCollections:{
+                include:{
+                    parentCollection:{
+                        include:{
+                            roles:true
+                        }
+                    }
+                }
+            },
             childCollections:true,
             roles:{
                 include:{
@@ -382,6 +391,14 @@ try{
                 include:{
                     storyIdList:{
                         include:{story:{include:{author:true}}}  
+                      },
+                      parentCollections:{
+                        include:{
+                            parentCollection:{
+                                include:{
+                                    roles:true                                }
+                            }
+                        }
                       },
                         childCollections:true,
                         roles:{
