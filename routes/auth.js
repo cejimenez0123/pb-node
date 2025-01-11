@@ -238,7 +238,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
               };
             
                 await transporter.sendMail(mailOptions);
-                res.json({message:'Applied Successfully!'});
+                res.json({user,message:'Applied Successfully!'});
         
 
             }catch(error){
