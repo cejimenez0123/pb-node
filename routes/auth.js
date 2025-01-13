@@ -137,11 +137,13 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
         } = req.body
 
     try{
+      console.log(user.preferredName)
        let user = await prisma.user.create({data:{
             email:email,
             preferredName:fullName,
             igHandle:igHandle,
         }})
+     
         let transporter = nodemailer.createTransport({
             service: 'gmail', 
             auth: {

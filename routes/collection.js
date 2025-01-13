@@ -852,12 +852,12 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         const doc = req.body
         try{
         const {title,location,purpose,type,isPrivate,profileId,isOpenCollaboration}=doc
-        let locale = await createLocation(location)
-        console.log(locale)
-        let collectionType = type
+               let collectionType = type
         if(collectionType!="feedback"){
             collectionType="book"
         }
+        if(location){
+        let locale = await createLocation(location)
         const collection = await prisma.collection.create({data:{
             title:title,
             purpose:purpose,
@@ -890,9 +890,40 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
                  
              }
         })
-        
-        
         res.status(201).json({collection:collection})
+    }else{
+          const collection = await prisma.collection.create({data:{
+            title:title,
+            purpose:purpose,
+            isPrivate:isPrivate,
+            isOpenCollaboration:isOpenCollaboration,
+            profile:{
+                connect:{
+                    id: profileId
+                }
+            }
+            ,type: collectionType
+        },
+            include:{
+    
+                storyIdList:{
+                    include:{story:{include:{author:true}}}  
+                  },
+                childCollections:true,
+                roles:{
+                 include:{
+                     profile:true,
+                 }
+             },
+             profile:true
+             
+                 
+             }
+        })
+        res.status(201).json({collection:collection})
+    }
+        
+    
     }catch(error){
         console.log(error)
         res.json({error})
