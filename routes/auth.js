@@ -158,6 +158,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
                   html: `
                     <!DOCTYPE html>
                     <html lang="en">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <head>
                       <meta charset="UTF-8">
                       <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -225,11 +226,10 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
                         </ul>
                         </div>
                         <div class="form">
-                          <form action={${process.env.BASEPATH+`/auth/review`} method="POST">
-                            <input type="hidden" name="applicantId" value="${user.id}" />
-                            <button type="submit" name="action" value="approve">Approve</button>
-                          
-                          </form>
+                        <a href="${process.env.BASEPATH}/auth/review?applicantId=${user.id}&action=approve" 
+                        style="display: inline-block; background: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                        Approve Application
+                      </a>
                         </div>
                       </div>
                     </body>
@@ -252,7 +252,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
 
     })
     router.post('/review', async (req, res) => {
-        const { applicantId, action } = req.body;
+      const { applicantId, action } = req.query;
       
         try {
           if (!applicantId || !action) {
@@ -268,8 +268,6 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
             from: process.env.pbEmail, 
           });
           const token = jwt.sign({ applicantId }, process.env.JWT_SECRET);
-
-          // Define the secure sign-up link
           const signupLink = process.env.DOMAIN+`/signup?token=${token}`;
       
           const user = await prisma.user.update({
