@@ -251,7 +251,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
             }
 
     })
-    router.post('/review', async (req, res) => {
+    router.get('/review', async (req, res) => {
       const { applicantId, action } = req.query;
       
         try {
