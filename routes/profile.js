@@ -12,26 +12,20 @@ module.exports = function (authMiddleware){
     router.post("/",async(req,res)=>{
         const  {email,password,username,profilePicture,selfStatement,privacy}=req.body
         try{
-            console.log(email)
-           let user = await prisma.user.findFirst({where:{
-            email:{
-                equals:email
-            }
-           }})
-            // const applicant = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
-            if(user){
+           
+            const decoded = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
+    
+            if(decoded.applicantId){
             const hashedPassword = await bcrypt.hash(password, 10);
-                 user = await prisma.user.update({
+               const user = await prisma.user.update({
                 where:{
-                  id:user.id
+                  id:decoded.applicantId
                 },data:{
                     password:hashedPassword,
                     verified:true
                 }
             })
-        }else{
-            throw new Error("User not found")
-        }
+   
     try{
    
         let profile = await prisma.profile.create({data:{
@@ -61,6 +55,9 @@ module.exports = function (authMiddleware){
         
         res.status(409).json({error: new Error("Username already taken")})
     }
+}else{
+    throw new Error("User not found")
+}
     }catch(error){
     console.log(error)
         res.status(409).json({error})
@@ -133,7 +130,7 @@ module.exports = function (authMiddleware){
 })
     router.get("/user/protected",authMiddleware,async (req,res)=>{
         try{
-          console.log(req.user)
+      
         if(req.user){
             await prisma.profile.updateMany({where:{
                 userId:{equals:req.user.id}

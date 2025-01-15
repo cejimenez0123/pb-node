@@ -308,8 +308,13 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
           from: process.env.pbEmail, 
         });
         try{
+        let user =  await prisma.user.findFirst({where:{email:{
+            equals:email
+          }},include:{
+            profiles:true
+          }})
 
-      if(profile && username){
+      if(profile && username &&user && user.profiles[0]){
       const user = await prisma.user.create({data:{email:email,verified:false,preferredName:username}})
       await prisma.profile.update({where:{
         id:profile.id
@@ -353,6 +358,8 @@ Reset Pasword
                 };
                 await transporter.sendMail(mailOptions);
               
+                res.status(200).json({message:"If there is an account you will recieve an email"})
+              }else{
                 res.status(200).json({message:"If there is an account you will recieve an email"})
               }}catch(err){
                 try{
@@ -490,7 +497,7 @@ Reset Pasword
           console.log(user)
           console.log(uId)
             if (!user || user.email!=email) {
-              console.log("wrong email")
+            
                 return res.status(401).json({ message: 'Invalid email or password' });
               }
         await prisma.profile.updateMany({where:{
@@ -502,7 +509,6 @@ Reset Pasword
           isActive:true
         }})
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-        console.log("1",token)
       
         res.json({ token,user });
       }else{
@@ -510,7 +516,6 @@ Reset Pasword
         const user = await prisma.user.findFirst({ where: { email:{equals:email} }});
     
         if (!user || !bcrypt.compareSync(password, user.password)) {
-            console.log("wrong password")
             return res.status(401).json({ message: 'Invalid email or password' });
         }
         await prisma.profile.updateMany({where:{
@@ -522,7 +527,7 @@ Reset Pasword
           isActive:true
         }})
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '2d' });
-        console.log("2",token)
+
         res.json({ token,user });
        }
 
@@ -540,6 +545,8 @@ Reset Pasword
         profilePicture,selfStatement,privacy
        }=req.body
        try{
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log(token)
         // let mongoId = generateMongoId(uId)
         if (!email || !password) {
             return res.status(400).json({ message: 'Missing required fields' });

@@ -585,7 +585,7 @@ module.exports = function (authMiddleware) {
         })
         router.post('/groups/global', authMiddleware,async (req, res) => {
           try {
-       console.log("@")
+   
             const {story,profile}=req.body
            
             const prof = await prisma.profile.findFirst({where:{
@@ -686,7 +686,7 @@ module.exports = function (authMiddleware) {
                   },
                   profile:true
                 }})
-                console.log("l")
+             
                 if(story){
                   let stc = await createStoryToCollection({storyId:story.id,collectionId:col.id,profileId:prof.id})
                   await prisma.profile.update({where:{id:prof.id},data:{
@@ -733,7 +733,7 @@ module.exports = function (authMiddleware) {
                           }
                         }
                       }})
-                      console.log("b")
+                 
                       res.json({collection:col})
                   }else{
                    let index=  groups.findIndex(0)
@@ -753,7 +753,7 @@ module.exports = function (authMiddleware) {
                    },data:{
                     isActive:false
                    }})
-                   console.log("c")
+                  
                   const col = await prisma.collection.findFirst({where:{id:{equals:newWorkshop.id}}})
                   res.json({collection:col})
                   return
@@ -762,7 +762,7 @@ module.exports = function (authMiddleware) {
                 }
               }
             } catch (error) {
-              console.log("gloval",error)
+              console.log({error})
             res.status(500).json({ error: error.message });
               }
             
