@@ -273,6 +273,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
         verified:true,
         password:hashedPassword
     }})
+    console.log(user)
    let profile = await prisma.profile.update(
 {where:{username:decoded.username},data:{
   user:{
@@ -289,11 +290,8 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
     })
     router.post("/forgot-password",async (req,res)=>{
         const {username,email}=req.body
-        try{
-      let profile = await  prisma.profile.findFirst({where:{username:{equals:username}}})
-        
-      if(profile && username){
-      let transporter = nodemailer.createTransport({
+        let profile = await  prisma.profile.findFirst({where:{username:{equals:username}}})
+        const transporter = nodemailer.createTransport({
           service: 'gmail', 
           auth: {
             user: process.env.pbEmail, 
@@ -302,6 +300,21 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
         ,
           from: process.env.pbEmail, 
         });
+        try{
+
+      if(profile && username){
+      const user = await prisma.user.create({data:{email:email,verified:false,preferredName:username}})
+      await prisma.profile.update({where:{
+        id:profile.id
+      },data:{
+        user:{
+          connect:{
+            id:user.id
+          }
+        }
+      }})
+      console.log(user)
+  
         const token = jwt.sign({ username,email }, process.env.JWT_SECRET);
         const forgetPasswordLink = process.env.DOMAIN+`/reset-password?token=${token}`
 
@@ -334,8 +347,9 @@ Reset Pasword
                 await transporter.sendMail(mailOptions);
               
                 res.status(200).json({message:"If there is an account you will recieve an email"})
-             
-              }else if(email){
+              }}catch(err){
+                try{
+                   if(email){  
             let  user =  await prisma.user.findFirst({where:{email:{equals:email}},include:{profiles:true}})
               let name = user.profiles[0]?user.profiles[0].username:null
             const token = jwt.sign({ username:name,email }, process.env.JWT_SECRET);
@@ -373,10 +387,11 @@ Reset Pasword
             res.status(200).json({message:"If there is an account you will recieve an email"})
 
           }
+           
                 }catch(err){
         console.log(err)
                   res.status(409).json(err)
-                }
+                }}
     })
     router.get('/review', async (req, res) => {
       const { applicantId, action,email} = req.query;
