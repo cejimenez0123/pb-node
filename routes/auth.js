@@ -397,12 +397,14 @@ Reset Pasword
       const { applicantId, action,email} = req.query;
       
         try {
-          // if (!applicantId || !action) {
-          //   return res.status(400).json({ message: 'Missing applicantId or action' });
-          // }
-         let user = await prisma.user.create({data:{email:email,
-          verified:true,
-         }})
+          if (!applicantId || !action) {
+            return res.status(400).json({ message: 'Missing applicantId or action' });
+          }
+         let user = null
+         if(applicantId){
+         await prisma.user.update({where:{id:applicantId},data:{
+        verified:true
+        }})
           let transporter = nodemailer.createTransport({
             service: 'gmail', 
             auth: {
@@ -461,10 +463,12 @@ Reset Pasword
       
           // If no application or user is found
           res.status(404).json({ message: 'Applicant not found' });
-      
+        }else{
+          throw new Error("USER NOT FOUND")
+        }
         } catch (error) {
           console.error('Error processing application:', error);
-          res.status(500).json({ message: 'Internal server error' });
+          res.status(409).json({message:"Error processing application"})
         }
       });
     router.post("/session",async (req,res)=>{
