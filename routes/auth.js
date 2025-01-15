@@ -292,7 +292,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
         try{
       let profile = await  prisma.profile.findFirst({where:{username:{equals:username}}})
         
-      if(profile){
+      if(profile && username){
       let transporter = nodemailer.createTransport({
           service: 'gmail', 
           auth: {
@@ -333,11 +333,48 @@ Reset Pasword
                 };
                 await transporter.sendMail(mailOptions);
               
-              res.status(200).json({message:"Email sent"})
-              }else{
-                res.status(200).json({message:"User Not found"})
-                }}catch(err){
-                  console.log(err)
+                res.status(200).json({message:"If there is an account you will recieve an email"})
+             
+              }else if(email){
+            let  user =  await prisma.user.findFirst({where:{email:{equals:email}},include:{profiles:true}})
+              let name = user.profiles[0]?user.profiles[0].username:null
+            const token = jwt.sign({ username:name,email }, process.env.JWT_SECRET);
+            const forgetPasswordLink = process.env.DOMAIN+`/reset-password?token=${token}`
+                  const mailOptions = {
+                      from: process.env.pbEmail, // Sender address
+                      to: email, // Recipient's email
+                      subject: 'Reset Password',
+                      html: `
+                        <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
+                          <h1 style="color: #5A5A5A;">Welcome to Plumbum!</h1>
+                          <p style="font-size: 16px; color: #5A5A5A;">
+                    We're sorry you forgot your password. You can reset with the link below.
+                          </p>
+                          <p style="font-size: 16px; color: #5A5A5A;">
+                            Click the button to reset password:
+                          </p>
+                          <a href="${forgetPasswordLink}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-size: 16px;">
+    Reset Pasword
+                        </a>
+                          <p style="font-size: 14px; color: #5A5A5A; margin-top: 20px;">
+                            If you have any questions, feel free to reach out to us at plumbumapp@gmail.com
+                          </p>
+                          <footer style="font-size: 12px; color: #9E9E9E; margin-top: 20px;">
+                            &copy; ${new Date().getFullYear()} Plumbum. All rights reserved.
+                          </footer>
+                        </div>
+                      `,
+                    };
+                    await transporter.sendMail(mailOptions);
+                    res.status(200).json({message:"If there is an account you will recieve an email"})
+          }else{
+
+
+            res.status(200).json({message:"If there is an account you will recieve an email"})
+
+          }
+                }catch(err){
+        console.log(err)
                   res.status(409).json(err)
                 }
     })
