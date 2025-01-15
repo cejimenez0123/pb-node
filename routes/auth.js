@@ -158,6 +158,13 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
             },
             from:process.env.pbEmail
           });
+          const params = new URLSearchParams({
+            applicantId:user.id,
+            action:"approve",
+            email,
+          });
+          let path = process.env.BASEPATH+`/auth/review?`+params.toString()
+
         //   await prisma.user.create({email:email,verified:false})
             let mailOptions = {
                 from: email,
@@ -234,7 +241,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
                         </ul>
                         </div>
                         <div class="form">
-                        <a href="${process.env.BASEPATH}/auth/review?applicantId=${user.id}&action=approve&?email=${email}" 
+                        <a href="${path}" 
                         style="display: inline-block; background: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
                         Approve Application
                       </a>
