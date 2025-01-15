@@ -133,7 +133,7 @@ module.exports = function (authMiddleware){
 })
     router.get("/user/protected",authMiddleware,async (req,res)=>{
         try{
-          
+          console.log(req.user)
         if(req.user){
             await prisma.profile.updateMany({where:{
                 userId:{equals:req.user.id}
