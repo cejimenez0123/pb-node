@@ -4,9 +4,14 @@ const bcrypt = require("bcryptjs")
 const jwt = require('jsonwebtoken');
 const generateMongoId = require("./generateMongoId");
 const nodemailer = require('nodemailer');
+const { profile } = require('console');
+const { use } = require('passport');
 const router = express.Router()
 module.exports = function (authMiddleware){
-
+    router.get("/user",authMiddleware,async(req,res)=>{
+      
+      res.json({user:req.user})
+    })
     router.post("/referral",authMiddleware,async (req,res)=>{
     const {email,name}=req.body
 try{
@@ -255,16 +260,99 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
             }
 
     })
-    router.post("/forgot-password",async (res,res)=>{
+    router.post("/reset-password",async(req,res)=>{
+      
+      try{
+        const { token,password} = req.body
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const hashedPassword = await bcrypt.hash(password, 10)
+     const user = await prisma.user.update({where:{
+       email:decoded.email
+    },data:{
+        email:decoded.email,
+        verified:true,
+        password:hashedPassword
+    }})
+   let profile = await prisma.profile.update(
+{where:{username:decoded.username},data:{
+  user:{
+    connect:{
+      id:user.id
+    }
+  }
+}})
+    res.json({profile})
+  }catch(error){
+    console.log(error)
+    res.json({error})
+  }
+    })
+    router.post("/forgot-password",async (req,res)=>{
+        const {username,email}=req.body
+        try{
+      let profile = await  prisma.profile.findFirst({where:{username:{equals:username}}})
+        
+      if(profile){
+      let transporter = nodemailer.createTransport({
+          service: 'gmail', 
+          auth: {
+            user: process.env.pbEmail, 
+            pass: process.env.pbPassword 
+          }
+        ,
+          from: process.env.pbEmail, 
+        });
+        const token = jwt.sign({ username,email }, process.env.JWT_SECRET);
+        const forgetPasswordLink = process.env.DOMAIN+`/reset-password?token=${token}`
 
+
+              const mailOptions = {
+                  from: process.env.pbEmail, // Sender address
+                  to: email, // Recipient's email
+                  subject: 'Reset Password',
+                  html: `
+                    <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
+                      <h1 style="color: #5A5A5A;">Welcome to Plumbum!</h1>
+                      <p style="font-size: 16px; color: #5A5A5A;">
+                        We’re thrilled to let you know that your application has been approved. 
+                        You’re now part of a vibrant community of creators, thinkers, and writers.
+                        If you're receiving this email, there's a problem with your password please reset.
+                      </p>
+                      <p style="font-size: 16px; color: #5A5A5A;">
+                        Click the button to reset password:
+                      </p>
+                      <a href="${forgetPasswordLink}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-size: 16px;">
+Reset Pasword
+                    </a>
+                      <p style="font-size: 14px; color: #5A5A5A; margin-top: 20px;">
+                        If you have any questions, feel free to reach out to us at plumbumapp@gmail.com
+                      </p>
+                      <footer style="font-size: 12px; color: #9E9E9E; margin-top: 20px;">
+                        &copy; ${new Date().getFullYear()} Plumbum. All rights reserved.
+                      </footer>
+                    </div>
+                  `,
+                };
+                await transporter.sendMail(mailOptions);
+              
+              res.status(200).json({message:"Email sent"})
+              }else{
+                res.status(200).json({message:"User Not found"})
+                }}catch(err){
+                  console.log(err)
+                  res.status(409).json(err)
+                }
     })
     router.get('/review', async (req, res) => {
-      const { applicantId, action } = req.query;
+      const { applicantId, action,email} = req.query;
       
         try {
-          if (!applicantId || !action) {
-            return res.status(400).json({ message: 'Missing applicantId or action' });
-          }
+          // if (!applicantId || !action) {
+          //   return res.status(400).json({ message: 'Missing applicantId or action' });
+          // }
+         let user = await prisma.user.create({data:{email:email,
+          verified:true,
+         }})
           let transporter = nodemailer.createTransport({
             service: 'gmail', 
             auth: {
@@ -277,14 +365,6 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
           const token = jwt.sign({ applicantId }, process.env.JWT_SECRET);
           const signupLink = process.env.DOMAIN+`/signup?token=${token}`;
       
-          const user = await prisma.user.update({
-            where:{
-                id:applicantId
-            },
-            data:{
-                verified:true
-            }
-        })
          
           if (user) {
             if (action === 'approve') {

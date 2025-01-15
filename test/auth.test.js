@@ -20,20 +20,24 @@ app.use("/auth",routes(authMiddleware));
 jest.mock('nodemailer');
 const prisma = new PrismaClient();
 
+
 describe('Auth API', () => {
   beforeAll(async () => {
 //     // You can use a separate test database or in-memory MongoDB like `mongodb-memory-server`
     await prisma.$connect(process.env.TEST_DATABASE_URL);
   });
-
+  let user = null
   afterAll(async () => {
     // Clean up data after each test if necessary
-    await prisma.user.deleteMany({});
+    if(user){
+    await prisma.user.delete({where:{id:user.id}})
+}
   });
   test('should submit an application and send a confirmation email', async () => {
+
     const applicationData = {
       fullName: 'John Doe',
-      email: 'johndoe@example.com',
+      email: 'testmcgee@example.com',
       igHandle: 'handle',
       genres:[],
       whyApply: '',
@@ -46,12 +50,14 @@ describe('Auth API', () => {
       .send(applicationData)
       .expect(201); // Expect a 201 status code
   console.log(response.body)
+
     // Check if the message is correct
     expect(response.body.message).toBe('Applied Successfully!');
   
     // Check if the response includes a 'user' property
     expect(response.body).toHaveProperty('user');
-   expect(response.body.user).toHaveProperty('email', 'johndoe@example.com');
+    user = response.body.user
+   expect(response.body.user).toHaveProperty('email', 'testmcgee@example.com');
    
 
   })
