@@ -66,13 +66,13 @@ model Profile{
     profileToCollections ProfileToCollection[]
     selfStatement String @default("")
     userId String? @db.ObjectId
+    user User? @relation(fields: [userId], references: [id])
     isActive Boolean? @default(false) 
     lastActive  DateTime? @default(now())
     writerLevel Int? @default(1)
     locationId String? @db.ObjectId
     location Location?  @relation(fields: [locationId], references: [id])
     hashtag HashtagComment[]
-    user User? @relation(fields: [userId], references: [id])
     isPrivate Boolean?
     requests AccessRequest[]
     hashtags HashtagStory[]

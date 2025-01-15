@@ -23,7 +23,7 @@ const prisma = new PrismaClient();
 describe('Auth API', () => {
   beforeAll(async () => {
 //     // You can use a separate test database or in-memory MongoDB like `mongodb-memory-server`
-    await prisma.$connect(process.env_TEST_DATABASE_URL);
+    await prisma.$connect(process.env.TEST_DATABASE_URL);
   });
 
   afterAll(async () => {

@@ -229,7 +229,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
                         </ul>
                         </div>
                         <div class="form">
-                        <a href="${process.env.BASEPATH}/auth/review?applicantId=${user.id}&action=approve" 
+                        <a href="${process.env.BASEPATH}/auth/review?applicantId=${user.id}&action=approve&?email=${email}" 
                         style="display: inline-block; background: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
                         Approve Application
                       </a>
@@ -253,6 +253,9 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
                   res.status(403).json({error})
                 }
             }
+
+    })
+    router.post("/forgot-password",async (res,res)=>{
 
     })
     router.get('/review', async (req, res) => {
