@@ -2,9 +2,6 @@ const express = require('express');
 const prisma = require("../db");
 const generateMongoId = require("./generateMongoId");
 const router = express.Router()
-const jwt = require('jsonwebtoken');
-const bcrypt = require("bcryptjs");
-const { connect } = require('http2');
 
 module.exports = function (authMiddleware){
     router.post("/story",authMiddleware,async(req,res)=>{
@@ -21,7 +18,6 @@ module.exports = function (authMiddleware){
                 id:story.id
             }
           }
-    
         }})
         let updatedProfile = await prisma.profile.findFirst({where:{id:{equals:profile.id}},include:{
             likedStories:true,
