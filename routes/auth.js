@@ -458,7 +458,9 @@ Reset Pasword
             }
       
             // await user.save();
-            return res.status(200).json({ message: `User ${action}'d successfully` });
+            res.status(200).json({ message: `User ${action}'d successfully` });
+          }else{
+            res.status(200).json({ message: `User not found`});
           }
       
           // If no application or user is found
