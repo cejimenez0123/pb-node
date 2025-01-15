@@ -314,9 +314,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
                     <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
                       <h1 style="color: #5A5A5A;">Welcome to Plumbum!</h1>
                       <p style="font-size: 16px; color: #5A5A5A;">
-                        We’re thrilled to let you know that your application has been approved. 
-                        You’re now part of a vibrant community of creators, thinkers, and writers.
-                        If you're receiving this email, there's a problem with your password please reset.
+                We're sorry you forgot your password. You can reset with the link below.
                       </p>
                       <p style="font-size: 16px; color: #5A5A5A;">
                         Click the button to reset password:
