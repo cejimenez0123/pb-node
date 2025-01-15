@@ -544,11 +544,12 @@ Reset Pasword
         const{token,email,password,username,
         profilePicture,selfStatement,privacy
        }=req.body
+     
        try{
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log(token)
+        console.log(decoded)
         // let mongoId = generateMongoId(uId)
-        if (!email || !password) {
+        if (!username||!password) {
             return res.status(400).json({ message: 'Missing required fields' });
           }
       
@@ -556,13 +557,15 @@ Reset Pasword
       
         //   // Hash password securely (at least 10 rounds)
           const hashedPassword = await bcrypt.hash(password, 10);
-          const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
-        const user = await prisma.user.upsert({where:{
-            email:email
+        
+        const user = await prisma.user.update({where:{
+            id:decoded.applicantId
         },data:{
             password:hashedPassword,
             verified:true
-        }})
+        },include:{profiles:true}})
+        const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+       if(user.profiles.length==0){
         if(profilePicture){
         const profile = await prisma.profile.create({
             data:{
@@ -577,6 +580,8 @@ Reset Pasword
                 }
             }
         })
+
+
         res.json({profile,token:verifiedToken})
       }else{
         const profile = await prisma.profile.create({
@@ -592,10 +597,19 @@ Reset Pasword
           }
       })
       res.json({profile,token:verifiedToken})
+     } 
+    }else{
+      const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+      res.json({profile:user.profiles[0],token:verifiedToken})
+    
       }
       }catch(error){
+        if(error.message.includes("Unique")){
+          res.status(409).json("USERNAME IS NOT UNIQUE")
+        }else{
         console.log(error)
-        res.json({error})
+        res.status(409).json({error})
+        }
       }
     })
 
