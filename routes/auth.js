@@ -402,7 +402,7 @@ Reset Pasword
           }
          let user = null
          if(applicantId){
-         await prisma.user.update({where:{id:applicantId},data:{
+        user = await prisma.user.update({where:{id:applicantId},data:{
         verified:true
         }})
           let transporter = nodemailer.createTransport({
@@ -425,7 +425,7 @@ Reset Pasword
 
                 const mailOptions = {
                     from: process.env.pbEmail, // Sender address
-                    to: user.email, // Recipient's email
+                    to: email, // Recipient's email
                     subject: 'Congratulations! Your Application Has Been Approved 🎉',
                     html: `
                       <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
