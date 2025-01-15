@@ -111,7 +111,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
           };
           try {
             await transporter.sendMail(mailOptions);
-            res.json({message:'Referred Succesfully!'});
+            res.json({user,message:'Referred Succesfully!'});
           } catch (error) {
             console.error(error);
             res.json({error})
@@ -120,6 +120,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
 }})
 
     router.post("/apply",async (req,res)=>{
+   
         const {
         
             igHandle,
@@ -240,15 +241,16 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
               };
             
                 await transporter.sendMail(mailOptions);
-                res.json({user,message:'Applied Successfully!'});
+                res.status(201).json({user,message:'Applied Successfully!'});
         
 
             }catch(error){
-                console.log(error)
+            
                 if(error.message.includes("Unique")){
-                    res.json({message:"User has already applied"})
+                    res.status(409).json({message:"User has already applied"})
                 }else{
-                  res.json({error})
+                  console.log(error)
+                  res.status(403).json({error})
                 }
             }
 
@@ -334,49 +336,65 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
       });
     router.post("/session",async (req,res)=>{
         const { email, password, uId } = req.body;
+
        try{
         if(uId){
-        const user = await prisma.user.findFirstOrThrow({ where: { uId:uId } });
-          
-        if (!user || user.email!=email) {
-          return res.status(401).json({ message: 'Invalid email or password' });
+          console.log(uId)
+            const user = await prisma.user.findFirst({ where: { email:email } });
+          console.log(user)
+          console.log(uId)
+            if (!user || user.email!=email) {
+              console.log("wrong email")
+                return res.status(401).json({ message: 'Invalid email or password' });
+              }
+        await prisma.profile.updateMany({where:{
+          userId:{
+            equals:user.id
+          }
+        },data:{
+          lastActive: new Date(),
+          isActive:true
+        }})
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+        console.log("1",token)
+      
+        res.json({ token,user });
+      }else{
+       
+        const user = await prisma.user.findFirst({ where: { email:{equals:email} }});
+    
+        if (!user || !bcrypt.compareSync(password, user.password)) {
+            console.log("wrong password")
+            return res.status(401).json({ message: 'Invalid email or password' });
         }
         await prisma.profile.updateMany({where:{
           userId:{
             equals:user.id
           }
         },data:{
-          lastActive: new Date()
+          lastActive: new Date(),
+          isActive:true
         }})
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
-
-      
-        res.json({ token,user });
-      }else{
-       
-        const user = await prisma.user.findFirstOrThrow({ where: { email:{equals:email} }});
-    
-        if (!user || !bcrypt.compareSync(password, user.password)) {
-            return res.status(401).json({ message: 'Invalid email or password' });
-        }
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '2d' });
+        console.log("2",token)
         res.json({ token,user });
        }
 
 
 }catch(error){
-  console.log({error})
+  console.log(error)
   res.json({error})
 }})
     router.post("/verify",async (req,res)=>{
 
     })
-    router.post("/register",authMiddleware,async (req,res)=>{
-        const{ id, token, uId,email,password,username,
+    router.post("/register",async (req,res)=>{
+    
+        const{token,email,password,username,
         profilePicture,selfStatement,privacy
        }=req.body
        try{
-        let mongoId = generateMongoId(uId)
+        // let mongoId = generateMongoId(uId)
         if (!email || !password) {
             return res.status(400).json({ message: 'Missing required fields' });
           }
@@ -386,18 +404,13 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
         //   // Hash password securely (at least 10 rounds)
           const hashedPassword = await bcrypt.hash(password, 10);
           const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
-        //   // Create new user in Prisma
-        //   const user = await prisma.user.create({
-        //     data: { email, password: hashedPassword },
-        //   });
         const user = await prisma.user.upsert({where:{
-            id: id
+            email:email
         },data:{
-            id:mongoId,
-            email:email,
             password:hashedPassword,
             verified:true
         }})
+        if(profilePicture){
         const profile = await prisma.profile.create({
             data:{
                 username:username,
@@ -406,13 +419,29 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
                 isPrivate:privacy,
                 user:{
                     connect:{
-                        id:mongoId
+                        id:user.id
                     }
                 }
             }
         })
         res.json({profile,token:verifiedToken})
+      }else{
+        const profile = await prisma.profile.create({
+          data:{
+              username:username,
+              selfStatement,
+              isPrivate:privacy,
+              user:{
+                  connect:{
+                      id:user.id
+                  }
+              }
+          }
+      })
+      res.json({profile,token:verifiedToken})
+      }
       }catch(error){
+        console.log(error)
         res.json({error})
       }
     })

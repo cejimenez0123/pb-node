@@ -280,7 +280,7 @@ try{
     })
     router.get("/:id/public",async (req,res)=>{
        try{
-            let story = await prisma.story.findFirstOrThrow({where: {
+            let story = await prisma.story.findFirst({where: {
                    AND:[{ 
                     id:{equals:req.params.id}},{
                     isPrivate:{
