@@ -50,7 +50,6 @@ module.exports = function (authMiddleware){
                 id:collection.id
             }
           }
-    
         }})
         let updatedProfile = await prisma.profile.findFirst({where:{id:{equals:profile.id}},include:{
             likedStories:true,

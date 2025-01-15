@@ -55,53 +55,11 @@ describe('Auth API', () => {
    
 
   })
-//   afterAll(async () => {
-//     // Close the Prisma connection after tests
-//     await prisma.$disconnect();
-//   });
-//   it('should submit an application and send a confirmation email', async () => {
-//     // Mock Nodemailer transport
-//     const sendMailMock = jest.fn();
-//     nodemailer.createTransport.mockReturnValueOnce({ sendMail: sendMailMock });
+  afterAll(async () => {
+    // Close the Prisma connection after tests
+    await prisma.$disconnect();
+  });
 
-//     const applicationData = {
-//       id:"",
-//       fullName: 'John Doe',
-//       email: 'johndoe@example.com',
-//      igHandle:"handle",
-//      whyApply:"",
-
-//     };
-//     const response = await request(app)
-//       .post('/auth/apply')
-//       .expect("Content-Type", /json/)
-//       .send(applicationData)
-//       .expect(201);
-
-//     expect(response.body.message).toBe('Application received successfully!');
-//     expect(response.body.application.name).toBe(applicationData.name);
-//     expect(response.body.application.email).toBe(applicationData.email);
-
-//     // Verify that the email was sent (mocked)
-//     expect(sendMailMock).toHaveBeenCalledTimes(1);
-//     expect(sendMailMock).toHaveBeenCalledWith(
-//       expect.objectContaining({
-//         to: applicationData.email,
-//         subject: 'Application Received',
-//         text: `Dear ${applicationData.name}, your application for the fellowship has been successfully received!`,
-//       })
-//     );
-
-//     // Check if the application was saved in the database
-//     const savedApplication = await prisma.application.findUnique({
-//       where: { email: applicationData.email },
-//     });
-//     expect(savedApplication).toBeTruthy();
-//     expect(savedApplication.name).toBe(applicationData.name);
-//     expect(savedApplication.email).toBe(applicationData.email);
-//     expect(savedApplication.projectDescription).toBe(applicationData.projectDescription);
-//   });
-// });
   it('should register a new user and send a confirmation email', async () => {
     // Mock Nodemailer transport
     
