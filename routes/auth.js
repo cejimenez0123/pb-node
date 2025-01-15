@@ -395,7 +395,7 @@ Reset Pasword
     })
     router.get('/review', async (req, res) => {
       const { applicantId, action,email} = req.query;
-      
+      console.log(email)
         try {
           if (!applicantId || !action) {
             return res.status(400).json({ message: 'Missing applicantId or action' });
