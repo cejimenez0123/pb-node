@@ -346,17 +346,47 @@ try{
         
     }
     })
+    async function deleteCommentsRf(comment){
+        let comments =await  prisma.comment.findMany({where:{
+              parentId:{equals:comment.id}
+          }})
+          
+          comments.map(com=>deleteCommentsRf(com))
+          await prisma.comment.deleteMany({where:{parentId:{equals:comment.id}}})
+          return prisma.comment.delete({where:{id:comment.id}})
+        }
     router.delete("/:id",authMiddleware,async (req,res)=>{
         try{
-            let story = await prisma.story.findFirst({where:{id:req.params.id}})
-            if(story){
-                await prisma.story.delete({where:{id:story.id}})
-          
-            }
-            res.status(202).json({message:"Deleted Successesfully"})
+            let story = await prisma.story.findFirstOrThrow({where:{id:{equals:req.params.id}}})
+                await prisma.storyToCollection.deleteMany({where:{
+                    storyId:{equals:story.id}
+                }}) 
+                let comments =  await prisma.comment.findMany({where:{storyId:{
+                    equals:story.id
+                }}})
+                let promises =comments.map( com=>{
+            return deleteCommentsRf(com)
+                    
+                    })
 
+await Promise.all(promises)
+
+              
+               
+                await prisma.roleToStory.deleteMany({where:{
+                    storyId:{
+                        equals:story.id
+                    }
+                }})
+                await prisma.story.delete({  where: {
+                    id:req.params.id
+                  },
+                })
+    
+                res.status(202).json({story,message:"Deleted Successesfully"})
+      
         }catch(error){
-            console.log(error)
+     console.log({error})
             res.json({error})
         }
 
