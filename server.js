@@ -18,8 +18,6 @@ const passport = require("passport")
 const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const { Server } = require('socket.io');
-const updateWriterLevelMiddleware = require("./middleware/updateWriterLevelMiddleware.js");
-const calculateStoryLimitMiddleware = require("./middleware/calculateStoryLimitMiddleware.js");
 
 
 const activeUsers = new Map()
@@ -41,12 +39,13 @@ app.get('/', (req, res, next) => {
 
     res.status(200).json({message:"Hello World"})
 })
+app.use(cors())
 const server = http.createServer(app);
 const io = new Server(server,{    cors: {
     origin: process.env.DOMAIN,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 },});
-app.use(cors())
+
 
 // const authMiddleware = passport.authenticate('bearer', { session: false });
 
@@ -128,11 +127,24 @@ try{
             location:true
         }
       });
-    
+      console.log(`User ${updatedProfile.id}:${updatedProfile.username} disconnected`);
+     
       activeUsers.set(socket.id, updatedProfile);
     }catch(error){
         console.error( error); 
-    }}}catch(error){
+    }}else{
+      const updatedProfile = await prisma.profile.update({
+        where: { id: profileId },
+        data: {
+          isActive: true,
+        },include:{
+            location:true
+        }
+      });
+
+      console.log(`User ${updatedProfile.id}:${updatedProfile.username} disconnected`);
+      activeUsers.set(socket.id, updatedProfile);
+    }}catch(error){
         console.log("Socket registration",error.message)
     }})
 
