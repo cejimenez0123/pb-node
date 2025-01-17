@@ -37,25 +37,106 @@ const recommendStories = async (profileId) => {
   
     return recommendations;
   };
-// const getRecommendations = async (profileId) => {
-//     const user = await prisma.profile.findUnique({
-//       where: { id: profileId},
-//       include: { likedStory: true },
-//     });
+  const getContentBasedScores = async (likedStories) => {
+    const scores = {};
   
-//     const contentBasedScores = await getContentBasedScores(user.likedStory);
-//     const collaborativeScores = await getCollaborativeScores(profileId);
+    for (const likedStory of likedStories) {
+      // Fetch hashtags of the liked story
+      const likedStoryData = await prisma.story.findUnique({
+        where: { id: likedStory.storyId },
+        include: { hashtags: true },
+      });
   
-//     const hybridScores = {};
-//     for (let storyId in contentBasedScores) {
-//       hybridScores[storyId] =
-//         0.7 * contentBasedScores[storyId] + 0.3 * (collaborativeScores[storyId] || 0);
-//     }
+      if (!likedStoryData) continue;
   
-//     return Object.entries(hybridScores)
-//       .sort((a, b) => b[1] - a[1]) // Sort by score
-//       .map(([storyId]) => storyId); // Return sorted story IDs
-//   };
+      const likedStoryHashtags = likedStoryData.hashtags.map((tag) => tag.name);
+  
+      // Find stories with overlapping hashtags
+      const similarStories = await prisma.story.findMany({
+        where: {
+          hashtags: {
+            some: {
+              name: { in: likedStoryHashtags },
+            },
+          },
+          id: { not: likedStory.storyId }, // Exclude the liked story itself
+        },
+      });
+  
+      // Assign scores to the similar stories
+      for (const story of similarStories) {
+        if (!scores[story.id]) scores[story.id] = 0;
+  
+        // Score is based on the number of matching hashtags
+        const matchingTags = story.hashtags.filter((tag) =>
+          likedStoryHashtags.includes(tag.name)
+        ).length;
+        scores[story.id] += matchingTags;
+      }
+    }
+  
+    return scores;
+  };
+  
+  const getCollaborativeScores = async (profileId) => {
+    const scores = {};
+  
+    // Find stories liked by the user
+    const userLikes = await prisma.userStoryLike.findMany({
+      where: { profileId: profileId },
+      select: { storyId: true },
+    });
+    const likedStoryIds = userLikes.map((like) => like.storyId);
+  
+    // Find other users who liked the same stories
+    const similarUsers = await prisma.userStoryLike.findMany({
+      where: {
+        storyId: { in: likedStoryIds },
+        profileId: { not: profileId }, // Exclude the current user
+      },
+      select: { profileId: true },
+    });
+    const similarUserIds = [...new Set(similarUsers.map((user) => user.userId))];
+  
+    // Get stories liked by similar users
+    const similarUserLikes = await prisma.userStoryLike.findMany({
+      where: {
+        profileId: { in: similarUserIds },
+        storyId: { notIn: likedStoryIds }, // Exclude stories already liked by the user
+      },
+      select: { storyId: true },
+    });
+  
+    // Assign scores based on how many similar users liked each story
+    for (const like of similarUserLikes) {
+      if (!scores[like.storyId]) scores[like.storyId] = 0;
+      scores[like.storyId] += 1; // Increment score for each like
+    }
+  
+    return scores;
+  };
+  
+const getRecommendations = async (profileId) => {
+    const user = await prisma.profile.findUnique({
+      where: { id: profileId},
+      include: { likedStories:true
+      
+       },
+    });
+  
+    const contentBasedScores = await getContentBasedScores(user.likedStories);
+    const collaborativeScores = await getCollaborativeScores(profileId);
+  
+    const hybridScores = {};
+    for (let storyId in contentBasedScores) {
+      hybridScores[storyId] =
+        0.7 * contentBasedScores[storyId] + 0.3 * (collaborativeScores[storyId] || 0);
+    }
+  
+    return Object.entries(hybridScores)
+      .sort((a, b) => b[1] - a[1]) // Sort by score
+      .map(([storyId]) => storyId); // Return sorted story IDs
+  };
   
 module.exports = function ({authMiddleware}){
     const allMiddlewares = [authMiddleware,updateWriterLevelMiddleware];
@@ -107,10 +188,15 @@ module.exports = function ({authMiddleware}){
 
         try{
         let profile = req.user.profiles[0]
-        let recommendations = await recommendStories(profile.id)
-
+        let recommendations = await getRecommendations(profile.id)
+        console.log(recommendations)
+        if(recommendations.length==0){
+            recommendations = await recommendStories(profile.id)
+        }
+ 
         res.json({stories:recommendations})
         }catch(error){
+            console.log(error)
             res.json({error})
         }
     })
@@ -352,6 +438,9 @@ try{
           }})
           
           comments.map(com=>deleteCommentsRf(com))
+          await prisma.hashtagComment.deleteMany({where:{commentId:{
+            equals:comment.id
+          }}})
           await prisma.comment.deleteMany({where:{parentId:{equals:comment.id}}})
           return prisma.comment.delete({where:{id:comment.id}})
         }
@@ -378,10 +467,16 @@ await Promise.all(promises)
                         equals:story.id
                     }
                 }})
+                await prisma.hashtagStory.deleteMany({where:{
+                    storyId:{
+                        equals:req.params.id
+                    }
+                }})
                 await prisma.story.delete({  where: {
                     id:req.params.id
                   },
                 })
+             
     
                 res.status(202).json({story,message:"Deleted Successesfully"})
       
