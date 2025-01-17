@@ -15,6 +15,13 @@ module.exports = function (authMiddleware){
     })
     router.post("/story/:storyId",authMiddleware,async(req,res)=>{
             const {name,profile}=req.body
+            const story = await prisma.story.findFirst({where:{
+                id:{
+                    equals:req.params.storyId
+                }
+            },include:{
+                hashtags:true
+            }})
             try{
                 let hashtag = await prisma.hashtag.findFirst({where:{name:{equals:name}}})
                 if(hashtag){
@@ -25,13 +32,7 @@ module.exports = function (authMiddleware){
                             equals:profile.id
                         }}]
                     }})
-           let story = await prisma.story.findFirst({where:{
-                id:{
-                    equals:req.params.storyId
-                }
-            },include:{
-                hashtags:true
-            }})
+           
 
             if(!found ){
                     if(story.hashtags.length<5){
