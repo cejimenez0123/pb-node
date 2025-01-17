@@ -39,11 +39,21 @@ app.get('/', (req, res, next) => {
 
     res.status(200).json({message:"Hello World"})
 })
+let domain = process.env.DOMAIN
+if(process.env.NODE_ENV=="dev"){
+  domain =process.env.DEV_DOMAIN
+}
+console.log("Domain",domain)
 app.use(cors())
+// app.use((req, res, next) => {
+//   res.setHeader("Access-Control-Allow-Origin",  process.env.DOMAIN);
+//   next(); 
+// });
+app.options("*",cors())
 const server = http.createServer(app);
 const io = new Server(server,{    cors: {
-    origin: process.env.DOMAIN,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    origin: "*",
+    methods: ["GET", "POST", "PATCH","PUT", "DELETE", "OPTIONS"],
 },});
 
 
@@ -127,7 +137,7 @@ try{
             location:true
         }
       });
-      console.log(`User ${updatedProfile.id}:${updatedProfile.username} disconnected`);
+      console.log(`User ${updatedProfile.id}:${updatedProfile.username} connected`);
      
       activeUsers.set(socket.id, updatedProfile);
     }catch(error){
@@ -142,7 +152,8 @@ try{
         }
       });
 
-      console.log(`User ${updatedProfile.id}:${updatedProfile.username} disconnected`);
+      console.log(`User ${updatedProfile.id}:${updatedProfile.username} connected`);
+     
       activeUsers.set(socket.id, updatedProfile);
     }}catch(error){
         console.log("Socket registration",error.message)
