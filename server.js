@@ -172,8 +172,6 @@ try{
             isActive: false,
           },
         });
-
-        // Remove from memory
         activeUsers.delete(socket.id);
 
         console.log(`User ${profileId} disconnected`);
