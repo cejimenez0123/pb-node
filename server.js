@@ -57,7 +57,6 @@ const io = new Server(server,{    cors: {
 },});
 
 
-// const authMiddleware = passport.authenticate('bearer', { session: false });
 
 function authMiddleware(req, res, next) {
   passport.authenticate('bearer', { session: false }, (err, user, info) => {
@@ -166,7 +165,7 @@ try{
     const profileId = profile.id
     if (profileId) {
       try {
-        // Update the database
+      
         await prisma.profile.update({
           where: { id: profileId },
           data: {

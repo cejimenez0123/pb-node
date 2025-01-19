@@ -64,7 +64,7 @@ router.post("/",...middlewareArr,async(req,res)=>{
 })
 
 router.delete("/:id",authMiddleware,async (req,res)=>{
-    const {user}=req.user
+    const user=req.user
     const { id}= req.params
     try{
     let comment = await prisma.comment.findFirst({where:{
@@ -72,9 +72,15 @@ router.delete("/:id",authMiddleware,async (req,res)=>{
     },include:{
         profile:true
     }})
-    if(comment.profile.userId==user.id){
-
+    
+    if(comment.profile.userId==user.id){    
+        await prisma.hashtagComment.deleteMany({where:{
+            commentId:{
+                equals:id
+            }
+        }})
         await prisma.comment.delete({where:{id:id}})
+    
         res.json({comment,message:"Deleted Succesfully"})
     }else{
         res.status(403).json({message:"Unauthorized"})
