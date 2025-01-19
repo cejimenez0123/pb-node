@@ -494,8 +494,7 @@ Reset Pasword
         if(uId){
           console.log(uId)
             const user = await prisma.user.findFirst({ where: { email:email } });
-          console.log(user)
-          console.log(uId)
+       
             if (!user || user.email!=email) {
             
                 return res.status(401).json({ message: 'Invalid email or password' });
