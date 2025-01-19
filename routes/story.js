@@ -50,14 +50,19 @@ const recommendStories = async (profileId) => {
       if (!likedStoryData) continue;
   
       const likedStoryHashtags = likedStoryData.hashtags.map((tag) => tag.name);
-  
+      console.log(likedStoryHashtags)
       // Find stories with overlapping hashtags
       const similarStories = await prisma.story.findMany({
         where: {
           hashtags: {
-            some: {
-              name: { in: likedStoryHashtags },
-            },
+            some:{
+                hashtag:{
+                    name:{
+                        in: likedStoryHashtags
+                    }
+                }
+            }
+         
           },
           id: { not: likedStory.storyId }, // Exclude the liked story itself
         },
@@ -189,11 +194,11 @@ module.exports = function ({authMiddleware}){
         try{
         let profile = req.user.profiles[0]
         let recommendations = await getRecommendations(profile.id)
-        console.log(recommendations)
+      
         if(recommendations.length==0){
             recommendations = await recommendStories(profile.id)
         }
- 
+     
         res.json({stories:recommendations})
         }catch(error){
             console.log(error)
@@ -488,7 +493,7 @@ await Promise.all(promises)
     })
     router.post("/",...allMiddlewares,async (req,res)=>{
     try{
-       console.log("tory",req.storyLimit)
+       
         const doc = req.body
    
         const {title,data,isPrivate,authorId,commentable,type}= doc

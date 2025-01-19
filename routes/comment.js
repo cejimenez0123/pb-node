@@ -32,6 +32,8 @@ router.post("/",...middlewareArr,async(req,res)=>{
                 id: profileId
             }
         }
+    },include:{
+        profile:true
     }})
     let comment =await prisma.comment.findFirst({where:{id:com.id},include:{profile:true}})
     res.json({comment:comment})
@@ -62,16 +64,18 @@ router.post("/",...middlewareArr,async(req,res)=>{
 })
 
 router.delete("/:id",authMiddleware,async (req,res)=>{
-    const {profile}=req.body
+    const {user}=req.user
     const { id}= req.params
     try{
     let comment = await prisma.comment.findFirst({where:{
         id:id
+    },include:{
+        profile:true
     }})
-    if(comment.profileId==profile.id && profile.userId == req.user.id){
+    if(comment.profile.userId==user.id){
 
         await prisma.comment.delete({where:{id:id}})
-        res.json({message:"Deleted Succesfully"})
+        res.json({comment,message:"Deleted Succesfully"})
     }else{
         res.status(403).json({message:"Unauthorized"})
     }
@@ -82,22 +86,24 @@ router.delete("/:id",authMiddleware,async (req,res)=>{
 )
 router.patch("/:id",authMiddleware,async(req,res)=>{
 
-    const {text,profile}=req.body
+    const {text}=req.body
     const { id}= req.params
     try{
     let comment = await prisma.comment.findFirst({where:{
         id:id
+    },include:{
+        profile:true
     }})
-    if(comment.profileId==profile.id && profile.userId == req.user.id){
+    if(comment.profile.userId==req.user.id){
 
     
-    let com = await prisma.comment.create({data:{
-        text:text,
-        profile:{
-            connect:{
-                id: profile.id
-            }
-        }
+    let com = await prisma.comment.update({where:{
+        id:id
+    },data:{
+    content:text,
+    updated:new Date()
+    },include:{
+        profile:true
     }})
     res.json({comment:com})
     }else{
