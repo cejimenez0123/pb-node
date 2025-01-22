@@ -307,6 +307,7 @@ module.exports = function ({authMiddleware}){
         res.json({error})
     }
     })
+
     router.get("/profile/:id/public",async (req,res)=>{
         try{
         const stories = await prisma.story.findMany({where:{

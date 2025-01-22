@@ -8,7 +8,18 @@ module.exports = function (authMiddleware){
         //GET ALL PUBLIC COLLECTIONS
         try{
         const collection = await prisma.collection.findMany(
-            {where:{isPrivate:{equals:false}}})
+            {where:{isPrivate:{equals:false}},include:{
+                storyIdList:{
+                    include:{
+                        story:true
+                    }
+                },
+                roles:{
+                    include:{
+                        profile:true
+                    }
+                }
+            }})
 
         res.status(200).json({data:collection})
         }catch(error){
@@ -88,6 +99,16 @@ module.exports = function (authMiddleware){
                         }
                     },
                     isPrivate:false
+                }
+            },include:{
+                storyIdList:{
+                    include:{
+                        story:{
+                            include:{
+                                author:true
+                            }
+                        }
+                    }
                 }
             }})
             res.status(200).json({collections})
@@ -376,45 +397,95 @@ router.get("/:id/collection/public",async (req,res)=>{
 try{
     let collection = await prisma.collection.findFirst({where:{
         id:{equals:id}
-    }})
+    },include:{
+        
+        childCollections:{
+            
+            include:{
+                parentCollection:{
+                    include:{
+                        storyIdList:{
+                            include:{
+                                story:true
+                            }
+                        }
+                    }
+                },
+                childCollection:{
+            
+                    include:{
+                        storyIdList:{
+                            include:{
+                                story:{include:{
+                                    author:true
+                                }
+                                }
+                            }
+                        },
+                        parentCollections:true,
+                        childCollections:{
+
+                            include:{
+                                
+                                childCollection:{
+                                    include:{
+                                        
+                                        storyIdList:{
+                                            include:{
+                                                story:{
+                                                    include:{
+                                                        author:true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }}})
     if(collection.isPrivate==false){
 
   
-    let collections = await prisma.collectionToCollection.findMany(
-        {where:
-            {AND:
-                [{parentCollectionId:{equals:id}}
+    // let collections = await prisma.collectionToCollection.findMany(
+    //     {where:
+    //         {AND:
+    //             [{parentCollectionId:{equals:id}}
                
 
-            ]}
-        ,include:{
-            childCollection:{
-                include:{
-                    storyIdList:{
-                        include:{story:{include:{author:true}}}  
-                      },
-                      parentCollections:{
-                        include:{
-                            parentCollection:{
-                                include:{
-                                    roles:true                                }
-                            }
-                        }
-                      },
-                        childCollections:true,
-                        roles:{
-                            include:{
-                                profile:true,
-                            }
-                        },
-                        profile:true
+    //         ]}
+    //     ,include:{
+            
+    //         childCollection:{
+    //             include:{
+    //                 storyIdList:{
+    //                     include:{story:{include:{author:true}}}  
+    //                   },
+    //                   parentCollections:{
+    //                     include:{
+    //                         parentCollection:{
+    //                             include:{
+    //                                 roles:true                                }
+    //                         }
+    //                     }
+    //                   },
+    //                     childCollections:true,
+    //                     roles:{
+    //                         include:{
+    //                             profile:true,
+    //                         }
+    //                     },
+    //                     profile:true
                     
-                }
-            },
-            parentCollection:true,
-            profile:true
-        }})
-    res.json({list:collections})
+    //             }
+    //         },
+    //         parentCollection:true,
+    //         profile:true
+    //     }})
+    res.json({list:collection.childCollections})
     }else{
         throw new Error("Private")
     }
