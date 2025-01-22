@@ -120,6 +120,8 @@ module.exports = function (authMiddleware){
             historyStories:true,
             collectionHistory:true,
             collections:true,
+            followers:true,
+            following:true,
             stories:true}})
     
     res.json({profiles})
