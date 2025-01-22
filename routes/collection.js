@@ -72,6 +72,7 @@ module.exports = function (authMiddleware){
             
                 
             }})
+           
             res.status(200).json({collections})
         }catch(err){
             res.status(400).send({error:err})
@@ -786,9 +787,25 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
                 }
             }
         }})
-
+        let sTcs = await prisma.storyToCollection.findMany({where:{
+            story:{
+                authorId:{equals:profile.id}
+            },
+            collection:{
+                type:{equals:"feedback"}
+            }
+        },include:{
+            collection:{
+                include:{
+                    storyIdList:{
+                        include:{story:true}
+                    }
+                }
+            },profile:true
+        }})
+        let sTcList = sTcs.map(stc=>stc.collection)
         let list = cTcs.map(cTc=>cTc.collection)
-        const colList = [...cols,...list]
+        const colList = [...cols,...list,...sTcList]
 
         res.json({collections:colList})
     }catch(error){

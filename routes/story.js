@@ -300,6 +300,7 @@ module.exports = function ({authMiddleware}){
         },include:{
             author:true
         }})
+   
         res.status(200).json({stories})
 
     }catch(error){
