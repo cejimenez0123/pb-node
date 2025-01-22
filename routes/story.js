@@ -416,7 +416,7 @@ try{
 })
     router.put("/:id",...allMiddlewares,async (req,res)=>{
 try{
-        const {title,data,isPrivate,commentable,type}= req.body
+        const {title,data, description, isPrivate,commentable,type}= req.body
         let story  = await prisma.story.update({where:{
             id:req.params.id
         },data:{
@@ -424,6 +424,7 @@ try{
             data,
             isPrivate,
             commentable,
+            description,
             type,
             updated: new Date()
         },include:{

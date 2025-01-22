@@ -48,6 +48,11 @@ try{
        }})
 
     }
+    let followed = await prisma.profile.findFirst({where:{
+        id: {equals:follow.followingId}
+       },include:{
+        followers:true
+       }})
 
        let profile = await prisma.profile.findFirst({where:{
         id: {equals:req.user.profiles[0].id}
@@ -55,7 +60,7 @@ try{
         followers:true
        }})
     
-       res.json({profile}) 
+       res.json({profile,followed}) 
 
 }catch(error){
     console.log(error)
