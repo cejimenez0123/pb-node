@@ -184,8 +184,91 @@ module.exports = function (authMiddleware){
           
             return scores;
         }
-        
+            
+        const getRecommendedCollections=async (colId)=>{
+            const scores = {};
+            const collection = await prisma.collection.findFirst({where:{
+                id:{
+                    equals:colId
+                }
+            },include:{
+                roles:{
+                    include:{
+                        profile:true
+                    }
+                },
+                hashtags:{
+                    include:{
+                        hashtag:true
+                    }
+                },
+                childCollections:{
+                    include:{
+                        parentCollection:true,
+                        childCollection:true,
+                    },
+                    where:{
+                        childCollection:{
+                            isPrivate:{
+                                equals:false
+                            }
+                        }
+                    }
+                },
+                parentCollections:{
+                    include:{
+                        parentCollection:true,
+                        childCollection:true
+                    },
+              where:{
+                parentCollection:{
+                    isPrivate:{
+                        equals:false
+                    }
+                }
+              }
+                    
+                
+                }
+            }})
+            let childIds = collection.childCollections.map(col=>col.id)
+            // .map(col=>col.id)
+            let parentIds = collection.childCollections.map(col=>col.id)
 
+           let collections = await prisma.collectionToCollection.findMany({where:{
+                OR:[{parentCollection:{
+                    id:{in:[...parentIds,...childIds]}
+                    ,isPrivate:true
+                },childCollection:{
+                    isPrivate:{
+                        equals:false
+                    }
+                }}]
+            }})
+            //.map(col=>col.id)
+            for(const cTc of collections){
+                // for (const like of sTc.storyIdList) {
+                    
+                    if (!scores[cTc.childCollectionId]) { scores[sTc.childCollectionId] = 0;}
+                    else{
+                        scores[cTc.childCollectionId] += 1;
+                    }
+            
+        
+            // } 
+          
+            // for (let storyId in collaborativeScores) {
+           
+            //   hybridScores[storyId] = 0.7 *collaborativeScores[storyId]  + 0.3 * (contentBasedScores[storyId] || 0);
+            // }
+         
+   
+           return Object.entries(scores)
+             .sort((a, b) => b[1] - a[1]) // Sort by score
+             .map(([colId]) => colId); // Return sorted story IDs
+         };
+          
+        }
     
           const getCollectionCollaborativeScores = async (profileId,colId) => {
             const scores = {};
@@ -327,29 +410,8 @@ module.exports = function (authMiddleware){
     }
       
     
-            // const simUserProfId = similarUsers.map(user=>user.profileId)
-            
-            //   const similarProfileIds = [...new Set([...simUsersThroughColProfId,...simUserProfId].map((user) => user.profileId))];
-            
-              // Get stories liked by similar users
-            //   const similarUserLikes = await prisma.userStoryLike.findMany({
-            //     where: {
-            //       profileId: { in: similarProfileIds },
-            //       storyId: { notIn: likedStoryIds }, // Exclude stories already liked by the user
-            //     },
-            //     select: { storyId: true },
-            //   });
-            //   console.log("SIMIMT",similarUserLikes)
-              // Assign scores based on how many similar users liked each story
-        //       for (const like of similarUserLikes) {
-        //         if (!scores[like.storyId]) scores[like.storyId] = 0;
-        //         scores[like.storyId] += 1; // Increment score for each like
-        //       }
-        //    }}
-            
-        
-        // }
-    const getColRecommendations = async (profileId,colId) => {
+
+    const getCollectionStoryRecommendations = async (profileId,colId) => {
       const col = await prisma.collection.findFirst({where:{
             id:{
                 equals:colId
@@ -452,9 +514,29 @@ module.exports = function (authMiddleware){
           .sort((a, b) => b[1] - a[1]) // Sort by score
           .map(([storyId]) => storyId); // Return sorted story IDs
       };
-    router.get("/:id/recommendations",authMiddleware,async(req,res)=>{
+    router.get("/:id/recommendations",async (req,res)=>{
+        try{
+        if(req.params.id!=undefined){
+const recommendations = await getRecommendedCollections(req.params.id)
+      let collections= await prisma.collection.findMany({where:{
+            id:{
+                in:recommendations
+            },
+            isPrivate:{
+                equals:false
+            }
+        }})
+
+        res.json({collections:collections})}
+    }catch(err){
+        console.log(err)
+        res.json(err)
+    }
+    })
+    router.get("/:id/story/recommendations",authMiddleware,async(req,res)=>{
+        try{
         let profile = req.user.profiles[0]
-        let recommendations = await getColRecommendations(profile.id,req.params.id)
+        let recommendations = await getCollectionStoryRecommendations(profile.id,req.params.id)
         let pages = await prisma.story.findMany({where:{
             id:{in:recommendations},
             
@@ -465,6 +547,9 @@ module.exports = function (authMiddleware){
         let list =pages.filter(page=>page!=null)
      res.json(
         {pages:list})
+     }catch(err){
+        res.json(err)
+     }
     })
     router.get("/",async (req,res)=>{
         //GET ALL PUBLIC COLLECTIONS
