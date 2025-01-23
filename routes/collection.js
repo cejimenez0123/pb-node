@@ -519,13 +519,13 @@ module.exports = function (authMiddleware){
         if(req.params.id!=undefined){
 const recommendations = await getRecommendedCollections(req.params.id)
       let collections= await prisma.collection.findMany({where:{
-            id:{
-                in:recommendations
-            },
-            isPrivate:{
+        id:{
+            in:recommendations,
+            not:req.params.id
+            },isPrivate:{
                 equals:false
-            }
-        }})
+            }},
+        })
 
         res.json({collections:collections})}
     }catch(err){
@@ -880,21 +880,49 @@ const recommendations = await getRecommendedCollections(req.params.id)
             storyIdList:{
               include:{story:{include:{author:true}}}  
             },
+            
             parentCollections:{
                 include:{
+                
                     parentCollection:{
                         include:{
+                            storyIdList:{
+                                include:{
+                                    story:{
+                                        include:{
+                                            author:true
+                                        }
+                                    }
+                                }
+                            },
                             roles:true
                         }
                     }
                 }
             },
-            childCollections:true,
-            roles:{
+            childCollections:{
+                include:{
+                    childCollection:{
+                        include:{
+                            storyIdList:{
+                                include:{
+                                    story:{
+                                        include:{
+                                            author:true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+           roles:{
                 include:{
                     profile:true,
                 }
             },
+        
             profile:true
             
         }})
