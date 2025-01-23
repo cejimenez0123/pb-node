@@ -13,6 +13,61 @@ module.exports = function (authMiddleware){
       let hashtags = await prisma.hashtag.findMany()
       res.json({hashtags})
     })
+    router.post("/collection/:colId",authMiddleware,async(req,res)=>{
+        const {name,profile}=req.body
+        const collection = await prisma.collection.findFirst({where:{
+            id:{
+                equals:req.params.colId
+            }
+        },include:{
+            hashtags:true
+        }})
+        try{
+            let hashtag = await prisma.hashtag.findFirst({where:{name:{equals:name}}})
+            if(hashtag){
+                let found = await prisma.hashtagCollection.findFirst({where:{
+                    AND:[{hashtagId:{
+                        equals:hashtag.id
+                    }},{collectionId:{equals:req.params.colId}},{profileId:{
+                        equals:profile.id
+                    }}]
+                }})
+       
+
+        if(!found ){
+                if(collection.hashtags.length<5){
+            let hs = await createHashCollection(hashtag,profile,collection.id)
+                
+            res.json({hashtag:hs})
+
+                }else{
+                    res.json({message:"Max User Hashtags"})
+                }}else{
+                   
+                    res.json({message:"Already Exists"})
+                   
+                }
+            }else{
+             
+                if(collection.hashtags.length<5){ 
+          const newHashtag = await prisma.hashtag.create({data:{
+                name:name
+            }})
+               
+           const hs = await createHashCollection(newHashtag,profile,req.params.colId)
+
+        res.json({hashtag:hs}) 
+    
+    }else{
+        res.json({message:"Max User Hashtags"})
+        }
+    }
+        }catch(err){
+            console.log(err)
+            res.status(409).json({error:err})
+        }
+     
+})
     router.post("/story/:storyId",authMiddleware,async(req,res)=>{
             const {name,profile}=req.body
             const story = await prisma.story.findFirst({where:{
@@ -89,6 +144,27 @@ module.exports = function (authMiddleware){
                 )
                 return hs
     }
+    async function createHashCollection(hashtag,profile,colId){
+        const hs = await prisma.hashtagCollection.create({
+            data:{
+            profile:{connect:{
+                id:profile.id
+            }},
+        hashtag:{connect:{
+            id:hashtag.id
+        }},
+    collection:{
+        connect:{
+            id:colId
+        }
+    }},include:{
+                hashtag:true,
+                collection:true,
+                profile:true
+            }}
+                )
+                return hs
+    }
     router.get("/profile/:profileId/comment",authMiddleware,async(req,res)=>{
         try{     
         let hashtags = await prisma.hashtagComment.findMany({where:{
@@ -158,6 +234,34 @@ module.exports = function (authMiddleware){
             let hashtags = await prisma.hashtagStory.findMany({where:{
                 storyId:{
                     equals:req.params.storyId
+                }
+            },include:{hashtag:true}})
+            res.json({hashtags})
+        }catch(error){
+            console.log(error)
+            res.status(409).json({error})
+        }
+    })
+    router.get("/collection/:colId/protected",authMiddleware,async (req,res)=>{
+            
+        try{
+            let hashtags = await prisma.hashtagCollection.findMany({where:{
+                collectionId:{
+                    equals:req.params.colId
+                }
+            },include:{hashtag:true}})
+            res.json({hashtags})
+        }catch(error){
+            console.log(error)
+            res.status(409).json({error})
+        }
+    })
+    router.get("/collection/:colId/protected",authMiddleware,async (req,res)=>{
+            
+        try{
+            let hashtags = await prisma.hashtagCollection.findMany({where:{
+                collectionId:{
+                    equals:req.params.colId
                 }
             },include:{hashtag:true}})
             res.json({hashtags})

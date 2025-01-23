@@ -4,6 +4,468 @@ const { createLocation } = require('../utils/locationUtil');
 const router = express.Router()
 
 module.exports = function (authMiddleware){
+
+        const getCollectionContentBasedScores = async (colId) => {
+            const scores = {};
+
+           let col = await prisma.collection.findFirst({where:{
+                id:{
+                    equals:colId
+                }
+            },include:{
+                storyIdList:{
+                    include:{
+                        story:{
+                            
+                            include:{
+                              
+                                storyLikes:true,
+                                collections:{
+                                    include:{
+                                        collection:{
+                                            include:{
+                                                storyIdList:{
+                                                    where:{
+                                                        story:{
+                                                            
+                                                            isPrivate:{
+                                                                equals:false
+                                                            }
+                                                        }
+        
+                                                    },
+                                                    include:{
+                                                    
+                                                        story:{
+                                                            include:{
+                                                                hashtags:{
+                                                                    include:{
+                                                                        hashtag:true
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                hashtags:{
+                    include:{
+                        collection:{
+                            include:{
+                                storyIdList:{
+                                    include:{
+                                        story:true
+                                    }
+                                }
+                            }
+                        },
+                        hashtag:{
+                            include:{
+                                collections:{
+
+                                    include:{
+                                        hashtag:true,
+                                        collection:{
+                                            include:{
+                                                hashtags:{
+                                                    include:{
+                                                        hashtag:true
+                                                    }
+                                                },
+                                                storyIdList:{
+                                                    
+                                                    where:{
+                                                        
+                                                        story:{
+                                                            
+                                                            isPrivate:{
+                                                                equals:false
+                                                            }
+                                                        }
+        
+                                                    },
+                                                    include:{
+                                                    
+                                                        story:{
+                                                            include:{
+                                                                storyLikes:true,
+                                                                hashtags:{
+                                                                    include:{
+                                                                        hashtag:true
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                    }
+                    
+                }
+            }})
+        if(col.hashtags.length>0){  
+         
+          for(const {collection } of col.hashtags){
+            for (const sTc of collection.storyIdList){
+              
+              const stor = sTc.story
+              const colHs = col.hashtags
+          
+              const likedStoryHashtags = col.hashtags.map(tag=>tag.hashtagId)
+        
+        
+              const similarStories = await prisma.story.findMany({
+                where: {
+                  hashtags: {
+                    some:{
+                        hashtag:{
+                            id:{
+                                in: likedStoryHashtags
+                            }
+                        }
+                    }
+                 
+                  },
+                  id: { not: stor.id }, // Exclude the liked story itself
+                },include:{
+                    hashtags:{
+                        include:{
+                            hashtag:true
+                        }
+                    }
+                }
+              })
+    
+              for (const story of similarStories) {
+                if (!scores[story.id]){
+                    scores[story.id] = 0;
+                } else{
+          
+                // Score is based on the number of matching hashtags
+                const matchingTags = story.hashtags.filter((tag) =>
+                  likedStoryHashtags.includes(tag.name)
+                ).length;
+                scores[story.id] += matchingTags;
+              }}
+            
+            }
+        
+        }
+        }else{
+    
+               const sTcs = col.storyIdList.map(stc=>stc.story)
+              for(const rootStc of sTcs){
+                   for(const {collection} of rootStc.collections){
+                    for (const {story} of collection.storyIdList) {
+                        if (!scores[story.id]){
+                             scores[story.id] = 0;
+                        }else{
+                // let found = collection.storyIdList.find(sto=>sto.storyId==story.id)
+                // if(found){
+                    scores[story.id] += 1
+                // }else{
+                   
+                // }
+            }
+                    }}}}
+          
+            return scores;
+        }
+        
+
+    
+          const getCollectionCollaborativeScores = async (profileId,colId) => {
+            const scores = {};
+            const collection = await prisma.collection.findFirst({where:{
+                id:{equals:colId}
+            },include:{
+                storyIdList:{
+                    include:{
+                        story:true
+                    }
+                }
+            }})
+           const profile =  await  prisma.profile.findFirst({where:{id:{equals:profileId}},
+                include:{
+                    rolesToCollection:{
+                        include:{
+                            collection:{
+                                include:{
+                                    storyIdList:{
+                                        include:{
+                                            story:true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    rolesToStory:{
+                        include:{
+                            story:true
+                        }
+                    },
+                   collections:{
+                    include:{
+                        parentCollections:{include:{
+                            childCollection:{
+                                include:{
+                                    parentCollections:{
+                                        include:{
+                                            parentCollection:true,
+                                            childCollection:{
+                                                include:{
+                                                    storyIdList:{
+                                                        include:{
+                                                            story:true
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    storyIdList:{
+                                        include:{
+                                            story:true
+                                        }
+                                    }
+                                }
+                            } 
+                        }},
+                        profile:true,
+                        childCollections:{include:{
+                            childCollection:{
+                                include:{
+                                    parentCollections:true,
+                                    storyIdList:{
+                                        include:{
+                                            story:true
+                                        }
+                                    }
+                                }
+                            }
+                        }},
+                    
+                    }
+                   }
+                    
+                }})
+       
+            for(const roles of profile.rolesToCollection){
+                
+            }
+            //Iterate through collections of users
+           for(const cTc of profile.collections){
+            //Pick children collections of profile
+            const childCollectionStorieIds = cTc.childCollections.map(child=>child.childCollection.storyIdList).flat().map(sTc=>sTc.storyId).filter(x=>x)
+       
+                 let currentStories= collection.storyIdList.map(st=>st.id)
+                const sTcList = await prisma.storyToCollection.findMany({
+                    where:{
+                        storyId:{
+                            in:childCollectionStorieIds
+                        },
+                        // profileId:{
+                        //     not:profileId
+                        // },
+                        collectionId:{
+                            not:colId
+                        }
+                    },include:{
+                        collection:{
+                            include:{
+                                storyIdList:{
+                                    
+                                    include:{
+                                        
+                                        story:true
+                                    },
+                                    where:{
+                                        story:{
+                                            id:{
+                                                notIn:currentStories
+                                            },
+                                            isPrivate:{
+                                                equals:false
+                                            }
+                                            ,authorId:{
+                                                not:profileId
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                })
+    
+        for(const sTc of sTcList){
+            // for (const like of sTc.storyIdList) {
+                
+                if (!scores[sTc.storyId]) { scores[sTc.storyId] = 0;}
+                else{
+                    scores[sTc.storyId] += 1;
+                }
+        
+    
+        } }
+        return scores;
+    
+    }
+      
+    
+            // const simUserProfId = similarUsers.map(user=>user.profileId)
+            
+            //   const similarProfileIds = [...new Set([...simUsersThroughColProfId,...simUserProfId].map((user) => user.profileId))];
+            
+              // Get stories liked by similar users
+            //   const similarUserLikes = await prisma.userStoryLike.findMany({
+            //     where: {
+            //       profileId: { in: similarProfileIds },
+            //       storyId: { notIn: likedStoryIds }, // Exclude stories already liked by the user
+            //     },
+            //     select: { storyId: true },
+            //   });
+            //   console.log("SIMIMT",similarUserLikes)
+              // Assign scores based on how many similar users liked each story
+        //       for (const like of similarUserLikes) {
+        //         if (!scores[like.storyId]) scores[like.storyId] = 0;
+        //         scores[like.storyId] += 1; // Increment score for each like
+        //       }
+        //    }}
+            
+        
+        // }
+    const getColRecommendations = async (profileId,colId) => {
+      const col = await prisma.collection.findFirst({where:{
+            id:{
+                equals:colId
+            }
+        },include:{
+            roles:{
+                include:{
+                    profile:true
+                }
+            },
+            hashtags:{
+                include:{
+                    hashtag:{
+                        include:{
+                            collections:{
+                                include:{
+                                    collection:{
+                                        include:{
+                                            storyIdList:{
+                                                include:{
+                                                    story:{
+                                                        include:{
+                                                            storyLikes:true,
+                                                            storyHistory:true
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            storyIdList:{
+                include:{
+                    story:{
+                        include:{
+                            hashtags:{
+                                include:{
+                                    hashtag:true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }})
+  
+        const user = await prisma.profile.findUnique({
+          where: { id: profileId},
+          include: { likedStories:true,
+                hashtagCollections:{
+                    include:{
+                        hashtag:{
+                            include:{
+                                stories:{
+                                    include:{
+                                        story:true
+                                    }
+                                }
+                            }
+                            
+                        },
+                        collection:{
+                            include:{
+                                storyIdList:{
+                                    include:{
+                                        story:{
+                                            include:{
+                                                author:true
+                                    
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+           },
+        });
+       
+        // const storiesScores = await getCollectionContentBasedScores(col)
+        // console.log("Stories",storiesScores)
+        const contentBasedScores = await getCollectionContentBasedScores(colId)
+    
+        const collaborativeScores = await getCollectionCollaborativeScores(profileId)
+
+         const hybridScores = {};
+         for (let storyId in collaborativeScores) {
+        
+           hybridScores[storyId] = 0.7 *collaborativeScores[storyId]  + 0.3 * (contentBasedScores[storyId] || 0);
+         }
+      
+
+        return Object.entries(hybridScores)
+          .sort((a, b) => b[1] - a[1]) // Sort by score
+          .map(([storyId]) => storyId); // Return sorted story IDs
+      };
+    router.get("/:id/recommendations",authMiddleware,async(req,res)=>{
+        let profile = req.user.profiles[0]
+        let recommendations = await getColRecommendations(profile.id,req.params.id)
+        let pages = await prisma.story.findMany({where:{
+            id:{in:recommendations},
+            
+        },include:{
+            author:true
+        }})
+    
+        let list =pages.filter(page=>page!=null)
+     res.json(
+        {pages:list})
+    })
     router.get("/",async (req,res)=>{
         //GET ALL PUBLIC COLLECTIONS
         try{

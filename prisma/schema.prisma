@@ -77,6 +77,7 @@ model Profile{
     isPrivate Boolean?
     requests AccessRequest[]
     hashtags HashtagStory[]
+    hashtagCollections HashtagCollection[]
     stories Story[]
     likedStories UserStoryLike[]
     historyStories UserStoryHistory[]
@@ -99,6 +100,16 @@ model Follow{
     following      Profile  @relation(name: "Followers", fields: [followingId], references: [id])
     created DateTime? @default(now())
 }
+model HashtagCollection{
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+ hashtagId String @db.ObjectId
+ hashtag Hashtag  @relation(fields: [hashtagId], references: [id])
+ collectionId String @db.ObjectId
+ profileId String @db.ObjectId
+ profile Profile @relation(fields: [profileId], references: [id])
+ collection Collection @relation(fields: [collectionId], references: [id])
+ created DateTime? @default(now())
+}
 model HashtagStory{
  id        String  @id @default(auto()) @map("_id") @db.ObjectId
  hashtagId String @db.ObjectId
@@ -114,6 +125,7 @@ model Hashtag {
   name      String   @unique
   comments HashtagComment[]
   stories   HashtagStory[]  
+  collections HashtagCollection[]
 }
 model UserCollectionHistory{
   id String @id @default(auto()) @map("_id") @db.ObjectId
@@ -221,6 +233,7 @@ model Collection {
     storyIdList StoryToCollection[]
     favedBy ProfileToCollection[]
     roles RoleToCollection[]
+    hashtags HashtagCollection[]
     type CollectionType? @default(book)
     followersAre Role? @default(commenter)
     isOpenCollaboration Boolean @default(false)
@@ -228,6 +241,7 @@ model Collection {
     location      Location? @relation(fields: [locationId], references: [id])
     startTime     DateTime? 
     endTime       DateTime?
+  
     updated DateTime? @default(now())
     created DateTime? @default(now())
     userHistory UserCollectionHistory[]
