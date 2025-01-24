@@ -416,6 +416,9 @@ module.exports = function (authMiddleware) {
       const profiles = await prisma.profile.findMany({where:{
         isActive:{
           equals:true
+          
+        },location:{
+          isNot:null
         }},include:{
             location:true,
             stories:{
