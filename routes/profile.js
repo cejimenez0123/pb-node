@@ -151,7 +151,7 @@ module.exports = function (authMiddleware){
                         collection:true
                     }
                 },
-           
+                likedStories:true,
                 collections:true,
                 stories:true,
                 location:true,

@@ -572,6 +572,7 @@ Reset Pasword
           collection:true,
           profile:{
               include:{
+                likedStories:true,
                   followers:true,
                   stories:true,
                   collections:true,
