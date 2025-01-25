@@ -30,12 +30,12 @@ const recommendStories = async (profileId) => {
          } ,
         betaReaders:{
             
-        }},include:{
-            author:true
-      }
+        }},select:{
+            id:true
+        }
     });
   
-    return recommendations;
+    return recommendations.map(rec=>rec.id);
   };
   const getContentBasedScores = async (likedStories) => {
     const scores = {};
@@ -204,8 +204,30 @@ module.exports = function ({authMiddleware}){
         if(recommendations.length==0){
             recommendations = await recommendStories(profile.id)
         }
-     
-        res.json({stories:recommendations})
+   
+       let stories = await prisma.story.findMany({where:{
+            id:{
+                in:recommendations
+            },
+            isPrivate:{
+                equals:false
+            }
+        },include:{
+            author:true
+        }})
+        if(stories.length==0){
+            stories = await prisma.story.findMany({orderBy:{
+            storyLikes:{
+                _count:"asc"
+            }},where:{
+                isPrivate:false
+                
+            },include:{
+                author:true
+            }})
+        }
+    
+        res.json({stories:stories})
         }catch(error){
             console.log(error)
             res.json({error})
