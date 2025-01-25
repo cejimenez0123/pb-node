@@ -22,20 +22,25 @@ const recommendStories = async (profileId) => {
             }
         },
     }})
-
+let fullList = []
+for(let i = 0;i<profile.likedStories.length;i++){
     const recommendations = await prisma.story.findMany({
-      where: { 
-        isPrivate:false,
-        hashtags: { hasSome: profile.likedStories[0]?.hashtags
-         } ,
-        betaReaders:{
-            
-        }},select:{
-            id:true
-        }
-    });
+        where: { 
+          isPrivate:false,
+          hashtags: { hasSome: profile.likedStories[i]?.hashtags
+           } ,
+         
+          betaReaders:{
+              
+          }},select:{
+              id:true
+          }
+      });
+      fullList=[...recommendations,...fullList]
+}
+
   
-    return recommendations.map(rec=>rec.id);
+    return fullList.map(rec=>rec.id);
   };
   const getContentBasedScores = async (likedStories) => {
     const scores = {};

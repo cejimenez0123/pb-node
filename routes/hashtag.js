@@ -78,7 +78,7 @@ module.exports = function (authMiddleware){
                 hashtags:true
             }})
             try{
-                let hashtag = await prisma.hashtag.findFirst({where:{name:{equals:name}}})
+                let hashtag = await prisma.hashtag.findFirst({where:{name:{equals:name.toLowerCase()}}})
                 if(hashtag){
                     let found = await prisma.hashtagStory.findFirst({where:{
                         AND:[{hashtagId:{
@@ -90,21 +90,19 @@ module.exports = function (authMiddleware){
            
 
             if(!found ){
-                    if(story.hashtags.length<5){
+                
                 let hs = await createHashStory(hashtag,profile,story.id)
                     
                 res.json({hashtag:hs})
 
                     }else{
-                        res.json({message:"Max User Hashtags"})
-                    }}else{
                        
                         res.json({message:"Already Exists"})
                        
                     }
                 }else{
                  
-                    if(story.hashtags.length<5){ 
+                   
               const newHashtag = await prisma.hashtag.create({data:{
                     name:name
                 }})
@@ -113,9 +111,7 @@ module.exports = function (authMiddleware){
  
             res.json({hashtag:hs}) 
         
-        }else{
-            res.json({message:"Max User Hashtags"})
-            }
+     
         }
             }catch(err){
                 console.log(err)
