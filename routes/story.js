@@ -107,7 +107,7 @@ const recommendStories = async (profileId) => {
       },
       select: { profileId: true },
     });
-    const similarUserIds = [...new Set(similarUsers.map((user) => user.userId))];
+    const similarUserIds = [...new Set(similarUsers.map((user) => user.profileId))];
   
     // Get stories liked by similar users
     const similarUserLikes = await prisma.userStoryLike.findMany({
@@ -199,6 +199,13 @@ module.exports = function ({authMiddleware}){
 
         try{
         let profile = req.user.profiles[0]
+        if(profile&&!profile.id){
+            prisma.profile.findFirst({where:{
+                userId:{
+                    equals:req.user.id
+                }
+            }})
+        }
         let recommendations = await getRecommendations(profile.id)
       
         if(recommendations.length==0){
