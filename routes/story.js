@@ -49,15 +49,15 @@ const recommendStories = async (profileId) => {
   
       if (!likedStoryData) continue;
   
-      const likedStoryHashtags = likedStoryData.hashtags.map((tag) => tag.name);
-      console.log(likedStoryHashtags)
+      const likedStoryHashtags = likedStoryData.hashtags.map((tag) => tag.hashtagId);
+      
       // Find stories with overlapping hashtags
       const similarStories = await prisma.story.findMany({
         where: {
           hashtags: {
             some:{
                 hashtag:{
-                    name:{
+                    id:{
                         in: likedStoryHashtags
                     }
                 }
