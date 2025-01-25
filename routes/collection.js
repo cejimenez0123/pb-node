@@ -254,13 +254,7 @@ module.exports = function (authMiddleware){
                         scores[cTc.childCollectionId] += 1;
                     }
             
-        
-            // } 
-          
-            // for (let storyId in collaborativeScores) {
-           
-            //   hybridScores[storyId] = 0.7 *collaborativeScores[storyId]  + 0.3 * (contentBasedScores[storyId] || 0);
-            // }
+    
          
    
            return Object.entries(scores)
@@ -463,39 +457,7 @@ module.exports = function (authMiddleware){
             }
         }})
   
-        const user = await prisma.profile.findUnique({
-          where: { id: profileId},
-          include: { likedStories:true,
-                hashtagCollections:{
-                    include:{
-                        hashtag:{
-                            include:{
-                                stories:{
-                                    include:{
-                                        story:true
-                                    }
-                                }
-                            }
-                            
-                        },
-                        collection:{
-                            include:{
-                                storyIdList:{
-                                    include:{
-                                        story:{
-                                            include:{
-                                                author:true
-                                    
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-           },
-        });
+       
        
         // const storiesScores = await getCollectionContentBasedScores(col)
         // console.log("Stories",storiesScores)
@@ -514,6 +476,86 @@ module.exports = function (authMiddleware){
           .sort((a, b) => b[1] - a[1]) // Sort by score
           .map(([storyId]) => storyId); // Return sorted story IDs
       };
+      router.get("/recommendations",authMiddleware,async(req,res)=>{
+        let profile = req.user.profiles[0]
+        try{
+        if(profile){
+        const collaborativeScores = await getCollectionCollaborativeScores(profile.id)
+        console.log("col",collaborativeScores)
+        let sorted = Object.entries(collaborativeScores)
+        .sort((a, b) => b[1] - a[1]) // Sort by score
+        .map(([storyId]) => storyId);
+        console.log(sorted)
+        let collections= await prisma.collection.findMany({where:{
+        id:{
+            in:sorted,
+            },profileId:{
+                not:profile.id
+            },isPrivate:{
+                equals:false
+            }},include:{
+                childCollections:{
+                    where:{
+                        childCollection:{
+                            isPrivate:{
+                                equals:false,
+                            }
+                        }
+                    },
+                    include:{
+                        childCollection:{
+                            
+                            include:{
+                                
+                                childCollections:{
+                                    include:{
+                                        
+                                        childCollection:{
+                                            
+                                            include:{
+                                                storyIdList:{
+                                                    include:{
+                                                        story:true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                roles:{
+                    include:{
+                        profile:true,
+                    }
+                },
+                storyIdList:{
+                    include:{
+                        story:{
+                            include:{
+                                author:true
+                            }
+                        }
+                    }
+                }
+            },
+            
+        })
+        if(collections.length==0){
+          collections=  await prisma.collection.findMany({where:{
+                isPrivate:false,
+            profileId:{
+                not:profile.id
+            }}})
+        }
+
+        res.json({collections:collections})}
+    
+}catch(error){
+    res.json({error})
+}})
     router.get("/:id/recommendations",async (req,res)=>{
         try{
         if(req.params.id!=undefined){
