@@ -481,11 +481,11 @@ module.exports = function (authMiddleware){
         try{
         if(profile){
         const collaborativeScores = await getCollectionCollaborativeScores(profile.id)
-        console.log("col",collaborativeScores)
+     
         let sorted = Object.entries(collaborativeScores)
         .sort((a, b) => b[1] - a[1]) // Sort by score
         .map(([storyId]) => storyId);
-        console.log(sorted)
+      
         let collections= await prisma.collection.findMany({where:{
         id:{
             in:sorted,
