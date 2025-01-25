@@ -1362,6 +1362,11 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
                 id:{equals:id}
             }
         }})
+        await prisma.profileToCollection.deleteMany({where:{
+            collectionId:{
+                equals:id
+            }
+        }})
         await prisma.collection.delete({where:{
             id: id
         }})
