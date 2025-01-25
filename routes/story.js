@@ -65,7 +65,13 @@ const recommendStories = async (profileId) => {
          
           },
           id: { not: likedStory.storyId }, // Exclude the liked story itself
-        },
+        },include:{
+            hashtags:{
+                include:{
+                    hashtag:true
+                }
+            }
+        }
       });
   
       // Assign scores to the similar stories
@@ -74,7 +80,7 @@ const recommendStories = async (profileId) => {
   
         // Score is based on the number of matching hashtags
         const matchingTags = story.hashtags.filter((tag) =>
-          likedStoryHashtags.includes(tag.name)
+          likedStoryHashtags.includes(tag.hashtagId)
         ).length;
         scores[story.id] += matchingTags;
       }
