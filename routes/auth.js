@@ -515,9 +515,76 @@ Reset Pasword
                 }
             }
         })
+       const homeCol = await prisma.collection.create({data:{
+          title:"Home",
+          purpose:"Add Collections to home to up with updates",
+          isOpenCollaboration:false,
+          isPrivate:true,
+          profile:{
+            connect:{
+              id:profile.id
+            }
+          }
+        }
+        })
+      const archCol= await prisma.collection.create({data:{
+          title:"Archive",
+          purpose:"Save things for later",
+          isOpenCollaboration:false,
+          isPrivate:true,
+          profile:{
+            connect:{
+              id:profile.id
+            }
+          }
+        }
+        })
+ 
 
+        await prisma.profileToCollection.create({
+          data:{
+            collection:{
+              connect:{
+                id:homeCol.id
+              }
+            },
+            type:"home",
+            profile:{
+              connect:{
+                id:profile.id
+              }
+            }
+          }
+        })
+        let profileToColl= await prisma.profileToCollection.create({data:{
+          collection:{
+              connect:{
+                  id:archCol.id
+              }
+          },type:"archive",
+          profile:{
+              connect:{
+                  id:profile.id
+              }
+          }
 
-        res.json({profile,token:verifiedToken})
+      },include:{
+          collection:true,
+          profile:{
+              include:{
+                  followers:true,
+                  stories:true,
+                  collections:true,
+                  profileToCollections:{
+                      include:{
+                          collection:true
+                      }
+                  }
+              }
+          }
+      }})
+
+        res.json({profile:profileToColl.profile,token:verifiedToken})
       }else{
         const profile = await prisma.profile.create({
           data:{

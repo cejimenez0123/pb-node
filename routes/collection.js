@@ -459,8 +459,7 @@ module.exports = function (authMiddleware){
   
        
        
-        // const storiesScores = await getCollectionContentBasedScores(col)
-        // console.log("Stories",storiesScores)
+
         const contentBasedScores = await getCollectionContentBasedScores(colId)
     
         const collaborativeScores = await getCollectionCollaborativeScores(profileId)
@@ -476,6 +475,49 @@ module.exports = function (authMiddleware){
           .sort((a, b) => b[1] - a[1]) // Sort by score
           .map(([storyId]) => storyId); // Return sorted story IDs
       };
+      router.post("/home",authMiddleware,async(req,res)=>{
+        const {collection}=req.body
+        try{
+        let profile = req.user.profiles[0]
+        let oldPro = await prisma.profileToCollection.findFirst({where:{
+            profileId:{
+                equals:profile.id
+            }
+        }})
+        if(oldPro){
+            await prisma.profileToCollection.delete({where:{
+                id:oldPro.id
+            }})
+        }
+        let profileToColl= await prisma.profileToCollection.create({data:{
+            collection:{
+                connect:{
+                    id:collection.id
+                }
+            },
+            profile:{
+                connect:{
+                    id:profile.id
+                }
+            }
+
+        },include:{
+            collection:true,
+            profile:{
+                include:{
+                    profileToCollections:{
+                        include:{
+                            collection:true
+                        }
+                    }
+                }
+            }
+        }})
+        res.json({profile:profileToColl.profile})
+    }catch(error){
+        res.json(error)
+    }
+      })
       router.get("/recommendations",authMiddleware,async(req,res)=>{
         let profile = req.user.profiles[0]
         try{

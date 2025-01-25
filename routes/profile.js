@@ -145,9 +145,13 @@ module.exports = function (authMiddleware){
                     id: req.user.id
                 }
             },include:{
-                likedStories:true,
-                historyStories:true,
-                collectionHistory:true,
+              
+                profileToCollections:{
+                    include:{
+                        collection:true
+                    }
+                },
+           
                 collections:true,
                 stories:true,
                 location:true,

@@ -140,6 +140,7 @@ model ProfileToCollection{
   collection Collection? @relation( fields: [collectionId], references: [id],onDelete:NoAction,onUpdate:NoAction)
   collectionId String? @db.ObjectId
   profileId String @db.ObjectId
+  type ProfileToCollectionType @default(home)
   profile Profile?@relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
   created DateTime? @default(now())
 }
@@ -295,6 +296,11 @@ enum StoryType {
   image
   video
   link
+}
+enum ProfileToCollectionType {
+  home
+  archive
+  
 }
 enum SubscriptionLevel{
   basic
