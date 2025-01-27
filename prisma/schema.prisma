@@ -70,6 +70,7 @@ model Profile{
     user User? @relation(fields: [userId], references: [id])
     isActive Boolean? @default(false) 
     lastActive  DateTime? @default(now())
+    lastNotified  DateTime? @default(now())
     writerLevel Int? @default(1)
     locationId String? @db.ObjectId
     location Location?  @relation(fields: [locationId], references: [id])

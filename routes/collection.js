@@ -940,7 +940,36 @@ const recommendations = await getRecommendedCollections(req.params.id)
             storyIdList:{
                 include:{story:{include:{author:true}}}  
               },
-            childCollections:true,
+            childCollections:{
+                where:{
+                    childCollection:{
+                        isPrivate:{
+                            equals:false
+                        }
+                    }
+                },
+                include:{
+                    childCollection:{
+                        include:{
+                            storyIdList:{
+                                
+                                    
+                            
+                                include:{
+                                    story:{
+                                        where:{
+                                            isPrivate:false
+                                        },
+                                        include:{
+                                            author:true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             roles:{
                 include:{
                     profile:true,
@@ -962,7 +991,7 @@ const recommendations = await getRecommendedCollections(req.params.id)
             id: req.params.id
         },include:{
             storyIdList:{
-              include:{story:{include:{author:true}}}  
+              include:{collection:true,story:{include:{author:true}}}  
             },
             
             parentCollections:{
@@ -972,6 +1001,7 @@ const recommendations = await getRecommendedCollections(req.params.id)
                         include:{
                             storyIdList:{
                                 include:{
+                                    collection:true,
                                     story:{
                                         include:{
                                             author:true
@@ -986,7 +1016,9 @@ const recommendations = await getRecommendedCollections(req.params.id)
             },
             childCollections:{
                 include:{
+                    parentCollection:true,
                     childCollection:{
+
                         include:{
                             storyIdList:{
                                 include:{
@@ -1475,6 +1507,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         }})
             res.json({collection:updatedCol})
         }catch(error){
+            console.log(error)
             res.json({error})
         }
     })

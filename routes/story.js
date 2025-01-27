@@ -399,6 +399,11 @@ try{
             id:req.params.id},include:{
                 author:true,
                 comments:true,
+                betaReaders:{
+                    where:{
+                        profileId:{equals:req.user.profiles[0].id}
+                    }
+                }
             }})
         if(story){
             res.status(200).json({story})

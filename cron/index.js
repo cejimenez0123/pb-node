@@ -48,25 +48,26 @@
 // // });
 
 
-// // const profilesWithFilteredComments = profiles.filter(prof=>prof.stories.length>0).map((profile) => {
-// //   const filteredStories = profile.stories.map((story) => {
-// //     const filteredComments = story.comments.filter(
-// //       (comment) => new Date(comment.created) >=   new Date("2025-1-1")  
-// //       // new Date(profile.user.lastEmailed)
+// const profilesWithFilteredCommentsBy=(date=new Date("2025-1-1")  )= profiles.filter(prof=>prof.stories.length>0).map((profile) => {
+//   const filteredStories = profile.stories.map((story) => {
+//     const filteredComments = story.comments.filter(
+//       (comment) => new Date(comment.created) >= date
 
-// //     );
-// //     return {
-// //       ...story,
-// //       comments: filteredComments,
-// //     };
-// //   });
+
+//     );
+//     return {
+//       ...story,
+//       comments: filteredComments,
+//     };
+//   });
+
 // //   // console.log("rpfoil",profiles)
 // //   return {
 // //     ...profile,
 // //     stories: filteredStories,
 // //   };
 // // // });
-// // console.log(profilesWithFilteredComments)
+// /
 // // }
 
 // async function sendEmails(frequency = 1) {

@@ -401,7 +401,7 @@ Reset Pasword
             id:{equals:applicantId}
           }})
         if (user &&action=="approve" &&email) {
-            console.log(req.query)
+            
            
         user = await prisma.user.update({where:{id:applicantId},data:{
         verified:true

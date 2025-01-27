@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require("../db");
 const comment = require('./comment');
+const { hash } = require('crypto');
 
 
 
@@ -67,6 +68,62 @@ module.exports = function (authMiddleware){
             res.status(409).json({error:err})
         }
      
+})
+router.get("/:id",async(req,res)=>{
+try{
+   let hashtag = await prisma.hashtag.findFirst({where:{
+        id:{
+            equals:req.params.id
+        }
+    },include:{
+        collections:{
+where:{
+    collection:{
+        isPrivate:{equals:false}
+    }
+},
+            include:{
+                
+                collection:{
+                    include:{
+                        childCollections:{
+                            include:{
+                                childCollection:true
+                            }
+                        },
+                        storyIdList:{
+                            include:{
+                                story:{
+                                    include:{
+                                        author:true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        stories:{
+            where:{
+                story:{
+                    isPrivate:{equals:false}
+                }
+            },
+            include:{
+                story:{
+                    include:{
+                        author:true
+                    }
+                }
+            }
+        }
+    }})
+    res.json({hashtag})
+}catch(error){
+    console.log(error)
+    res.json({error})
+}
 })
     router.post("/story/:storyId",authMiddleware,async(req,res)=>{
             const {name,profile}=req.body
