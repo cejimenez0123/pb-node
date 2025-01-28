@@ -894,7 +894,7 @@ const recommendations = await getRecommendedCollections(req.params.id)
 
         }catch(e){
 
-            res.status(204).json({isMember:false,
+            res.json({isMember:false,
                                 message:"Profile is not member of collection"
             })
         }
@@ -1191,10 +1191,7 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
    
    try{ const {id}=req.params
     const {list,profile}=req.body
-  
-
-
-
+   
     let promises = list.filter(async childId=>{
 
         let collt = await prisma.collectionToCollection.findFirst({where:{childCollectionId:{
@@ -1227,7 +1224,9 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
             }
         })
     })
-           let collection =  await prisma.collection.update({where:{id:id},data:{
+   
+           let collection =  await prisma.collection.update({
+            where:{id:id},data:{
                 type: "library"
             },include:{
                 storyIdList:{
@@ -1241,10 +1240,53 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
                 },
                 profile:true
             }})
-    let joint = await Promise.all(promises)
-    
-    
-res.json({collection})
+            let joint = await Promise.all(promises)
+            if(list.length==1){
+                let colId = list[0]
+                 collection = await prisma.collection.findFirst({where:{
+        id:colId
+    },include:{
+        childCollections:{
+            include:{
+                childCollection:true
+            }
+        },
+        storyIdList:{
+            include:{
+                story:{
+                    include:{
+                        author:true
+                    }
+                }
+            }
+        }
+    }})
+    res.json({collection})
+            }else{
+                let colId = list[0]
+                collection = await prisma.collection.findFirst({where:{
+       id:id
+   },include:{
+       childCollections:{
+           include:{
+               childCollection:true
+           }
+       },
+       storyIdList:{
+           include:{
+               story:{
+                   include:{
+                       author:true
+                   }
+               }
+           }
+       }
+   }})
+   res.json({collection})
+            }
+   
+
+
 }catch(error){
 
     res.json(409).json({error})
@@ -1305,28 +1347,31 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
 }
 }
 )
-    router.delete("/:id/collection/:childId",async (req,res)=>{
+    router.delete("/:parentId/collection/:id",async (req,res)=>{
         //REMOVE COLLECTION FROM COLLECTION
+        const {parentId,id}=req.params
         try{
-    const {id,childId}=req.params
-    const joint = await prisma.collectionToCollection.deleteMany({
-        data:{
-            childCollection:{
-                connect:{
-                    id:childId
-                }
-            },
-            parentCollection:{
-                connect:{
-                    id: id
-                }
+
+        await prisma.collectionToCollection.delete({where:{
+        id:id
+    }})
+        let collection = await prisma.collection.findFirst({where:
+        {id:{equals:parentId}},include:{
+        childCollections:{
+            include:{
+                childCollection:true
+            }
+        },
+        storyIdList:{
+            include:{
+                story:true
             }
         }
-    })
-    let collection = await prisma.collection.findFirst({where:{id:{equals:req.params.id}}})
-    res.status(204).json({collection,message:"Deleted Successfully"})
+     }})
+    res.json({collection,message:"Deleted Successfully"})
 }catch(error){
-    res.json({error})
+ console.log(error)
+    res.status(409).json({error})
 }
 }
 )
@@ -1525,7 +1570,11 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         let cols = await prisma.collection.findMany({where:{
           profileId:{equals:profile.id}
         },include:{
-            childCollections:true,
+            childCollections:{
+                include:{
+                    childCollection:true
+                }
+            },
             storyIdList:{
                 include:{story:{include:{author:true}}}  
               },
@@ -1542,6 +1591,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
             }
         },include:{
             collection:{
+               
                 include:{
                     childCollections:true,
                     storyIdList:{
@@ -1582,39 +1632,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         res.json({error})
     }
     })
-    // router.get("/profile/:id/library",async (req,res)=>{
-    //     //Library
-    //     try{
-    //     let data = await prisma.collection.findMany({where:{
-    //        AND:[{profile:{
-    //         id: req.params.id
-    //        }},{childCollections:{
-    //         some:{}
-    //        }}]
-    //     }})
-        
-    //     res.json({collection:data})
-    // }catch(error){
-    //     res.json({error})
-    // }
-    // })
-    // router.get("/profile/:id/book",async (req,res)=>{
-    //     try{
-    //     let data = await prisma.collection.findMany({where:{
-           
-    //         AND:{  
-    //             profileId:{
-    //                 equals:req.params.id
-    //             }, 
-    //             childCollections:{
-    //                 none:{}
-    //             }
-    //     }}})
-    //     res.json({collections:data})
-    // }catch(error){
-    //     res.json({error})
-    // }
-    // })
+
     router.put("/:id",async (req,res)=>{
         try{
      const {title,purpose,isPrivate,isOpenCollaboration}=req.body
