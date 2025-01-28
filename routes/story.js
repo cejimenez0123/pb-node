@@ -400,9 +400,10 @@ try{
                 author:true,
                 comments:true,
                 betaReaders:{
-                    where:{
-                        profileId:{equals:req.user.profiles[0].id}
-                    }
+                  include:{
+                    profile:true,
+                    story:true
+                  }
                 }
             }})
         if(story){
@@ -463,13 +464,14 @@ try{
 })
     router.put("/:id",...allMiddlewares,async (req,res)=>{
 try{
-        const {title,data, description, isPrivate,commentable,type}= req.body
+        const {title,data, description, needsFeedback,isPrivate,commentable,type}= req.body
         let story  = await prisma.story.update({where:{
             id:req.params.id
         },data:{
             title,
             data,
             isPrivate,
+            needsFeedback,
             commentable,
             description,
             type,

@@ -943,6 +943,7 @@ const recommendations = await getRecommendedCollections(req.params.id)
             childCollections:{
                 where:{
                     childCollection:{
+                        
                         isPrivate:{
                             equals:false
                         }
@@ -956,10 +957,9 @@ const recommendations = await getRecommendedCollections(req.params.id)
                                     
                             
                                 include:{
+                                
                                     story:{
-                                        where:{
-                                            isPrivate:false
-                                        },
+                                      
                                         include:{
                                             author:true
                                         }
@@ -972,6 +972,7 @@ const recommendations = await getRecommendedCollections(req.params.id)
             },
             roles:{
                 include:{
+                    collection:true,
                     profile:true,
                 }
             },
