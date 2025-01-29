@@ -517,6 +517,15 @@ module.exports = function (authMiddleware) {
             }})
             if(story){
               let stc = await createStoryToCollection({storyId:story.id,collectionId:col.id,profileId:prof.id})
+              try{  await prisma.story.update({where:{
+                id:story.id,
+              },data:{
+                needsFeedback:false
+              }})
+            }catch(err){
+              console.err(err)
+            }
+             
             }
             let collection = await prisma.collection.findFirst({where:{
               id:{
@@ -546,9 +555,7 @@ module.exports = function (authMiddleware) {
                 }
               }
             }})
-            // await prisma.profile.update({where:{id:prof.id},data:{
-            //   isActive:false
-            // }})
+        
             res.json({collection:collection})
           }else if(closestGroup && closestGroup.length>0){
               let storyGroup =closestGroup
@@ -558,6 +565,14 @@ module.exports = function (authMiddleware) {
               )
               if(story){
                 const stc =  await createStoryToCollection({storyId:story.id,collectionId:workshopCol.id,profileId:prof.id})
+                try{  await prisma.story.update({where:{
+                  id:story.id,
+                },data:{
+                  needsFeedback:false
+                }})
+              }catch(err){
+                console.err(err)
+              }
               }
                  for(let i =0;i<6;i++){
                   const otherStory = storyGroup[i]
@@ -565,8 +580,8 @@ module.exports = function (authMiddleware) {
                    let found = await findStoryToCollection({collectionId:workshopCol.id,storyId:otherStory.id,profileId:otherStory.authorId})
                   if(!found){
                     await createStoryToCollection({storyId:otherStory.id,collectionId:workshopCol.id,profileId:otherStory.authorId})
-                  }
-               }}
+                 
+               }}}
                   const col = await prisma.collection.findFirst({where:{id:{equals:workshopCol.id}},include:{
                     storyIdList:{include:{
                       story:{
@@ -579,6 +594,7 @@ module.exports = function (authMiddleware) {
                       include:{
                         childCollection:{include:{
                           storyIdList:{
+
                             include:{
                               story:true
                             }
@@ -613,7 +629,9 @@ module.exports = function (authMiddleware) {
                },data:{
                 isActive:false
                }})
+           
               const col = await prisma.collection.findFirst({where:{id:{equals:newWorkshop.id}}})
+            
               res.json({collection:col})
               return
             }else{
@@ -733,6 +751,14 @@ module.exports = function (authMiddleware) {
              
                 if(story){
                   let stc = await createStoryToCollection({storyId:story.id,collectionId:col.id,profileId:prof.id})
+                  try{  await prisma.story.update({where:{
+                    id:story.id,
+                  },data:{
+                    needsFeedback:false
+                  }})
+                }catch(err){
+                  console.err(err)
+                }
                 }
                  prisma.collection.findFirst({where:{
                   id:{
