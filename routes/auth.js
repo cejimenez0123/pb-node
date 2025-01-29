@@ -419,7 +419,7 @@ Reset Pasword
       
       }
          catch (error) {
-        
+          console.log(`GOOGLE+${email}`,error)
           res.status(400).json(error)
         }
       });
