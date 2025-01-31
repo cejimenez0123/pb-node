@@ -39,6 +39,8 @@ describe('Application and Review Flow', () => {
   let email = faker.internet.email()
   let handle = faker.internet.username()
   let password = faker.internet.password()
+  email = faker.internet.email()
+  handle = faker.internet.username()
 const applicationData = {
         fullName: fullName,
         email: email,
@@ -49,10 +51,11 @@ const applicationData = {
       };
   it('should handle the application flow and send approval email', async () => {
     // Step 1: User applies through `auth/apply`
-    const applyResponse = await request(app).post('/auth/apply')
-          .expect("Content-Type", /json/)
+    const applyResponse = await request(app)
+      .post('/auth/apply')
+      .set('Content-Type', 'application/json')
           .send(applicationData)
-          .set('Content-Type', 'application/json')
+ 
 
     expect(applyResponse.status).toBe(201);
    
@@ -65,6 +68,8 @@ const applicationData = {
     const reviewResponse = await request(app)
     .get(path)
     .set('Content-Type', 'application/json')
+
+
     expect(reviewResponse.status).toBe(200);
 
     expect(reviewResponse).toHaveProperty("body")
@@ -76,6 +81,20 @@ const applicationData = {
     const template = approvalTemplate({name:fullName,signupLink,email:email})
     expect(sendMailMock).toHaveBeenCalledWith(
       expect.objectContaining(template))
+     let params = {token:reviewResponse.body.token,email,password:"password",username:handle,
+      profilePicture:"",selfStatement:"",privacy:false
+     }
+const registerResponse = await request(app)
+
+.post("/auth/register")
+.set('Content-Type', 'application/json')
+.send(params)
+
+expect(registerResponse.status).toBe(200);
+expect(registerResponse).toHaveProperty("body")
+expect(registerResponse.body).toHaveProperty("profile")
+expect(registerResponse.body).toHaveProperty("token")
+
   });
 
   it('should fail to send approval email if token is invalid', async () => {
@@ -83,7 +102,7 @@ const applicationData = {
     const reviewResponse = await request(app)
     .get(`/auth/review?applicantId=${invalidToken}`)
     .set('Content-Type', 'application/json');
-    expect(reviewResponse.status).toBe(400);
+    expect(reviewResponse.status).toBe(409);
   
   });
   afterEach(() => {

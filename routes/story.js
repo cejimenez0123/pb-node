@@ -44,7 +44,7 @@ for(let i = 0;i<profile.likedStories.length;i++){
   };
   const getContentBasedScores = async (likedStories) => {
     const scores = {};
-  
+  console.log("liked",likedStories)
     for (const likedStory of likedStories) {
       // Fetch hashtags of the liked story
       const likedStoryData = await prisma.story.findUnique({
@@ -142,7 +142,7 @@ const getRecommendations = async (profileId) => {
   
     const contentBasedScores = await getContentBasedScores(user.likedStories);
     const collaborativeScores = await getCollaborativeScores(profileId);
-  
+    
     const hybridScores = {};
     for (let storyId in contentBasedScores) {
       hybridScores[storyId] =
@@ -150,7 +150,7 @@ const getRecommendations = async (profileId) => {
     }
   
     return Object.entries(hybridScores)
-      .sort((a, b) => b[1] - a[1]) // Sort by score
+      .sort((a, b) => b[1] - a[1]) 
       .map(([storyId]) => storyId); // Return sorted story IDs
   };
   
@@ -160,7 +160,7 @@ module.exports = function ({authMiddleware}){
     router.get("/",async (req,res)=>{
         try{
        let stories = await prisma.story.findMany({orderBy:{
-        created:"desc"
+        updated:"desc"
        }, where:{
         isPrivate:{equals: false}
        },include:{
@@ -212,11 +212,11 @@ module.exports = function ({authMiddleware}){
             }})
         }
         let recommendations = await getRecommendations(profile.id)
-      
+   
         if(recommendations.length==0){
             recommendations = await recommendStories(profile.id)
         }
-   
+ 
        let stories = await prisma.story.findMany({where:{
             id:{
                 in:recommendations
@@ -230,7 +230,7 @@ module.exports = function ({authMiddleware}){
         if(stories.length==0){
             stories = await prisma.story.findMany({orderBy:{
             storyLikes:{
-                _count:"asc"
+                _count:"desc"
             }},where:{
                 isPrivate:false
                 

@@ -6,6 +6,9 @@ const generateMongoId = require("./generateMongoId");
 const nodemailer = require('nodemailer');
 const approvalTemplate = require('../html/approvalTemplate');
 const router = express.Router()
+function isHex(num) {
+  return Boolean(num.match(/^0x[0-9a-f]+$/i))
+}
 module.exports = function (authMiddleware){
     router.get("/user",authMiddleware,async(req,res)=>{
       
@@ -258,7 +261,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
         
 
             }catch(error){
-            
+              
                 if(error.message.includes("Unique")){
                     res.status(409).json({message:"User has already applied"})
                 }else{
@@ -386,7 +389,7 @@ Reset Pasword
     })
     router.get('/review', async (req, res) => {
       const { applicantId, action,email} = req.query;
-
+      try {
       const transport = nodemailer.createTransport({
         service: 'gmail', 
         auth: {
@@ -396,7 +399,9 @@ Reset Pasword
         from:process.env.pbEmail
       });
     
-        try {
+
+
+        
           let user = await prisma.user.findFirstOrThrow({where:{
             id:{equals:applicantId}
           }})
@@ -417,10 +422,13 @@ Reset Pasword
           return res.status(200).json({ token,message: `User ${action}'d successfully` });
         }
       
+      // }else{
+      //   throw new Error("Invalied Token")
+      // }
       }
          catch (error) {
-          console.log(`GOOGLE+${email}`,error)
-          res.status(400).json(error)
+        
+          res.status(409).json(error)
         }
       });
     router.post("/session",async (req,res)=>{
@@ -585,7 +593,7 @@ Reset Pasword
           }
       }})
 
-        res.json({profile:profileToColl.profile,token:verifiedToken})
+        res.status(200).json({profile:profileToColl.profile,token:verifiedToken})
       }else{
         const profile = await prisma.profile.create({
           data:{
@@ -599,11 +607,11 @@ Reset Pasword
               }
           }
       })
-      res.json({profile,token:verifiedToken})
+      res.status(200).json({profile,token:verifiedToken})
      } 
     }else{
       const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-      res.json({profile:user.profiles[0],token:verifiedToken})
+      res.status(200).json({profile:user.profiles[0],token:verifiedToken})
     
       }
       }catch(error){

@@ -639,7 +639,9 @@ const recommendations = await getRecommendedCollections(req.params.id)
         //GET ALL PUBLIC COLLECTIONS
         try{
         const collection = await prisma.collection.findMany(
-            {where:{isPrivate:{equals:false}},include:{
+            {orderBy:{
+                
+                    updated:"desc"},where:{isPrivate:{equals:false}},include:{
                 storyIdList:{
                     include:{
                         story:true
@@ -796,6 +798,8 @@ const recommendations = await getRecommendedCollections(req.params.id)
     router.get("/public/library",async (req,res)=>{
         try{
             const libraries = await prisma.collection.findMany({
+                orderBy:{
+                    updated:"desc"},
             where:{
                 AND:[{isPrivate:{
                     equals:false
@@ -904,6 +908,8 @@ const recommendations = await getRecommendedCollections(req.params.id)
         try{
         const books  = 
             await prisma.collection.findMany({
+                orderBy:{
+                    updated:"desc"},
                 where:{
                     AND:{  
                         isPrivate:{equals:false},
@@ -1298,6 +1304,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
     const {id}=req.params
     const {list,profile}=req.body
     const newList = list.filter(story=>story!=null)
+    
     let promises = newList.map(story=>{
         return prisma.storyToCollection.create({
             data:{
@@ -1327,7 +1334,9 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         })
     })
     let joint = await Promise.all(promises)
-    let col = await prisma.collection.findFirst({where:{id:id},include:{
+    let col = await prisma.collection.update({where:{id:id},data:{
+        updated:new Date()
+    },include:{
         storyIdList:{
             include:{story:{include:{author:true}}}  
           },

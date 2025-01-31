@@ -114,184 +114,148 @@ module.exports = function (authMiddleware){
     router.get("/user/:id/public",async (req,res)=>{
        try{
         const profiles = await prisma.profile.findMany({where:{
-            user:{
+           AND:[{ user:{
                 id: req.params.id
-            }
-        },include:{   likedStories:true,
-            historyStories:true,
-            collectionHistory:true,
-            collections:true,
-            followers:true,
-            following:true,
-            stories:true}})
-    
-    res.json({profiles})
+            }},{isPrivate:{equals:false}}]
+       }})
+   
+
+res.json({profiles})
 }catch(err){
-    console.log(err)
-    res.status(409).json({error:err})
-    }
+console.log(err)
+res.status(409).json({error:err})
+}
 })
 
-    router.get("/:id/alert",authMiddleware,async(req,res)=>{
-  try{
-        console.log(req.user)
-        console.log(req.body)
-        const profile = await prisma.profile.findFirst({where:{
-            id:{
-                equals:req.user.profiles[0].id
+router.get("/:id/alert",authMiddleware,async(req,res)=>{
+try{
+    const profId =req.user.profiles[0].id
+   const profile = req.user.profile
+   let collections =  await prisma.collection.findMany({where:{
+        roles:{
+            some:{
+                profileId:{
+                    equals:profId
+                }
             }
-        },include:{
-            rolesToCollection:{
-                include:{
-                    collection:{
-                        include:{
-                            storyIdList:{
-                                include:{
-                                    story:true
-                                }
+        },
+        type:{
+            not:"feedback"
+        }
+    
+    },
+            include:{
+                profile:true,
+                roles:{
+                    where:{
+                        profileId:{
+                            equals:profId
+                        }
+                    }
+                },
+                childCollections:{
+                    include:{
+                        childCollection:{
+                            include:{
+                                profile:true
                             }
                         }
-                    }
-                }
-            },
-          
-            following:{
-                
-                include:{
-                    following:{
-                        include:{
-                        
-                            stories:{
-                                where:{
-                                    OR:[{betaReaders:{
-                                        some:{
-                                            profileId:req.user.profiles[0].id
-                                        }
-                                    }},{
-                                    isPrivate:{
-                                        equals:false
-                                    }}]
-                                },
-                                
-                            },
-                            storyToCollections:{
-                              include:{
-                                collection:{        
-                                    include:{
-                                            storyIdList:{
-                                                include:{
-                                                    story:{
-                                                        where:{
-                                                            betaReaders:{
-                                                                some:{
-                                                                    profileId:req.user.profiles[0].id
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            roles:{
-                                                some:{
-                                                    
-                                                    profileId:{
-                                                        equals:req.user.profiles[0.]
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                              }
-                            ,
-                           
-                            likedStories:{
-                                where:{
-                                story:{
-                                    isPrivate:{
-                                        equals:false
-                                    }
-                                }
-                            }},
-                            
+                    },
+                   where:{
                     
-                        }
+                    childCollection:{
+                      
+                        OR:[{isPrivate:{
+                            equals:false
+                        }},{roles:{
+                            some:{
+                                profileId:{
+                                    equals:profId
+                                }
+                            }
+                        }}]
+
                     }
-                }},
-            stories:{
-                include:{
-                    comments:{
-                        include:{
-                            story:true,
-                            children:true
+                   }
+                },
+                storyIdList:{
+                    where:{
+                        story:{
+                            updated:{
+                                gte:req.user.profiles[0].lastNotified
+                            }
+                        }
+                    },
+                    include:{
+                        story:{
+                            include:{
+                                author:true
+                            }
                         }
                     }
                 }
             
-        }}})
-
-                profile.following.map(follow=>{
-    
-                   let stories = follow.following.stories.filter(story=>{
-                        if(story.updated){
-                          return  new Date(story.updated)>= new Date("1-1-2025")
-                        }
-                        if(story.created){
-                            let date = new Date(story.created)
-                           return date >= new Date("1-1-2025")
-                        }
-                       return false
-                        
-                    })
-                    
-                })
-              const filteredCollections =  profile.rolesToCollection.filter(rTc=>
-                rTc.collection.storyIdList.length>0
-
-              ).map((rTc=>{
-             
-                    let stcs =rTc.collection.storyIdList.filter(stc=>{
-                        if(stc.story){
-                            let date = new Date(stc.story.created)
-                            if(stc.story.updated){
-                                new Date(stc.story.updated)
-                            }
-                            return date >= new Date("1-1-2025")
-                        }else{
-                            return false
-                        }
-                     
-                      
-                     
-                    })
-                
-                    return {
-                        collection:rTc.collection,
-                        stories:stcs
-                    }
-                })).filter(col=>col.stories.length>0)
-        const filteredStories = profile.stories.map((story) => {
-              const comments = story.comments.filter(
-                (comment) => new Date(comment.created) >= new Date("1-1-2025")
-          
-          
-              )
-            return {story,comments}
-            }
-        
-            ).filter(filtered=>filtered.comments.length>0)
-     
-        if(profile){
-
-           await prisma.profile.update({where:{
-                id:profile.id,
-                
-            },data:{
-                lastNotified: new Date()
-            }})
+    }})
+    const following = await prisma.follow.findMany({where:{
+        followerId:{
+            equals:profId
         }
-    
-        res.json({collections:filteredCollections,stories:filteredStories})
+    },include:{
+    following:{
+        include:{
+            stories:{where:{
+               AND:[{OR:[{
+                betaReaders:{
+                    some:{
+                        profileId:{
+                            equals:profId
+                        }
+                    }
+                }},{isPrivate:false}]
+            },{
+                created:{gte:new Date("1-1-2025")}
+            }],
+            collections:{
+                every:{
+                    collection:{
+                        OR:[
+                            {
+                                roles:{
+                                    some:{
+                                        profileId:{
+                                            equals:profId
+                                        }
+                                    }  
+                                }
+                            },
+                            {isPrivate:{
+                                equals:false
+                            }}
+                        ]
+                       
+                    }
+                
+            }
+    }}}}}}})
+    let comments = await prisma.comment.findMany({where:{
+        AND:[{story:{
+            authorId:{
+                equals:profId
+            }
+        }},{updated:{
+            gte:new Date("1-1-2025")
+        }}]
+    },include:{
+        profile:true,
+        story:true
+    }})
+
+            
+     
+ 
+
+   
+    res.json({collections,comments,following})
     }catch(err){
         console.log(err)
         res.json({error:err})
