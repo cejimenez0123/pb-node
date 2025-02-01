@@ -809,7 +809,10 @@ const recommendations = await getRecommendedCollections(req.params.id)
                     }
                 }]
             }})
-            res.json({libraries})
+            const adminCols = libraries.filter(book=>book.priority>90).sort((a,b)=>b.priority-a.priority)
+            console.log(adminCols)
+const otherCols = libraries.filter(book=>book.priority<90)
+            res.json({libraries:[...adminCols,...otherCols]})
         }catch(e){
       
         res.json({error:e})
@@ -930,7 +933,11 @@ const recommendations = await getRecommendedCollections(req.params.id)
             },
             profile:true
         }})
-        res.json({books})
+        let adminCols = books.filter(book=>book.priority>90).sort((a,b)=>b.priority-a.priority)
+        let otherCols = books.filter(book=>book.priority<90)
+    
+
+        res.json({books:[...adminCols,...otherCols]})
     }catch(error){
         res.json({error})
     }

@@ -235,6 +235,7 @@ model Collection {
     storyIdList StoryToCollection[]
     favedBy ProfileToCollection[]
     roles RoleToCollection[]
+    priority Int @default(0)
     hashtags HashtagCollection[]
     type CollectionType? @default(book)
     followersAre Role? @default(commenter)
