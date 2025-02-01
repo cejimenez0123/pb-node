@@ -182,7 +182,7 @@ try{
                     where:{
                         story:{
                             updated:{
-                                gte:req.user.profiles[0].lastNotified
+                                gte:new Date(req.user.profiles[0].lastNotified)
                             }
                         }
                     },
@@ -237,6 +237,13 @@ try{
                 
             }
     }}}}}}})
+   let followers= await prisma.follow.findMany({where:{
+        followingId:{
+            equals:profId
+        }
+    },include:{
+        follower:true
+    }})
     let comments = await prisma.comment.findMany({where:{
         AND:[{story:{
             authorId:{
@@ -255,7 +262,7 @@ try{
  
 
    
-    res.json({collections,comments,following})
+    res.json({collections,comments,following,followers})
     }catch(err){
         console.log(err)
         res.json({error:err})

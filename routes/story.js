@@ -44,7 +44,7 @@ for(let i = 0;i<profile.likedStories.length;i++){
   };
   const getContentBasedScores = async (likedStories) => {
     const scores = {};
-  console.log("liked",likedStories)
+
     for (const likedStory of likedStories) {
       // Fetch hashtags of the liked story
       const likedStoryData = await prisma.story.findUnique({
