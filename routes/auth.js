@@ -323,7 +323,15 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
       const {token}= req.query
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const {userId}=decoded
-  
+      const user = await prisma.user.update({where:{
+        id:userId
+     },data:{
+        emailFrequency:0
+     },include:{
+    
+     }})
+     let params = new URLSearchParams({unsubscribe:"true"})
+     res.redirect(process.env.DOMAIN+"/subscribe?"+params.toString())
       }catch(error){
         res.json({error})
       }
