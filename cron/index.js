@@ -127,6 +127,15 @@ where:{
             }
           }
         },
+        collections:{
+          include:{
+            storyIdList:{
+              include:{
+                story:true
+              }
+            }
+          }
+        },
         rolesToCollection:{
           include:{
             collection:{
@@ -177,34 +186,47 @@ where:{
 
 
 async function sendEmail(profile) {
-  console.log(profile)
+  // console.log(profile)
   const today = new Date();
   const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 5);
+  yesterday.setDate(today.getDate() - 1);
 
   const lastActiveDate = yesterday;
     // const lastActiveDate = profile.lastActive || yesterday;
   let following = profile.following.map(follow=>follow.following)
-  console.log("FDf",following)
+
   const recentComments = profile.stories
   .filter(story=>story.comments.length>0)
   .flatMap(story => story.comments) // Flatten all comments from stories
   .filter(comment => {
     return comment.created >= new Date(lastActiveDate.getTime() - profile.user.emailFrequency * 24 * 60 * 60 * 1000); // Filter by `lastActive` date and frequency
   });
+
   const collectionstory = profile.rolesToCollection.map(rTc=>{
 
     return rTc.collection
   }).filter(collection=>{
     let list =  collection.storyIdList.filter(story=>story.updated>=  new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)); // Filter by `lastActive` )
-   
+  
   
     return list.length>0
   }).flatMap(collection=>{
    return collection.storyIdList.map(stc=>stc.story)
   })
-console.log(collectionstory)
-console.log(recentComments)
+
+  const collections = profile.collections.filter(collection=>{
+   let stories = collection.storyIdList.map(stc=>{return stc.story})
+ 
+  return 0<stories.filter(story=>story.updated>=  new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)).length; // Filter by `lastActive` )
+  }).map(collection=>{
+    console.log("X",collection.storyIdList.length)
+    let stories = collection.storyIdList.filter(stc=>stc.story.authorId!=profile.id&&stc.story.updated>=new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000))
+    console.log("Y",stories.length)
+    return structuredClone(collection,{storyIdList:stories})
+  })
+
+
+
 try{
   let transporter = nodemailer.createTransport({
     service: 'gmail', 
@@ -215,8 +237,8 @@ try{
     from:process.env.pbEmail
   });
 
-  console.log("content",{comments:recentComments,collections:collectionstory,followers:[]})
-  const mailOptions = newsletterTemplate({email:profile.user.email,comments:recentComments,collections:collectionstory,followers:[]})
+  // console.log("content",{comments:recentComments,collections:collectionstory,followers:[]})
+  const mailOptions = newsletterTemplate({email:profile.user.email,comments:recentComments,collections:collections,followers:[]})
 
   await transporter.sendMail(mailOptions);
  
