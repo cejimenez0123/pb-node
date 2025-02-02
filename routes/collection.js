@@ -1240,7 +1240,8 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
    
            let collection =  await prisma.collection.update({
             where:{id:id},data:{
-                type: "library"
+                type: "library",
+                updated: new Date()
             },include:{
                 storyIdList:{
                     include:{story:{include:{author:true}}}  
@@ -1479,6 +1480,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         let initCol = await prisma.collection.update({where:{
             id:col.id
         },data:{
+            updated:new Date(),
             purpose:purpose,
             title:title,
             isPrivate,
