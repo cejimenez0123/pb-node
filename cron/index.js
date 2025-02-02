@@ -202,30 +202,24 @@ async function sendEmail(profile) {
     return comment.created >= new Date(lastActiveDate.getTime() - profile.user.emailFrequency * 24 * 60 * 60 * 1000); // Filter by `lastActive` date and frequency
   });
 
-  const collectionstory = profile.rolesToCollection.map(rTc=>{
+  const collectionstory = profile.rolesToCollection.filter(rTc=>{
 
-    return rTc.collection
-  }).filter(collection=>{
-    let list =  collection.storyIdList.filter(story=>story.updated>=  new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)); // Filter by `lastActive` )
-  
-  
-    return list.length>0
-  }).flatMap(collection=>{
+    return rTc.created>= new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)
+  }).flatMap(rtc=>{
+    const collection = rtc.collection
    return collection.storyIdList.map(stc=>stc.story)
+  }).filter(story=>{
+   return story.created>= new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)
   })
-
+console.log("Collleciton",collectionstory)
   const collections = profile.collections.filter(collection=>{
-   let stories = collection.storyIdList.map(stc=>{return stc.story})
- 
-  return 0<stories.filter(story=>story.updated>=  new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)).length; // Filter by `lastActive` )
-  }).map(collection=>{
-    console.log("X",collection.storyIdList.length)
-    let stories = collection.storyIdList.filter(stc=>stc.story.authorId!=profile.id&&stc.story.updated>=new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000))
-    console.log("Y",stories.length)
-    return structuredClone(collection,{storyIdList:stories})
-  })
+  
+ return  collection.updated>= new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)
 
-
+}).map(collection=>{
+  let story = collection.storyIdList.filter(stc=>stc.authorId!=profile.id)
+ return structuredClone(collection,{storyIdList:story})
+}).sort((a,b)=>b.updated-a.updated)
 
 try{
   let transporter = nodemailer.createTransport({
@@ -369,7 +363,7 @@ const sendEmailToUser=async ()=>{
         //              <a href="[Unsubscribe URL]">Unsubscribe</a> | <a href="[Preferences URL]">Update Email Preferences</a>
         //             </p>
           try {
-            await transporter.sendMail(mailOptions);
+            // await transporter.sendMail(mailOptions);
             // res.json({message:'Referred Succesfully!'});
           } catch (error) {
             console.error(error);
