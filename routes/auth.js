@@ -318,7 +318,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
     res.json({error})
   }
     })
-    router.post("/unsubscribe",async (req,res)=>{
+    router.get("/unsubscribe",async (req,res)=>{
       try{
       const {token}= req.query
       const decoded = jwt.verify(token, process.env.JWT_SECRET);

@@ -97,6 +97,13 @@ async function sendEmails(frequency = 1) {
         },
       },
       include: {
+        followers:{
+          include:{
+            follower:{
+              include:true
+            }
+          }
+        },
         following:{
           include:{
             following:{
@@ -130,7 +137,9 @@ where:{
         collections:{
           include:{
             storyIdList:{
+              
               include:{
+             
                 story:true
               }
             }
@@ -142,6 +151,7 @@ where:{
               include:{
                 storyIdList:{
                   include:{
+                    collection:true,
                     story:{
                       include:{
                         author:true
@@ -171,7 +181,6 @@ where:{
 
       
         if(profile.username=="plumbumofficial"){
-
           sendEmail(profile)
           break
         }
@@ -193,25 +202,31 @@ async function sendEmail(profile) {
 
   const lastActiveDate = yesterday;
     // const lastActiveDate = profile.lastActive || yesterday;
-  let following = profile.following.map(follow=>follow.following)
+  let following = profile.following.filter(follow=>follow.created>= new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)).map(follow=>follow.following)
+  const newFollowers = profile.followers.filter(follow=>follow.created>= new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)).map(follow=>follow.follower)
 
   const recentComments = profile.stories
   .filter(story=>story.comments.length>0)
   .flatMap(story => story.comments) // Flatten all comments from stories
   .filter(comment => {
-    return comment.created >= new Date(lastActiveDate.getTime() - profile.user.emailFrequency * 24 * 60 * 60 * 1000); // Filter by `lastActive` date and frequency
+    return comment.created >= new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000); // Filter by `lastActive` date and frequency
   });
 
+  console.log("RRRREER",profile.rolesToCollection)
   const collectionstory = profile.rolesToCollection.filter(rTc=>{
 
-    return rTc.created>= new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)
+    return rTc.created>= new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000) || rTc.collection.storyIdList.length>=1
   }).flatMap(rtc=>{
     const collection = rtc.collection
-   return collection.storyIdList.map(stc=>stc.story)
-  }).filter(story=>{
-   return story.created>= new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)
+  
+   return collection.storyIdList
+  }).filter(stc=>{
+   
+    const story = stc.story
+ 
+   return story && stc.created >= new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)
   })
-console.log("Collleciton",collectionstory)
+
   const collections = profile.collections.filter(collection=>{
   
  return  collection.updated>= new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)
@@ -232,7 +247,7 @@ try{
   });
 
   // console.log("content",{comments:recentComments,collections:collectionstory,followers:[]})
-  const mailOptions = newsletterTemplate({email:profile.user.email,comments:recentComments,collections:collections,followers:[]})
+  const mailOptions = newsletterTemplate({email:profile.user.email,sTcs:collectionstory,comments:recentComments,collections:collections,followers:newFollowers})
 
   await transporter.sendMail(mailOptions);
  
