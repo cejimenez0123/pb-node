@@ -41,7 +41,7 @@ module.exports = function requestSubscriptionToNewsletter({token,email}){
                </p>
          
                <div style="text-align: center; margin: 20px 0;">
-                 <a href="${process.env.DEV_DOMAIN}/subscribe?${params.toString()}" style="background-color: #10b981; color: white; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-size: 16px; display: inline-block;">Update Email Preferences</a>
+                 <a href="${process.env.DEV_DOMAIN}/subscribe/${params.toString()}" style="background-color: #10b981; color: white; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-size: 16px; display: inline-block;">Update Email Preferences</a>
                </div>
          
                <p style="color: #374151; font-size: 14px; text-align: center;">

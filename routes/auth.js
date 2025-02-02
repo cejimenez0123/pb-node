@@ -330,7 +330,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
      },include:{
     
      }})
-     let params = new URLSearchParams({unsubscribe:"true"})
+     let params = new URLSearchParams({unsubscribe:"true",token})
      res.redirect(process.env.DOMAIN+"/subscribe?"+params.toString())
       }catch(error){
         res.json({error})
