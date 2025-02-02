@@ -1,6 +1,7 @@
 const prisma = require('../db')
 const nodemailer = require('nodemailer');
 const cron = require('node-cron');
+const newsletterTemplate = require('../html/newsletterTemplate');
 cron.schedule('0 0 * * *', async () => {
   // Send emails to users with email frequency of 1 (daily)
   await sendEmails(1); // Function to send emails for daily frequency
@@ -96,8 +97,52 @@ async function sendEmails(frequency = 1) {
         },
       },
       include: {
+        following:{
+          include:{
+            following:{
+              include:{
+                
+                stories:{
+where:{
+  OR:[{isPrivate:{
+    equals:false
+  }},{
+ 
+  }]
+}
+                }
+              }
+            }
+          }
+        },
         user:{
           include:true
+        },
+        rolesToStory:{
+          include:{
+            story:{
+              include:{
+                author:true
+              }
+            }
+          }
+        },
+        rolesToCollection:{
+          include:{
+            collection:{
+              include:{
+                storyIdList:{
+                  include:{
+                    story:{
+                      include:{
+                        author:true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         },
         stories: {
           include: {
@@ -106,36 +151,23 @@ async function sendEmails(frequency = 1) {
                 story:true,
                 profile:true
               }
-            } // Include all comments (filtering will be done after retrieval)
-          },
+            }        },
         },
       },
     });
 
-    // Now process each profile
+ 
     for (const profile of profiles) {
       const lastActiveDate = profile.lastActive || now; // If `lastActive` is null, use the current date as fallback
 
-      // Filter comments for this profile based on `lastActive` and created date
-      const recentComments = profile.stories
-        .filter(story=>story.comments.length>0)
-        .flatMap(story => story.comments) // Flatten all comments from stories
-        .filter(comment => {
-          return comment.created >= new Date(lastActiveDate.getTime() - frequency * 24 * 60 * 60 * 1000); // Filter by `lastActive` date and frequency
-        });
-
-      // Now send email only if there are recent comments
-      // if (recentComments.length > 0) {
-        console.log(profile)
+      
         if(profile.username=="plumbumofficial"){
 
-          sendEmail(profile,recentComments)
+          sendEmail(profile)
           break
-        // }
-    
-        // await sendEmail(profile, recentComments); 
+        }
  
-      }
+      
      
     }
   } catch (error) {
@@ -144,8 +176,36 @@ async function sendEmails(frequency = 1) {
 }
 
 
-async function sendEmail(profile, newComments) {
-  try{
+async function sendEmail(profile) {
+  console.log(profile)
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 5);
+
+  const lastActiveDate = yesterday;
+    // const lastActiveDate = profile.lastActive || yesterday;
+  let following = profile.following.map(follow=>follow.following)
+  console.log("FDf",following)
+  const recentComments = profile.stories
+  .filter(story=>story.comments.length>0)
+  .flatMap(story => story.comments) // Flatten all comments from stories
+  .filter(comment => {
+    return comment.created >= new Date(lastActiveDate.getTime() - profile.user.emailFrequency * 24 * 60 * 60 * 1000); // Filter by `lastActive` date and frequency
+  });
+  const collectionstory = profile.rolesToCollection.map(rTc=>{
+
+    return rTc.collection
+  }).filter(collection=>{
+    let list =  collection.storyIdList.filter(story=>story.updated>=  new Date(lastActiveDate.getTime() - 1 * 24 * 60 * 60 * 1000)); // Filter by `lastActive` )
+   
+  
+    return list.length>0
+  }).flatMap(collection=>{
+   return collection.storyIdList.map(stc=>stc.story)
+  })
+console.log(collectionstory)
+console.log(recentComments)
+try{
   let transporter = nodemailer.createTransport({
     service: 'gmail', 
     auth: {
@@ -154,23 +214,10 @@ async function sendEmail(profile, newComments) {
     },
     from:process.env.pbEmail
   });
-  
 
-  const mailOptions = {
-    from: process.env.pbEmail,
-    to: process.env.pbEmail,
-    subject: 'Your Profile Updates',
-    html: `Hi ${profile.username},\n\nYou have new comments:\n\n
-     
-    ${newComments.map(comment => {return `<li>- ${comment.content}</li>`})
-      .join('\n')}
-    \n\nBest,\nYour Team`,
-  };
-console.log(`Hi ${profile.username},\n\nYou have new comments:\n\n
-     
-${newComments.map(comment => {return `<li>- ${comment.content}</li>`})
-  .join('\n')}
-\n\nBest,\nYour Team`)
+  console.log("content",{comments:recentComments,collections:collectionstory,followers:[]})
+  const mailOptions = newsletterTemplate({email:profile.user.email,comments:recentComments,collections:collectionstory,followers:[]})
+
   await transporter.sendMail(mailOptions);
  
   return 

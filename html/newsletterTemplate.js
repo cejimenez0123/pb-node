@@ -1,4 +1,5 @@
-module.exports = function newsletterTemplate({}){
+module.exports = function newsletterTemplate({email,comments,collections,followers}){
+    console.log("ppop",{email,comments,collections,followers})
     return {
          from: process.env.pbEmail, // Sender address
          to: email, // Recipient's email
