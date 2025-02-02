@@ -16,34 +16,32 @@ module.exports = function (authMiddleware){
     })
     router.put("/subscription",async(req,res)=>{
       try{
-      const {token}=req.query
-      const {frequency}=req.body
+     
+      const {frequency,token}=req.body
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const {userId}=decoded
-
-      let user = await prisma.user.update({where:{
-        id:userId
-      },data:{
-        emailFrequency:frequency
-      }})
-      res.json({user,success})
+   
+      if(frequency==0){
+        const user = await prisma.user.update({where:{
+          id:userId},data:{
+           emailFrequency:0
+          }})
+          res.json({user,message:"Successfuly Unsubscribed"})
+      }else{
+        let user = await prisma.user.update({where:{
+          id:userId
+        },data:{
+          emailFrequency:frequency
+        }})
+        res.json({user,message:"Successfully Updated Prefences"})
+      }
+   
     }catch(error){
       console.log({error})
       res.json({error})
     }
     })
-    router.get("/unsubscribe",async(req,res)=>{
-      const {token}=req.query
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const {userId}=decoded
-
-      let user = await prisma.user.update({where:{
-        id:userId
-      },data:{
-        emailFrequency:0
-      }})
-      res.json({message:"Success"})
-    })
+ 
     router.post("/referral",authMiddleware,async (req,res)=>{
     const {email,name}=req.body
 try{
@@ -325,12 +323,7 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
       const {token}= req.query
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const {userId}=decoded
-      const user = await prisma.user.update({where:{
-       id:userId},data:{
-        emailFrequency:0
-       }})
-       let params = new URLSearchParams({unsubscribed:true})
-       res.redirect(process.env.DOMAIN+"/subscribe/"+params.toString())
+  
       }catch(error){
         res.json({error})
       }

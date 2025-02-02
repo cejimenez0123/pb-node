@@ -23,8 +23,10 @@ const sendEmail=async ()=>{
       const token = jwt.sign({ userId:user.id }, process.env.JWT_SECRET);
      let mailOptions = requestSubscriptionToNewsletter({token,email})
      await transporter.sendMail(mailOptions);
+     return "scuess"
       }else{
         console.log("Can find user")
+        return "Can't find user"
       }
 }
-sendEmail().then()
+sendEmail().then(res=>console.log(res))
