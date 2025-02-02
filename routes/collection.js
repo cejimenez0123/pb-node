@@ -1640,9 +1640,12 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         }})
         let sTcList = sTcs.map(stc=>stc.collection)
         let list = cTcs.map(cTc=>cTc.collection)
-        const colList = [...cols,...list,...sTcList]
-
-        res.json({collections:colList})
+        const colList =[...cols,...list,...sTcList]
+        const uniqueById = colList.filter((obj, index, self) => 
+            index === self.findIndex(item => item.id === obj.id)
+        );
+        
+        res.json({collections:uniqueById})
     }catch(error){
         console.log(error)
         res.json({error})
