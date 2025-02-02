@@ -41,12 +41,12 @@ module.exports = function requestSubscriptionToNewsletter({token,email}){
                </p>
          
                <div style="text-align: center; margin: 20px 0;">
-                 <a href="${process.env.DEV_DOMAIN}/subscribe?${params.toString()}" style="background-color: #10b981; color: white; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-size: 16px; display: inline-block;">Update Email Preferences</a>
+                 <a href="${process.env.DOMAIN}/subscribe?${params.toString()}" style="background-color: #10b981; color: white; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-size: 16px; display: inline-block;">Update Email Preferences</a>
                </div>
          
                <p style="color: #374151; font-size: 14px; text-align: center;">
                  Need a break? No hard feelings.  
-                 <a href="${process.env.DEV_BASEPATH}/auth/unsubscribe?${params.toString()}" style="color: #065f46; text-decoration: underline;">Unsubscribe here</a>.
+                 <a href="${process.env.BASEPATH}/auth/unsubscribe?${params.toString()}" style="color: #065f46; text-decoration: underline;">Unsubscribe here</a>.
                </p>
          
                <p style="font-size: 12px; color: #9ca3af; text-align: center; margin-top: 20px;">

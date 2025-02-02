@@ -2,13 +2,13 @@ const prisma = require('../db')
 const nodemailer = require('nodemailer');
 const jwt = require("jsonwebtoken")
 const requestSubscriptionToNewsletter = require("../html/requestSubscriptionToNewsLetter")
-const sendEmail=async ()=>{
-    const email = "plumbumapp@gmail.com"
+const sendEmail=async (email )=>{
+   
     let transporter = nodemailer.createTransport({
         service: 'gmail', 
         auth: {
           user: email, 
-          pass: "yime vzxy ymni murh"
+          pass: process.env.pbPassword
         },
         from:email
       });
@@ -23,7 +23,7 @@ const sendEmail=async ()=>{
       const token = jwt.sign({ userId:user.id }, process.env.JWT_SECRET);
      let mailOptions = requestSubscriptionToNewsletter({token,email})
      await transporter.sendMail(mailOptions);
-     return "scuess"
+     console.log("Success news")
       }else{
         console.log("Can find user")
         return "Can't find user"
