@@ -14,7 +14,34 @@ module.exports = function (authMiddleware){
       
       res.json({user:req.user})
     })
-    
+    router.put("/subscription",async(req,res)=>{
+      try{
+     
+      const {frequency,token}=req.body
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const {userId}=decoded
+   
+      if(frequency==0){
+        const user = await prisma.user.update({where:{
+          id:userId},data:{
+           emailFrequency:0
+          }})
+          res.json({user,message:"Successfuly Unsubscribed"})
+      }else{
+        let user = await prisma.user.update({where:{
+          id:userId
+        },data:{
+          emailFrequency:frequency
+        }})
+        res.json({user,message:"Successfully Updated Prefences"})
+      }
+   
+    }catch(error){
+      console.log({error})
+      res.json({error})
+    }
+    })
+ 
     router.post("/referral",authMiddleware,async (req,res)=>{
     const {email,name}=req.body
 try{
@@ -290,6 +317,24 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
    
     res.json({error})
   }
+    })
+    router.get("/unsubscribe",async (req,res)=>{
+      try{
+      const {token}= req.query
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const {userId}=decoded
+      const user = await prisma.user.update({where:{
+        id:userId
+     },data:{
+        emailFrequency:0
+     },include:{
+    
+     }})
+     let params = new URLSearchParams({unsubscribe:"true",token})
+     res.redirect(process.env.DOMAIN+"/subscribe?"+params.toString())
+      }catch(error){
+        res.json({error})
+      }
     })
     router.post("/forgot-password",async (req,res)=>{
         const {email}=req.body

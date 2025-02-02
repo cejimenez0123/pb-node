@@ -93,6 +93,15 @@ where:{
                             }
                         },
                         storyIdList:{
+                            where:{
+                                story:{
+                                    hashtags:{
+                                        some:{
+                                            id:req.params.id
+                                        }
+                                    }
+                                }
+                            },
                             include:{
                                 story:{
                                     include:{
