@@ -71,6 +71,7 @@ module.exports = function (authMiddleware){
 })
 router.get("/:id",async(req,res)=>{
 try{
+ 
    let hashtag = await prisma.hashtag.findFirst({where:{
         id:{
             equals:req.params.id
@@ -119,6 +120,7 @@ where:{
             }
         }
     }})
+    console.log(hashtag)
     res.json({hashtag})
 }catch(error){
     console.log(error)
