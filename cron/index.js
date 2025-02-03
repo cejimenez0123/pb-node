@@ -268,7 +268,7 @@ const sendEmailToUser=async ()=>{
 
         let mailOptions = {
             from:  process.env.pbEmail,
-            to:"christianjimenez0123@gmail.com" ,// Email to yourself
+            to:"" ,// Email to yourself
             subject: `<!DOCTYPE html>
             <html>
             <head>
