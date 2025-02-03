@@ -17,8 +17,7 @@ const sendEmail=async (user)=>{
      
       if(user){
       const token = jwt.sign({ userId:user.id }, process.env.JWT_SECRET);
-     let mailOptions = requestSubscriptionToNewsletter({token,email:user.email})
-     await transporter.sendMail(mailOptions);
+  
      console.log("Success news")
       }else{
         console.log("Can find user")
@@ -39,11 +38,3 @@ for(const user of users){
           
 }  
 
-// sendEmails().then()
-
-
-// function sleep(ms) {
-//   return new Promise((resolve) => {
-//     setTimeout(resolve, ms);
-//   });
-// }

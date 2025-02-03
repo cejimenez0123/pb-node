@@ -10,6 +10,16 @@ const recommendStories = async (profileId) => {
             equals:profileId
         }
     },include:{
+        historyStories:{
+                include:{
+                    story:{
+                        include:{
+                            hashtags:true,
+                            author:true
+                        }
+                    }
+                }
+        },
         likedStories:{
             include:{
             story:{
@@ -29,10 +39,7 @@ for(let i = 0;i<profile.likedStories.length;i++){
           isPrivate:false,
           hashtags: { hasSome: profile.likedStories[i]?.hashtags
            } ,
-         
-          betaReaders:{
-              
-          }},select:{
+         },select:{
               id:true
           }
       });
@@ -221,9 +228,18 @@ module.exports = function ({authMiddleware}){
             id:{
                 in:recommendations
             },
-            isPrivate:{
-                equals:false
-            }
+            OR:[
+{  isPrivate:{
+    equals:false
+}},{
+    betaReaders:{
+        some:{
+            profileId:{equals:profile.id}
+        }
+    }
+}
+            ]
+          
         },include:{
             author:true
         }})

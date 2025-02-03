@@ -810,7 +810,7 @@ const recommendations = await getRecommendedCollections(req.params.id)
                 }]
             }})
             const adminCols = libraries.filter(book=>book.priority>90).sort((a,b)=>b.priority-a.priority)
-            console.log(adminCols)
+          
 const otherCols = libraries.filter(book=>book.priority<90)
             res.json({libraries:[...adminCols,...otherCols]})
         }catch(e){

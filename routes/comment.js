@@ -90,7 +90,21 @@ router.delete("/:id",authMiddleware,async (req,res)=>{
         res.status(409).json({error:err})
     }}
 )
-
+router.get("/helpful",async(req,res)=>{
+    try{
+        const comments = await prisma.comment.findMany({where:{hashtags:{
+            some:{}
+        }},include:{
+            hashtags:true
+        }})
+       let sorted = comments.sort((a,b)=>{
+            return b.hashtags.length-a.hashtags.length
+        })
+        res.json({comments:sorted})
+    }catch(error){
+        res.json({error})
+    }
+})
 router.patch("/:id",authMiddleware,async(req,res)=>{
 
     const {text}=req.body
