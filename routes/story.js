@@ -415,6 +415,11 @@ try{
             id:req.params.id},include:{
                 author:true,
                 comments:true,
+                hashtags:{
+                    include:{
+                        hashtag:true
+                    }
+                },
                 betaReaders:{
                   include:{
                     profile:true,

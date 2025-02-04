@@ -72,9 +72,8 @@ module.exports = function (authMiddleware){
         const profile = await prisma.profile.findFirst({where:{
             id: req.params.id
         },include:{
-            likedStories:true,
-            historyStories:true,
-            collectionHistory:true,
+        
+           
             followers:true,
             following:true
          
@@ -281,14 +280,31 @@ try{
               
                 profileToCollections:{
                     include:{
-                        collection:true
+                        collection:{
+                            include:{
+                                childCollections:{
+                                    select:{
+                                        childCollectionId:true
+                                    }
+                                },
+                                storyIdList:{
+                                    select:{
+                                        storyId:true
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 likedStories:true,
                 collections:true,
                 stories:true,
                 location:true,
-                followers:true,
+                followers:{
+                    include:{
+                        follower:true
+                    }
+                },
                 following:true
             }})
           
