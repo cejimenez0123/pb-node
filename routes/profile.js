@@ -66,7 +66,7 @@ module.exports = function (authMiddleware){
     
     
     })
-    router.get("/:id",async (req,res)=>{
+    router.get("/:id/protected",async (req,res)=>{
         try{
         
         const profile = await prisma.profile.findFirst({where:{
@@ -77,6 +77,29 @@ module.exports = function (authMiddleware){
             followers:true,
             following:true
          
+        }})
+        res.status(200).json({profile:profile})
+
+    }catch(err){
+     
+        res.status(409).json({error:err})
+    }
+    })
+    router.get("/:id",async (req,res)=>{
+        try{
+        
+        const profile = await prisma.profile.findFirst({where:{
+            id: req.params.id
+        },include:{
+            stories:{
+                where:{isPrivate:{equals:false}}
+            },
+            collections:{
+                where:{isPrivate:{equals:false}}
+            },
+           
+            followers:true,
+           
         }})
         res.status(200).json({profile:profile})
 
@@ -267,7 +290,7 @@ try{
         res.json({error:err})
     }
     })
-    router.get("/user/protected",authMiddleware,async (req,res)=>{
+    router.get("/user/private",authMiddleware,async (req,res)=>{
         try{
       
         if(req.user){
@@ -312,6 +335,8 @@ try{
                 res.status(200).json({profile:profile})
     
      
+        }else{
+            res.status(404).json({message:"User not found"})
         }
      
     }catch(error){
