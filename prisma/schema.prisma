@@ -76,6 +76,7 @@ model Profile{
     location Location?  @relation(fields: [locationId], references: [id])
     hashtag HashtagComment[]
     isPrivate Boolean?
+    messages Message[]
     requests AccessRequest[]
     hashtags HashtagStory[]
     hashtagCollections HashtagCollection[]
@@ -176,6 +177,24 @@ model RoleToCollection{
   updated DateTime? @default(now())
   created DateTime? @default(now())
 }
+model Chat {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String?
+  isGlobal    Boolean   @default(false)
+  messages    Message[]
+  created  DateTime  @default(now())
+  collections Collection[]
+  
+}
+model Message {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  chat      Chat    @relation(fields: [chatId], references: [id])
+  chatId    String @db.ObjectId
+  sender    Profile    @relation(fields: [senderId], references: [id])
+  senderId  String @db.ObjectId
+  content   String
+  created DateTime @default(now())
+}
 model RoleToStory{
   id String @id @default(auto()) @map("_id") @db.ObjectId
   profileId String  @db.ObjectId
@@ -237,6 +256,8 @@ model Collection {
     roles RoleToCollection[]
     priority Int @default(0)
     hashtags HashtagCollection[]
+    chat Chat?  @relation(fields: [chatId], references: [id])
+    chatId String? @db.ObjectId
     type CollectionType? @default(book)
     followersAre Role? @default(commenter)
     isOpenCollaboration Boolean @default(false)
