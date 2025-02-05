@@ -74,7 +74,11 @@ module.exports = function (authMiddleware){
         },include:{
         
            
-            followers:true,
+            followers:{
+                include:{
+                    follower:true
+                }
+            },
             following:true
          
         }})
@@ -98,7 +102,11 @@ module.exports = function (authMiddleware){
                 where:{isPrivate:{equals:false}}
             },
            
-            followers:true,
+            followers:{
+                include:{
+                    follower:true
+                }
+            },
            
         }})
         res.status(200).json({profile:profile})
@@ -139,6 +147,12 @@ module.exports = function (authMiddleware){
            AND:[{ user:{
                 id: req.params.id
             }},{isPrivate:{equals:false}}]
+       },include:{
+        followers:{
+            include:{
+                follower:true
+            }
+        }
        }})
    
 

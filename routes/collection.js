@@ -1056,10 +1056,10 @@ const otherCols = libraries.filter(book=>book.priority<90)
             profile:true
             
         }})
-       
+       console.log(collection)
         res.status(200).json({collection:collection})
     }catch(error){
-    
+        console.log({error})
         res.json({error})
     }
     })
