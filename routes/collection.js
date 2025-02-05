@@ -1012,17 +1012,8 @@ const otherCols = libraries.filter(book=>book.priority<90)
                 include:{
                 
                     parentCollection:{
-                        include:{
-                            storyIdList:{
-                                include:{
-                                    collection:true,
-                                    story:{
-                                        include:{
-                                            author:true
-                                        }
-                                    }
-                                }
-                            },
+                        select:{
+                            id:true,
                             roles:true
                         }
                     }
@@ -1202,7 +1193,9 @@ try{
 router.post("/:id/collection",authMiddleware,async (req,res)=>{
     //ADD COLLECTION TO COLLECTION
    
-   try{ const {id}=req.params
+   try{
+    //
+     const {id}=req.params
     const {list,profile}=req.body
    
     let promises = list.filter(async childId=>{
@@ -1246,6 +1239,12 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
                 storyIdList:{
                     include:{story:{include:{author:true}}}  
                   },
+                  parentCollections:{
+                    select:{
+                        id:true,
+                        parentCollectionId:true
+                    }
+                  },
                 childCollections:true,
                 roles:{
                     include:{
@@ -1260,6 +1259,9 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
                  collection = await prisma.collection.findFirst({where:{
         id:colId
     },include:{
+        parentCollections:{
+            select:{id:true,parentCollectionId:true}
+        },
         childCollections:{
             include:{
                 childCollection:true
@@ -1281,6 +1283,12 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
                 collection = await prisma.collection.findFirst({where:{
        id:id
    },include:{
+    parentCollections:{
+        select:{
+            id:true,
+            parentCollectionId:true,
+        }
+    },
        childCollections:{
            include:{
                childCollection:true
@@ -1356,42 +1364,62 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         },
         profile:true
     }})
-   
-    res.json({collection:col})
+    
+   let stories = await prisma.story.findMany({where:{
+    id:{
+        in:list.map(i=>i.id)
+    }
+   },include:{
+    collections:{
+        select:{
+            id:true,
+            collectionId:true
+        }
+    }
+   }})
+    res.json({collection:col,stories})
 }catch(error){
     console.log({error})
     res.json({error})
 }
 }
 )
-    router.delete("/:parentId/collection/:id",async (req,res)=>{
+    router.delete("/colToCol/:id",async (req,res)=>{
         //REMOVE COLLECTION FROM COLLECTION
-        const {parentId,id}=req.params
-        try{
+        const {id}=req.params
 
-        await prisma.collectionToCollection.delete({where:{
-        id:id
-    }})
-        let collection = await prisma.collection.findFirst({where:
-        {id:{equals:parentId}},include:{
-        childCollections:{
-            include:{
-                childCollection:true
+        try{
+          let ptc = await prisma.collectionToCollection.findFirst({where:{id:{
+                equals:id
+            }}})
+            if(ptc){
+                await prisma.collectionToCollection.delete({where:{
+                    id:id
+                }})
+      let collection =await prisma.collection.findFirst({where:{
+        id:{equals:ptc.childCollectionId}},include:{
+            storyIdList:true,
+            childCollections:true,
+            parentCollections:{
+                select:{
+                    id:true,
+                    parentCollectionId:true
+                }
+            }}
+        })
+      
+        res.json({collection,message:"Deleted Successfully"})
+            }else{
+res.json({message:"Already Deleted"})
             }
-        },
-        storyIdList:{
-            include:{
-                story:true
-            }
-        }
-     }})
-    res.json({collection,message:"Deleted Successfully"})
+
+
 }catch(error){
- console.log(error)
-    res.status(409).json({error})
-}
-}
-)
+console.log(error)
+        res.json({error})
+}})
+
+
 
     router.delete("/:id/story/:storyId",async (req,res)=>{
         //DELETE STORY FROM COLLECTION
@@ -1417,7 +1445,17 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
             },
             profile:true
         }})
-        res.json({collection,message:"Deleted Successfully"})
+        let story = await prisma.story.findFirst({where:{
+            id:{equals:storyId}
+        },include:{
+            collections:{
+                select:{
+                    id:true,
+                    collectionId:true,
+                }
+            }
+        }})
+        res.json({collection,story,message:"Deleted Successfully"})
     }catch(error){
 
         res.json({error})

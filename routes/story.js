@@ -413,6 +413,12 @@ module.exports = function ({authMiddleware}){
 try{
         let story = await prisma.story.findFirst({where: {
             id:req.params.id},include:{
+                collections:{
+                   select:{
+                    id:true,
+                    collectionId:true
+                   }
+                },
                 author:true,
                 comments:true,
                 hashtags:{
