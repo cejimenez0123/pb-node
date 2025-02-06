@@ -1094,7 +1094,7 @@ try{
     let collection = await prisma.collection.findFirst({where:{
         id:{equals:id}
     },include:{
-        
+        profile:true,
         childCollections:{
             
             include:{
@@ -1236,6 +1236,7 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
                 type: "library",
                 updated: new Date()
             },include:{
+                
                 storyIdList:{
                     include:{story:{include:{author:true}}}  
                   },
@@ -1259,6 +1260,7 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
                  collection = await prisma.collection.findFirst({where:{
         id:colId
     },include:{
+        profile:true,
         parentCollections:{
             select:{id:true,parentCollectionId:true}
         },
@@ -1283,6 +1285,7 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
                 collection = await prisma.collection.findFirst({where:{
        id:id
    },include:{
+    profile:true,
     parentCollections:{
         select:{
             id:true,
@@ -1398,6 +1401,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
                 }})
       let collection =await prisma.collection.findFirst({where:{
         id:{equals:ptc.childCollectionId}},include:{
+            profile:true,
             storyIdList:true,
             childCollections:true,
             parentCollections:{
@@ -1769,7 +1773,7 @@ console.log(error)
             ,type: collectionType
         },
             include:{
-    
+
                 storyIdList:{
                     include:{story:{include:{author:true}}}  
                   },

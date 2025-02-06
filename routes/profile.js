@@ -89,7 +89,7 @@ module.exports = function (authMiddleware){
         res.status(409).json({error:err})
     }
     })
-    router.get("/:id",async (req,res)=>{
+    router.get("/:id/public",async (req,res)=>{
         try{
         
         const profile = await prisma.profile.findFirst({where:{
@@ -292,7 +292,11 @@ try{
         }}]
     },include:{
         profile:true,
-        story:true
+        story:{
+            include:{
+                author:true
+            }
+        }
     }})
 
             
@@ -306,7 +310,7 @@ try{
         res.json({error:err})
     }
     })
-    router.get("/user/private",authMiddleware,async (req,res)=>{
+    router.get("/protected",authMiddleware,async (req,res)=>{
         try{
       
         if(req.user){
@@ -318,17 +322,39 @@ try{
             },include:{
               
                 profileToCollections:{
+                    where:{
+                        type:"home"
+                    },
                     include:{
+                        
                         collection:{
                             include:{
+
                                 childCollections:{
-                                    select:{
-                                        childCollectionId:true
+                                    include:{
+                                        childCollection:{
+                                            include:{
+                                                storyIdList:{
+                                                    include:{
+                                                        story:{
+                                                            include:{
+                                                                author:true
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        
                                     }
                                 },
                                 storyIdList:{
                                     select:{
-                                        storyId:true
+                                        story:{
+                                            include:{
+                                                author:true
+                                            }
+                                        }
                                     }
                                 }
                             }
