@@ -453,6 +453,11 @@ try{
                         equals:false
                     }
                    }]},include:{
+                    hashtags:{
+                        include:{
+                            hashtag:true
+                        }
+                    },
                 author:true,
                 comments:true,
             }})
