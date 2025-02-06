@@ -126,7 +126,9 @@ console.log(err)
 res.status(409).json({error:err})
 }
 })
-
+router.delete("/:id",authMiddleware,async (req,res)=>{
+    
+})
 router.get("/:id/alert",authMiddleware,async(req,res)=>{
 try{
     const profId =req.user.profiles[0].id
