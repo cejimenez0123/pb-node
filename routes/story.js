@@ -261,7 +261,7 @@ module.exports = function ({authMiddleware}){
             res.json({error})
         }
     })
-    router.get("/profile/private/draft",authMiddleware,async (req,res)=>{
+    router.get("/profile/protected/draft",authMiddleware,async (req,res)=>{
     
             const profile = await prisma.profile.findFirst({where:{
                 userId:{
@@ -341,7 +341,7 @@ module.exports = function ({authMiddleware}){
         res.status(404).json({error})
     }
     })
-    router.get("/profile/private",authMiddleware,async (req,res)=>{
+    router.get("/profile/protected",authMiddleware,async (req,res)=>{
         try{
         
         const profile = await prisma.profile.findFirst({where:{
