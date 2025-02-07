@@ -1047,7 +1047,7 @@ const otherCols = libraries.filter(book=>book.priority<90)
             profile:true
             
         }})
-       console.log(collection)
+  
         res.status(200).json({collection:collection})
     }catch(error){
         console.log({error})
@@ -1425,41 +1425,34 @@ console.log(error)
 
 
 
-    router.delete("/:id/story/:storyId",async (req,res)=>{
+    router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
         //DELETE STORY FROM COLLECTION
         try{
-        const {storyId,id}=req.params
-        await prisma.storyToCollection.deleteMany({where:{
-            story:{
-                id:storyId
-            },
-            collection:{
-                id:id
-            }
-        }})
-        let collection = await prisma.collection.findFirst({where:{id:{equals:req.params.id}},include:{
-            storyIdList:{
-                include:{story:{include:{author:true}}}  
-              },
-            childCollections:true,
-            roles:{
-                include:{
-                    profile:true,
-                }
-            },
-            profile:true
-        }})
-        let story = await prisma.story.findFirst({where:{
-            id:{equals:storyId}
+        const {stId}=req.params
+       let stc= await prisma.storyToCollection.findFirst({where:{
+            id:stId
         },include:{
-            collections:{
-                select:{
-                    id:true,
-                    collectionId:true,
+            story:true
+        }})
+        await prisma.storyToCollection.delete({where:{
+            id:stId
+        }})
+       let collection = await prisma.collection.findMany({where:{
+            id:stc.collectionId
+        },include:{
+            storyIdList:{
+                include:{
+                    story:true
+                }
+            },
+            childCollections:{
+                include:{
+                    childCollection:true
                 }
             }
         }})
-        res.json({collection,story,message:"Deleted Successfully"})
+    
+        res.json({collection,story:stc.story,message:"Deleted Successfully"})
     }catch(error){
 
         res.json({error})
