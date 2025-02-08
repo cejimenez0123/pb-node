@@ -322,9 +322,7 @@ try{
             },include:{
               
                 profileToCollections:{
-                    where:{
-                        type:"home"
-                    },
+                
                     include:{
                         
                         collection:{
