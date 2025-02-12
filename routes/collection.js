@@ -1005,7 +1005,8 @@ const otherCols = libraries.filter(book=>book.priority<90)
             id: req.params.id
         },include:{
             storyIdList:{
-              include:{collection:true,story:{include:{author:true}}}  
+              include:{
+                story:{include:{author:true}}}  
             },
             
             parentCollections:{
@@ -1019,6 +1020,7 @@ const otherCols = libraries.filter(book=>book.priority<90)
                     }
                 }
             },
+        
             childCollections:{
                 include:{
                     parentCollection:true,
@@ -1482,15 +1484,13 @@ console.log(error)
                 id:{equals:id}
             }
         }})
+  
         await prisma.collectionToCollection.deleteMany({where:{
-            parentCollection:{
+            OR:[{childCollection:{
                 id:{equals:id}
-            }
-        }})
-        await prisma.collectionToCollection.deleteMany({where:{
-            childCollection:{
-                id:{equals:id}
-            }
+            }},{parentCollectionId:{
+                equals:id
+            }}]
         }})
         await prisma.profileToCollection.deleteMany({where:{
             collectionId:{

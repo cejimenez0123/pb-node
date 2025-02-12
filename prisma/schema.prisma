@@ -23,11 +23,15 @@ model User{
   subscription SubscriptionLevel @default(basic)
   password String?
   igHandle String?
+  referredBy Referral?   @relation(name:"ReferredByUser",fields: [referredById], references: [id],onDelete: NoAction, onUpdate: NoAction) 
+  referredById String? @db.ObjectId
   emailFrequency Int? @default(1)
+  referrals Referral[]  @relation(name: "UserReferrals") 
   lastEmailed   DateTime?  @default(now())
   profiles Profile[]
   verified Boolean @default(false)
   created DateTime? @default(now())
+
 }
 model Story{
     id    String @id @default(auto()) @map("_id") @db.ObjectId
@@ -35,10 +39,11 @@ model Story{
     data String @default("")
     description String @default("")
     isPrivate Boolean @default(true)
-    authorId String @db.ObjectId
-    author Profile @relation(fields: [authorId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+    authorId String? @db.ObjectId
+    author Profile? @relation(fields: [authorId], references: [id],onDelete:Cascade,onUpdate:Cascade)
     needsFeedback Boolean? @default(false)
     commentable Boolean
+    priority Int? @default(0)
     approvalScore Int @default(0)
     storyLikes UserStoryLike[]
     storyHistory UserStoryHistory[]
@@ -49,8 +54,6 @@ model Story{
     collections StoryToCollection[]
     updated DateTime? @default(now())
     created DateTime? @default(now())
-
-   
 }
 model Location {
   id    String @id @default(auto()) @map("_id") @db.ObjectId
@@ -59,6 +62,17 @@ model Location {
   profiles Profile[]
   collections Collection[]
 }
+model Referral {
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  createdBy  User  @relation(name:"UserReferrals",fields: [createdById], references: [id]) 
+  createdById String @db.ObjectId 
+  users User[] @relation(name:"ReferredByUser")
+  usageCount Int      @default(0)
+  maxUses    Int      @default(5) 
+  createdAt  DateTime @default(now()) 
+  updatedAt  DateTime @updatedAt
+}
+
 
 model Profile{
     id    String @id @default(auto()) @map("_id") @db.ObjectId
@@ -77,7 +91,6 @@ model Profile{
     hashtag HashtagComment[]
     isPrivate Boolean?
     messages Message[]
-    requests AccessRequest[]
     hashtags HashtagStory[]
     hashtagCollections HashtagCollection[]
     stories Story[]
@@ -96,9 +109,10 @@ model Profile{
 }
 model Follow{
     id String  @id @default(auto()) @map("_id") @db.ObjectId
-     followerId String @db.ObjectId
-    followingId String @db.ObjectId
+    followerId String @db.ObjectId
     follower       Profile  @relation(name: "Following", fields: [followerId], references: [id])
+    approved Boolean @default(true)
+    followingId String @db.ObjectId
     following      Profile  @relation(name: "Followers", fields: [followingId], references: [id])
     created DateTime? @default(now())
 }
@@ -146,15 +160,7 @@ model ProfileToCollection{
   profile Profile?@relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
   created DateTime? @default(now())
 }
-model AccessRequest {
-    id String @id @default(auto()) @map("_id") @db.ObjectId
-    role Role
-    profileId String @db.ObjectId
-    profile Profile @relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
-    objId String
-    objType Content
-    created DateTime? @default(now())
-}
+
 model StoryToCollection{
   id String @id @default(auto()) @map("_id") @db.ObjectId
   storyId String? @db.ObjectId
@@ -172,6 +178,7 @@ model RoleToCollection{
   profileId String  @db.ObjectId
   profile Profile @relation(fields: [profileId], references: [id])
   collectionId String? @db.ObjectId
+  approved Boolean @default(true)
   collection Collection? @relation(fields: [collectionId], references: [id])
   role Role @default(reader)
   updated DateTime? @default(now())
@@ -190,8 +197,8 @@ model Message {
   id        String  @id @default(auto()) @map("_id") @db.ObjectId
   chat      Chat    @relation(fields: [chatId], references: [id])
   chatId    String @db.ObjectId
-  sender    Profile    @relation(fields: [senderId], references: [id])
-  senderId  String @db.ObjectId
+  sender    Profile?    @relation(fields: [senderId], references: [id])
+  senderId  String? @db.ObjectId
   content   String
   created DateTime @default(now())
 }
@@ -202,6 +209,7 @@ model RoleToStory{
   storyId String @db.ObjectId
   story Story @relation(fields: [storyId], references: [id])
   role Role @default(reader)
+  approved Boolean @default(true)
   updated DateTime? @default(now())
   created DateTime? @default(now())
 }
@@ -231,13 +239,7 @@ model Comment {
   created DateTime? @default(now())
   children Comment[] @relation(name: "ChildToParent")
 }
-model Referral{
-  id String  @id @default(auto()) @map("_id") @db.ObjectId
-  email String 
-  referralToken String
-  isUsed Boolean
-  createdAt DateTime @default(now())
-}
+
 
  
 
@@ -276,8 +278,8 @@ model HashtagComment{
     hashtag Hashtag @relation(fields: [hashtagId], references: [id])
     commentId String @db.ObjectId
     comment Comment @relation(fields: [commentId], references: [id])
-    profileId String @db.ObjectId
-    profile Profile @relation(fields: [profileId], references: [id])
+    profileId String? @db.ObjectId
+    profile Profile? @relation(fields: [profileId], references: [id])
   created DateTime? @default(now())
 }
 model CollectionToCollection{
@@ -295,8 +297,8 @@ model UserStoryLike {
     id    String @id @default(auto()) @map("_id") @db.ObjectId
     storyId String @db.ObjectId
    story Story @relation(fields: [storyId], references: [id],onDelete:Cascade,onUpdate:Cascade)
-   profile Profile @relation(fields: [profileId], references: [id],onDelete:Cascade,onUpdate:Cascade)
-   profileId String @db.ObjectId
+   profile Profile? @relation(fields: [profileId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+   profileId String? @db.ObjectId
    created DateTime? @default(now())
 }
 model UserStoryHistory{
@@ -323,9 +325,10 @@ enum StoryType {
 enum ProfileToCollectionType {
   home
   archive
-  
+  portfolio
 }
 enum SubscriptionLevel{
+  newsletter
   basic
   premium
 }

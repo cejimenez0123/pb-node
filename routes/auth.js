@@ -14,6 +14,164 @@ module.exports = function (authMiddleware){
       
       res.json({user:req.user})
     })
+    async function deleteProfile(id){
+        await prisma.hashtagCollection.deleteMany({where:{
+          profileId:{
+              equals:id
+          }
+      }})
+      await prisma.hashtagComment.updateMany({where:{
+          profileId:{
+              equals:id
+          }
+      },data:{
+        profileId:null
+      }})
+      await prisma.hashtagStory.deleteMany({where:{
+          profileId:{
+              equals:id
+          }
+      }})
+       await prisma.userStoryLike.deleteMany({where:{
+          profileId:{equals:id}
+        }})
+       await prisma.userStoryHistory.deleteMany({where:{
+          profileId:{equals:id}
+      }})
+      await prisma.roleToCollection.deleteMany({where:{
+        profileId:{
+          equals:id
+        }
+      }})
+      await prisma.roleToStory.deleteMany({where:{
+        profileId:{
+          equals:id
+        }
+      }})
+      await prisma.comment.updateMany({where:{
+        profileId:{
+          equals:id
+        }
+      },data:{profileId:null}})
+   await prisma.userCollectionHistory.deleteMany({where:{
+        profileId:{equals:id}
+    }})
+   await prisma.profileToCollection.deleteMany({where:{profileId:{
+      equals:id
+    }}})
+    await prisma.collectionToCollection.deleteMany({where:{
+      profileId:{
+        equals:id
+      }
+    }})
+    await prisma.storyToCollection.deleteMany({where:{
+      profileId:{
+        equals:id
+      }
+    }})
+    let followsId = await prisma.follow.deleteMany({where:{
+      OR:[{followerId:{
+          equals:id
+      }},{followingId:{
+          equals:id
+      }}]
+  }})
+      let profColsId = await prisma.collection.deleteMany({where:{profileId:{
+                  equals:id
+              }}})
+           let profStoriesId = await prisma.story.deleteMany({where:{authorId:{
+                  equals:id
+              }}})
+              
+     
+         return 
+     
+   }
+    async function createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId}){
+      const profile = await prisma.profile.create({
+        data:{
+            username:username,
+            profilePic:profilePicture,
+            selfStatement,
+            isPrivate:isPrivate,
+            user:{
+                connect:{
+                    id:userId
+                }
+            }
+        }
+    })
+   const homeCol = await prisma.collection.create({data:{
+      title:"Home",
+      purpose:"Add Collections to home to up with updates",
+      isOpenCollaboration:false,
+      isPrivate:true,
+      profile:{
+        connect:{
+          id:profile.id
+        }
+      }
+    }
+    })
+  const archCol= await prisma.collection.create({data:{
+      title:"Archive",
+      purpose:"Save things for later",
+      isOpenCollaboration:false,
+      isPrivate:true,
+      profile:{
+        connect:{
+          id:profile.id
+        }
+      }
+    }
+    })
+
+
+    await prisma.profileToCollection.create({
+      data:{
+        collection:{
+          connect:{
+            id:homeCol.id
+          }
+        },
+        type:"home",
+        profile:{
+          connect:{
+            id:profile.id
+          }
+        }
+      }
+    })
+    let profileToColl= await prisma.profileToCollection.create({data:{
+      collection:{
+          connect:{
+              id:archCol.id
+          }
+      },type:"archive",
+      profile:{
+          connect:{
+              id:profile.id
+          }
+      }
+
+  },include:{
+      collection:true,
+      profile:{
+          include:{
+            likedStories:true,
+              followers:true,
+              stories:true,
+              collections:true,
+              profileToCollections:{
+                  include:{
+                      collection:true
+                  }
+              }
+          }
+      }
+    }})
+    return profileToColl.profile
+  }
     router.put("/subscription",async(req,res)=>{
       try{
      
@@ -41,7 +199,28 @@ module.exports = function (authMiddleware){
       res.json({error})
     }
     })
- 
+    router.post('/generate-referral', authMiddleware,async (req, res) => {
+      const userId  = req.user.id;
+    
+      try {
+    
+        const referral = await prisma.referral.create({
+          data: {
+            createdBy:{
+              connect:{
+                id:userId
+              }
+            }
+          }
+        });
+        const token = jwt.sign({referralId:referral.id}, process.env.JWT_SECRET);
+   
+          return res.json({ referralLink: `${process.env.DOMAIN}/register?token=${token}` });
+      } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Error generating referral link' });
+      }
+    });
     router.post("/referral",authMiddleware,async (req,res)=>{
     const {email,name}=req.body
 try{
@@ -166,7 +345,6 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
             communityNeeds,
             workshopPreference,
             feedbackFrequency,
-        
             comfortLevel,
             platformFeatures,
             genres
@@ -433,8 +611,10 @@ Reset Pasword
                 }}
     })
     router.get('/review', async (req, res) => {
-      const { applicantId, action,email} = req.query;
+      const { applicantId, action,email,newsletter} = req.query;
+   
       try {
+        if(!newsletter){
       const transport = nodemailer.createTransport({
         service: 'gmail', 
         auth: {
@@ -444,7 +624,7 @@ Reset Pasword
         from:process.env.pbEmail
       });
     
-
+    
 
         
           let user = await prisma.user.findFirstOrThrow({where:{
@@ -467,13 +647,65 @@ Reset Pasword
           return res.status(200).json({ token,message: `User ${action}'d successfully` });
         }
       
-      // }else{
-      //   throw new Error("Invalied Token")
-      // }
+      }else{
+        let user = await prisma.user.findFirstOrThrow({where:{
+          id:{equals:applicantId}
+        }})
+        return res.status(200).json({ token,user:user,message: `Newsletter Approved` });
+      }
       }
          catch (error) {
         
           res.status(409).json(error)
+        }
+      });
+      router.delete("/",authMiddleware,async(req,res)=>{
+        try{
+        const userId = req.user.id
+        const profile = req.user.profiles[0]
+
+     await deleteProfile(profile.id)
+     await prisma.user.delete({where:{
+      id:userId
+     }})
+     res.json({message:"Delete Successss"})
+        }catch(err){
+          console.log(err)
+          res.status(409).json({error:err})
+        }
+      })
+      router.post('/use-referral', async (req, res) => {
+        const { token, email, password ,username,profilePicture,selfStatement,isPrivate} = req.body;
+      
+        try {
+      
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          const {referralId}=decoded
+          const referral = await prisma.referral.findUnique({ where: { id:referralId} });
+      
+          if (!referral) return res.status(400).json({ message: 'Invalid referral link' });
+          if (referral.usageCount >= referral.maxUses) return res.status(403).json({ message: 'Referral limit reached' });
+      
+          const hashedPassword = await bcrypt.hash(password, 10);
+          const newUser = await prisma.user.create({
+            data: {
+              email,
+              password:hashedPassword, // You should hash the password before storing it
+              referredById: referral.createdById
+            }
+          });
+    const profile =  await createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId:newUser.id})
+          // Increment referral usage
+          await prisma.referral.update({
+            where: {id:referralId },
+            data: { usageCount: { increment: 1 } }
+          });
+         let userToken = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET);
+          return res.json({ message: 'User created successfully',token:userToken,profile});
+      
+        } catch (error) {
+          console.error(error);
+          return res.status(400).json({ message: 'Error processing referral' });
         }
       });
     router.post("/session",async (req,res)=>{
@@ -524,14 +756,136 @@ Reset Pasword
   console.log(error)
   res.json({error})
 }})
-    router.post("/verify",async (req,res)=>{
+    router.post("/newsletter",async (req,res)=>{
+      const {
+        igHandle,
+        fullName,
+        email,
+  
+        frequency,
+        communityNeeds,
+        neededEvents,
+        thirdPlaceLocation,
+      }=req.body
+      let user = await prisma.user.create({data:{
+        email:email,
+        subscription: "newsletter",
+        preferredName:fullName,
+        igHandle:igHandle,    
+        emailFrequency:frequency   
+    }})
+    const transporter = nodemailer.createTransport({
+      service: 'gmail', 
+      auth: {
+        user: process.env.pbEmail, 
+        pass: process.env.pbPassword 
+      },
+      from:process.env.pbEmail
+    });
+    const params = new URLSearchParams({
+      applicantId:user.id,
+      action:"approve",
+      email,
+      newsletter:true,
+    });
+    let parms = `/auth/review?`+params.toString()
+    let path = process.env.BASEPATH+parms
 
+
+    //   await prisma.user.create({email:email,verified:false})
+        let mailOptions = {
+            from: email,
+            to: process.env.pbEmail, // Email to yourself
+            subject: 'New Newsletter Application',
+              html: `
+                <!DOCTYPE html>
+                <html lang="en">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <head>
+                  <meta charset="UTF-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <title>Newsletter Review</title>
+                  <style>
+                    body {
+                      font-family: Arial, sans-serif;
+                      background-color: #f9f9f9;
+                      color: #333;
+                      padding: 20px;
+                    }
+                    .container {
+                      background: #fff;
+                      padding: 20px;
+                      border-radius: 8px;
+                      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    }
+                    .header {
+                      font-size: 1.5em;
+                      margin-bottom: 20px;
+                    }
+                    .info {
+                      margin-bottom: 20px;
+                    }
+                    .info p {
+                      margin: 5px 0;
+                    }
+                    .form {
+                      margin-top: 20px;
+                    }
+                    button {
+                      background: #4CAF50;
+                      color: white;
+                      border: none;
+                      padding: 10px 20px;
+                      font-size: 1em;
+                      border-radius: 5px;
+                      cursor: pointer;
+                      transition: background 0.3s;
+                    }
+                    button:hover {
+                      background: #45a049;
+                    }
+                  </style>
+                </head>
+                <body>
+                  <div class="container">
+                    <div class="header">Review Plumbum Applicant</div>
+                    <div class="info">
+                    <p><strong>Name:</strong> ${fullName}</p>
+                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>Instagram Handle:</strong> ${igHandle}</p>
+             
+                
+                    <p><strong>Community Need:</strong> ${communityNeeds}</p>
+                
+                    <p><strong>What is your go to spot:</strong>${thirdPlaceLocation}</p>,
+               
+                    <p><strong>Needed Events:</strong></p>
+                    <ul>
+                    ${neededEvents.map(genre=>{
+                    return(`<li><p>${genre}</p></li>`)})}
+                    </ul>
+                    </div>
+                    <div class="form">
+                    <a href="${path}" 
+                    style="display: inline-block; background: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                    Approve Application
+                  </a>
+                    </div>
+                  </div>
+                </body>
+                </html>
+              `
+          };
+        
+            await transporter.sendMail(mailOptions);
+            res.status(201).json({path:parms,user,message:'Applied Successfully!'});
+    
     })
 
     router.post("/register",async (req,res)=>{
     
         const{token,email,password,username,
-        profilePicture,selfStatement,privacy
+        profilePicture,selfStatement,privacy,frequency
        }=req.body
      
        try{
@@ -550,7 +904,8 @@ Reset Pasword
             id:decoded.applicantId
         },data:{
             password:hashedPassword,
-            verified:true
+            verified:true,
+            emailFrequency:frequency
         },include:{profiles:true}})
         const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
        if(user.profiles.length==0){

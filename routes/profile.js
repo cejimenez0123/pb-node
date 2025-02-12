@@ -4,6 +4,75 @@ const generateMongoId = require("./generateMongoId");
 const router = express.Router()
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs")
+const deleteCol =async()=>{
+    await prisma.roleToCollection.deleteMany({where:{
+        collectionId:{
+            equals:id
+        }
+    }})
+
+    await prisma.userCollectionHistory.deleteMany({where:{
+        collectionId:{
+            equals:id
+        }
+    }})
+    await prisma.storyToCollection.deleteMany({where:{
+        collection:{
+            id:{equals:id}
+        }
+    }})
+    await prisma.collectionToCollection.deleteMany({where:{
+        parentCollection:{
+            id:{equals:id}
+        }
+    }})
+    await prisma.collectionToCollection.deleteMany({where:{
+        childCollection:{
+            id:{equals:id}
+        }
+    }})
+    await prisma.profileToCollection.deleteMany({where:{
+        collectionId:{
+            equals:id
+        }
+    }})
+    await prisma.collection.delete({where:{
+        id: id
+    }})
+}
+const deletStory=async({id})=>{
+    let story = await prisma.story.findFirstOrThrow({where:{id:{equals:id}}})
+    await prisma.storyToCollection.deleteMany({where:{
+        storyId:{equals:story.id}
+    }}) 
+    let comments =  await prisma.comment.findMany({where:{storyId:{
+        equals:story.id
+    }}})
+    let promises =comments.map( com=>{
+return deleteCommentsRf(com)
+        
+        })
+
+await Promise.all(promises)
+
+  
+   
+    await prisma.roleToStory.deleteMany({where:{
+        storyId:{
+            equals:story.id
+        }
+    }})
+    await prisma.hashtagStory.deleteMany({where:{
+        storyId:{
+            equals:req.params.id
+        }
+    }})
+    await prisma.story.delete({  where: {
+        id:req.params.id
+      },
+    })
+ 
+}
 module.exports = function (authMiddleware){
     router.get("/",async (req,res)=>{
         const profiles = await prisma.profile.findMany()
@@ -163,7 +232,45 @@ res.status(409).json({error:err})
 }
 })
 router.delete("/:id",authMiddleware,async (req,res)=>{
-    
+    let userId = req.user.id
+    const profile = req.user.profiles[0]
+    try{
+        let profColsId = await prisma.collection.findMany({where:{profileId:{
+                equals:profile.id
+            }}})
+         let profStoriesId = await prisma.story.findMany({where:{profileId:{
+                equals:profile.id
+            }},select:{
+id:true
+            }})
+        let followsId = await prisma.follow.findMany({where:{
+            OR:[{followerId:{
+                equals:profile.id
+            }},{followingId:{
+                equals:profile.id
+            }}]
+        },select:{
+            id:true
+        }})
+        let userColHist = await prisma.userCollectionHistory.findMany({where:{
+            profileId:{equals:profile.id}
+        },select:{
+            id:true
+        }})
+        let userStoryHist = await prisma.userStoryHistory.deleteMany({where:{
+            profileId:{equals:profile.id}
+        },select:{
+            id:true
+        }})
+        let userStoryLike = await prisma.userStoryLike.findMany({where:{
+            profileId:{equals:profile.id}
+        },select:{
+            id:true
+        }})
+    }catch(error){
+
+    }
+
 })
 router.get("/:id/alert",authMiddleware,async(req,res)=>{
 try{
