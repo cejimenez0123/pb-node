@@ -201,8 +201,39 @@ module.exports = function (authMiddleware){
     })
     router.post('/generate-referral', authMiddleware,async (req, res) => {
       const userId  = req.user.id;
-    
       try {
+      const DAILY_LIMIT=5
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of the day
+  
+      // Count how many referrals the user has created today
+      const referralsToday = await prisma.referral.count({
+          where: {
+            createdById:{equals:userId},
+              createdAt: {
+                  gte: today, // Get referrals created today
+              },
+          },
+      });
+  
+  
+   
+
+  if (referralsToday >= 5) {
+    const latestReferral = await prisma.referral.findFirst({
+      where: {
+         createdById:{equals:userId},
+          usageCount: { lt: 5 }, 
+      },
+      orderBy: {
+          createdAt: "desc", // Get the latest one
+      },
+  });
+  const token = jwt.sign({referralId:latestReferral.id}, process.env.JWT_SECRET);
+   
+  res.json({ referralLink: `${process.env.DOMAIN}/register?token=${token}`,message: 'Daily referral limit reached. Try again tomorrow.'  });
+
+      }else{
     
         const referral = await prisma.referral.create({
           data: {
@@ -215,10 +246,10 @@ module.exports = function (authMiddleware){
         });
         const token = jwt.sign({referralId:referral.id}, process.env.JWT_SECRET);
    
-          return res.json({ referralLink: `${process.env.DOMAIN}/register?token=${token}` });
-      } catch (error) {
+           res.json({ referralLink: `${process.env.DOMAIN}/register?token=${token}` });
+     } } catch (error) {
         console.error(error);
-        return res.status(500).json({ message: 'Error generating referral link' });
+      res.status(500).json({ message: 'Error generating referral link' });
       }
     });
     router.post("/referral",authMiddleware,async (req,res)=>{
@@ -754,7 +785,7 @@ Reset Pasword
 
 }catch(error){
   console.log(error)
-  res.json({error})
+  res.status(409).json({error})
 }})
     router.post("/newsletter",async (req,res)=>{
       const {
@@ -1202,7 +1233,29 @@ Reset Pasword
 
 
     })
-    
+    .get("/check-username", async (req, res) => {
+      const { username } = req.query;
+  
+      if (!username) {
+          return res.status(400).json({ message: "Username is required" });
+      }
+  
+      try {
+          const existingUser = await prisma.profile.findUnique({
+              where: { username },
+          });
+  
+          if (existingUser) {
+              return res.json({ available: false, message: "Username is already taken" });
+          }
+  
+          return res.json({ available: true, message: "Username is available" });
+  
+      } catch (error) {
+          console.error("Error checking username:", error);
+          return res.status(500).json({ message: "Internal server error" });
+      }
+  });   
 
     return router
 }
