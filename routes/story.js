@@ -171,6 +171,11 @@ module.exports = function ({authMiddleware}){
        }, where:{
         isPrivate:{equals: false}
        },include:{
+        hashtags:{
+            include:{
+                hashtag:true
+            }
+        },
         author:true
        }})
         res.json({stories})
