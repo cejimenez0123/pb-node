@@ -20,6 +20,7 @@ module.exports = function (authMiddleware){
               equals:id
           }
       }})
+   
       await prisma.hashtagComment.updateMany({where:{
           profileId:{
               equals:id
@@ -694,7 +695,11 @@ Reset Pasword
         try{
         const userId = req.user.id
         const profile = req.user.profiles[0]
-
+        await prisma.referral.deleteMany({where:{
+          createdById:{
+            equals:userId,
+          }
+        }})
      await deleteProfile(profile.id)
      await prisma.user.delete({where:{
       id:userId
@@ -732,7 +737,7 @@ Reset Pasword
             data: { usageCount: { increment: 1 } }
           });
          let userToken = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET);
-          return res.json({ message: 'User created successfully',token:userToken,profile});
+          return res.json({ firstTime:true,message: 'User created successfully',token:userToken,profile});
       
         } catch (error) {
           console.error(error);
@@ -769,6 +774,11 @@ Reset Pasword
         if (!user || !bcrypt.compareSync(password, user.password)) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
+        // await prisma.user.update({where:{
+        //   id:user.id
+        // },data:{
+        //   firstLogin:false
+        // }})
         await prisma.profile.updateMany({where:{
           userId:{
             equals:user.id
@@ -1024,7 +1034,7 @@ Reset Pasword
           }
       }})
 
-        res.status(200).json({profile:profileToColl.profile,token:verifiedToken})
+        res.status(200).json({firstTime:true,profile:profileToColl.profile,token:verifiedToken})
       }else{
         const profile = await prisma.profile.create({
           data:{
@@ -1038,11 +1048,11 @@ Reset Pasword
               }
           }
       })
-      res.status(200).json({profile,token:verifiedToken})
+      res.status(200).json({firstTime:true,profile,token:verifiedToken})
      } 
     }else{
       const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-      res.status(200).json({profile:user.profiles[0],token:verifiedToken})
+      res.status(200).json({firstTime:true,profile:user.profiles[0],token:verifiedToken})
     
       }
       }catch(error){
@@ -1233,7 +1243,7 @@ Reset Pasword
 
 
     })
-    .get("/check-username", async (req, res) => {
+    router.get("/check-username", async (req, res) => {
       const { username } = req.query;
   
       if (!username) {

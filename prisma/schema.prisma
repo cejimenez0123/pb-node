@@ -20,6 +20,7 @@ model User{
   preferredName String @default("")
   googleId String?
   uId String?
+
   subscription SubscriptionLevel @default(basic)
   password String?
   igHandle String?
