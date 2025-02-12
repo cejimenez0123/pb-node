@@ -774,11 +774,7 @@ Reset Pasword
         if (!user || !bcrypt.compareSync(password, user.password)) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
-        // await prisma.user.update({where:{
-        //   id:user.id
-        // },data:{
-        //   firstLogin:false
-        // }})
+      
         await prisma.profile.updateMany({where:{
           userId:{
             equals:user.id
