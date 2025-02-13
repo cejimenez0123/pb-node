@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken');
 const generateMongoId = require("./generateMongoId");
 const nodemailer = require('nodemailer');
 const approvalTemplate = require('../html/approvalTemplate');
+const newsletterSurveyTemplate = require('../html/newsletterSurveyTemplate');
+const subscriptionConfirmation = require('../html/subscriptionConfirmation');
 const router = express.Router()
 function isHex(num) {
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
@@ -794,22 +796,23 @@ Reset Pasword
   res.status(409).json({error})
 }})
     router.post("/newsletter",async (req,res)=>{
-      const {
-        igHandle,
-        fullName,
-        email,
-  
-        frequency,
-        communityNeeds,
-        neededEvents,
-        thirdPlaceLocation,
+      try{
+      const{
+        
+          fullName,
+          igHandle,
+          email,
+          frequency,
+     
+      
+        
       }=req.body
-      let user = await prisma.user.create({data:{
+      const user = await prisma.user.create({data:{
         email:email,
         subscription: "newsletter",
         preferredName:fullName,
         igHandle:igHandle,    
-        emailFrequency:frequency   
+        emailFrequency:frequency
     }})
     const transporter = nodemailer.createTransport({
       service: 'gmail', 
@@ -819,104 +822,19 @@ Reset Pasword
       },
       from:process.env.pbEmail
     });
-    const params = new URLSearchParams({
-      applicantId:user.id,
-      action:"approve",
-      email,
-      newsletter:true,
-    });
-    let parms = `/auth/review?`+params.toString()
-    let path = process.env.BASEPATH+parms
 
+    const token = jwt.sign({ userId:user.id }, process.env.JWT_SECRET);
+    let surveyTemplate = newsletterSurveyTemplate({params:req.body})
+    let confirmationTemplate = subscriptionConfirmation({token,email:email})
+  
+            await transporter.sendMail(confirmationTemplate);
+            await transporter.sendMail(surveyTemplate);
+            res.status(201).json({user,message:'Success'});
+          }catch(error){
+            console.log(error)
 
-    //   await prisma.user.create({email:email,verified:false})
-        let mailOptions = {
-            from: email,
-            to: process.env.pbEmail, // Email to yourself
-            subject: 'New Newsletter Application',
-              html: `
-                <!DOCTYPE html>
-                <html lang="en">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <head>
-                  <meta charset="UTF-8">
-                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>Newsletter Review</title>
-                  <style>
-                    body {
-                      font-family: Arial, sans-serif;
-                      background-color: #f9f9f9;
-                      color: #333;
-                      padding: 20px;
-                    }
-                    .container {
-                      background: #fff;
-                      padding: 20px;
-                      border-radius: 8px;
-                      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                    }
-                    .header {
-                      font-size: 1.5em;
-                      margin-bottom: 20px;
-                    }
-                    .info {
-                      margin-bottom: 20px;
-                    }
-                    .info p {
-                      margin: 5px 0;
-                    }
-                    .form {
-                      margin-top: 20px;
-                    }
-                    button {
-                      background: #4CAF50;
-                      color: white;
-                      border: none;
-                      padding: 10px 20px;
-                      font-size: 1em;
-                      border-radius: 5px;
-                      cursor: pointer;
-                      transition: background 0.3s;
-                    }
-                    button:hover {
-                      background: #45a049;
-                    }
-                  </style>
-                </head>
-                <body>
-                  <div class="container">
-                    <div class="header">Review Plumbum Applicant</div>
-                    <div class="info">
-                    <p><strong>Name:</strong> ${fullName}</p>
-                    <p><strong>Email:</strong> ${email}</p>
-                    <p><strong>Instagram Handle:</strong> ${igHandle}</p>
-             
-                
-                    <p><strong>Community Need:</strong> ${communityNeeds}</p>
-                
-                    <p><strong>What is your go to spot:</strong>${thirdPlaceLocation}</p>,
-               
-                    <p><strong>Needed Events:</strong></p>
-                    <ul>
-                    ${neededEvents.map(genre=>{
-                    return(`<li><p>${genre}</p></li>`)})}
-                    </ul>
-                    </div>
-                    <div class="form">
-                    <a href="${path}" 
-                    style="display: inline-block; background: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                    Approve Application
-                  </a>
-                    </div>
-                  </div>
-                </body>
-                </html>
-              `
-          };
-        
-            await transporter.sendMail(mailOptions);
-            res.status(201).json({path:parms,user,message:'Applied Successfully!'});
-    
+            res.status(409).json({error})
+          }
     })
 
     router.post("/register",async (req,res)=>{
@@ -942,7 +860,7 @@ Reset Pasword
         },data:{
             password:hashedPassword,
             verified:true,
-            emailFrequency:frequency
+            emailFrequency:parseInt(frequency)
         },include:{profiles:true}})
         const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
        if(user.profiles.length==0){

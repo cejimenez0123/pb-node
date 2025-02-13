@@ -53,7 +53,7 @@ for(let i = 0;i<profile.likedStories.length;i++){
     const scores = {};
 
     for (const likedStory of likedStories) {
-      // Fetch hashtags of the liked story
+    
       const likedStoryData = await prisma.story.findUnique({
         where: { id: likedStory.storyId },
         include: { hashtags: true },
@@ -63,7 +63,7 @@ for(let i = 0;i<profile.likedStories.length;i++){
   
       const likedStoryHashtags = likedStoryData.hashtags.map((tag) => tag.hashtagId);
       
-      // Find stories with overlapping hashtags
+    
       const similarStories = await prisma.story.findMany({
         where: {
           hashtags: {
