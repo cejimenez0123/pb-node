@@ -234,7 +234,7 @@ module.exports = function (authMiddleware){
   });
   const token = jwt.sign({referralId:latestReferral.id}, process.env.JWT_SECRET);
    
-  res.json({ referralLink: `${process.env.DOMAIN}/register?token=${token}`,message: 'Daily referral limit reached. Try again tomorrow.'  });
+  res.json({ referralLink: `${process.env.DOMAIN}/register?token=${token}`,message: 'Max Usage Limit of Referral:\nGood job sharing! Add more friends tomorrow. Enjoy your friends today. '  });
 
       }else{
     
@@ -248,8 +248,8 @@ module.exports = function (authMiddleware){
           }
         });
         const token = jwt.sign({referralId:referral.id}, process.env.JWT_SECRET);
-   
-           res.json({ referralLink: `${process.env.DOMAIN}/register?token=${token}` });
+
+           res.json({ referralLink: `${process.env.DOMAIN}/register?token=${token}`,referral:referral});
      } } catch (error) {
         console.error(error);
       res.status(500).json({ message: 'Error generating referral link' });
@@ -720,30 +720,53 @@ Reset Pasword
           const decoded = jwt.verify(token, process.env.JWT_SECRET);
           const {referralId}=decoded
           const referral = await prisma.referral.findUnique({ where: { id:referralId} });
-      
-          if (!referral) return res.status(400).json({ message: 'Invalid referral link' });
-          if (referral.usageCount >= referral.maxUses) return res.status(403).json({ message: 'Referral limit reached' });
-      
+          
+          if (!referral){
+            return res.status(400).json({ message: 'Invalid referral link' });
+          }else{
+          if (referral.usageCount >= referral.maxUses){
+             return res.status(403).json({ message: 'Referral limit reached' });
+
+          }else{
+        let newUser = await  prisma.user.findFirst({where:{
+            email:{
+              equals:email
+            }
+          },include:{
+            profiles:true
+          }})
           const hashedPassword = await bcrypt.hash(password, 10);
-          const newUser = await prisma.user.create({
+          if(!newUser){
+
+       newUser = await prisma.user.create({
             data: {
               email,
               password:hashedPassword, // You should hash the password before storing it
               referredById: referral.createdById
             }
           });
+        }
+        if(!newUser.password){
+          res.json({ message:"User already exists. Go to forgot password at login"});
+        
+        }else{
+        if(newUser&&newUser.profiles && newUser.profiles.length==0){
     const profile =  await createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId:newUser.id})
           // Increment referral usage
           await prisma.referral.update({
             where: {id:referralId },
             data: { usageCount: { increment: 1 } }
           });
-         let userToken = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET);
-          return res.json({ firstTime:true,message: 'User created successfully',token:userToken,profile});
-      
+        
+         const userToken = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET);
+          res.json({ firstTime:true,message: 'User created successfully',token:userToken,profile:profile});
+        }else{
+         
+          res.json({ message:"User already exists. Go to forgot password at login"});
+        }}}}
         } catch (error) {
           console.error(error);
-          return res.status(400).json({ message: 'Error processing referral' });
+          res.status(400).json({ message: 'Error processing referral' });
         }
       });
     router.post("/session",async (req,res)=>{
