@@ -7,6 +7,7 @@ const nodemailer = require('nodemailer');
 const approvalTemplate = require('../html/approvalTemplate');
 const newsletterSurveyTemplate = require('../html/newsletterSurveyTemplate');
 const subscriptionConfirmation = require('../html/subscriptionConfirmation');
+const feedbackTemplate = require('../html/feedbackTemplate');
 const router = express.Router()
 function isHex(num) {
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
@@ -853,6 +854,36 @@ Reset Pasword
             await transporter.sendMail(confirmationTemplate);
             await transporter.sendMail(surveyTemplate);
             res.status(201).json({user,message:'Success'});
+          }catch(error){
+            console.log(error)
+
+            res.status(409).json({error})
+          }
+    })
+    router.post("/feedback",async (req,res)=>{
+      try{
+      const{
+          preferredName,
+          email,
+          subject,
+          purpose,
+          message
+      }=req.body
+     
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail', 
+      auth: {
+        user: process.env.pbEmail, 
+        pass: process.env.pbPassword 
+      },
+      from:email
+    });
+let template = feedbackTemplate({email,name:preferredName,subject,message,purpose})
+
+            await transporter.sendMail(template);
+            // await transporter.sendMail(surveyTemplate);
+            res.status(201).json({message:'Success'});
           }catch(error){
             console.log(error)
 

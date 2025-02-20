@@ -92,6 +92,7 @@ model Profile{
     hashtag HashtagComment[]
     isPrivate Boolean?
     messages Message[]
+    followedHashtags HashtagFollower[]
     hashtags HashtagStory[]
     hashtagCollections HashtagCollection[]
     stories Story[]
@@ -104,6 +105,7 @@ model Profile{
     collectionHistory UserCollectionHistory[]
     rolesToCollection RoleToCollection[]
     comments Comment[] 
+    
     followers             Follow[]    @relation(name: "Followers")
     following             Follow[]   @relation(name: "Following")
     created DateTime? @default(now())
@@ -143,6 +145,14 @@ model Hashtag {
   comments HashtagComment[]
   stories   HashtagStory[]  
   collections HashtagCollection[]
+  followers HashtagFollower[]
+}
+model HashtagFollower{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+   hashtagId String @db.ObjectId
+ hashtag Hashtag  @relation(fields: [hashtagId], references: [id])
+  followerId String @db.ObjectId
+  follower Profile @relation(fields: [followerId], references: [id])
 }
 model UserCollectionHistory{
   id String @id @default(auto()) @map("_id") @db.ObjectId
