@@ -19,9 +19,9 @@ const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const { Server } = require('socket.io');
 const please = require("./please.js")
-
+const newsletter = require("./newsletter")
 const activeUsers = new Map()
-
+// const docs = require("./utils/docs.js")
 const app = express();
 const PORT = process.env.PORT
 

@@ -642,6 +642,12 @@ const recommendations = await getRecommendedCollections(req.params.id)
             {orderBy:{
                 
                     updated:"desc"},where:{isPrivate:{equals:false}},include:{
+                        profile:true,
+                    childCollections:{
+                        include:{
+                            childCollection:true
+                        }
+                    },
                 storyIdList:{
                     include:{
                         story:true
@@ -1236,7 +1242,7 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
            let collection =  await prisma.collection.update({
             where:{id:id},data:{
                 type: "library",
-                updated: new Date()
+                updated: new Date(),
             },include:{
                 
                 storyIdList:{
