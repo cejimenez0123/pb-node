@@ -1503,6 +1503,11 @@ console.log(error)
                 equals:id
             }
         }})
+        await prisma.hashtagCollection.deleteMany({where:{
+            collectionId:{
+                equals:id
+            }
+        }})
         await prisma.collection.delete({where:{
             id: id
         }})
