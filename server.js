@@ -21,7 +21,7 @@ const { Server } = require('socket.io');
 const please = require("./please.js")
 const newsletter = require("./newsletter")
 const activeUsers = new Map()
-// const docs = require("./utils/docs.js")
+const docs = require("./utils/docs.js")
 const app = express();
 const PORT = process.env.PORT
 

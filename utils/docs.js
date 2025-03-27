@@ -3,7 +3,7 @@ let { calendar } = require("@googleapis/calendar");
 // Initialize Calendar API with API key
 calendar = calendar({ version: "v3" });
 
-async function fetchPublicEvents() {
+ async function fetchPublicEvents() {
   const now = new Date();
   const sevenDaysLater = new Date();
   sevenDaysLater.setDate(now.getDate() + 7);
@@ -19,11 +19,14 @@ async function fetchPublicEvents() {
     });
 
     const events = res.data.items;
+
     if (events.length) {
-      console.log("Upcoming events:");
-      events.forEach((event) => {
-        console.log(`${event.summary} - ${event.start.dateTime || event.start.date}`);
-      });
+      return events
+      // console.log(`${JSON.stringify(events[2])}`)
+      // console.log("Upcoming events:");
+      // events.forEach((event) => {
+      //   console.log(`<a href="${event.htmlLink}">${event.summary} - ${event.start.dateTime || event.start.date}</a>`);
+      // });
     } else {
       console.log("No upcoming events found.");
     }
@@ -32,4 +35,5 @@ async function fetchPublicEvents() {
   }
 }
 
-fetchPublicEvents();
+
+module.exports = fetchPublicEvents
