@@ -205,22 +205,28 @@ const eventNewsletterTemplate=({events,user})=>{
 </html>`}}
 module.exports = eventNewsletterTemplate
     // Render events
-
-    function formatDate(isoString) {
-        const date = new Date(isoString);
+function formatDate(isoString) {
+        try {
+          const date = new Date(isoString);
       
-        if (isNaN(date.getTime())) {
+          if (isNaN(date.getTime())) {
+            return "Invalid Date";
+          }
+      
+          // Convert to New York City Time
+          const options = {
+            timeZone: 'America/New_York',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            month: '2-digit',
+            day: '2-digit',
+          };
+      
+          const formatter = new Intl.DateTimeFormat('en-US', options);
+          return formatter.format(date);
+        } catch (error) {
+          console.error("Error formatting date:", error);
           return "Invalid Date";
         }
-      
-        let hours = date.getHours();
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-      
-        hours = hours % 12;
-        hours = hours ? hours : 12; // the hour '0' should be '12'
-      
-        return `${hours}:${minutes} ${ampm} ${month}/${day}`;
       }
