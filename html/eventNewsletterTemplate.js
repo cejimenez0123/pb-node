@@ -179,9 +179,7 @@ const eventNewsletterTemplate=({events,user})=>{
             <br />
             <span class="events">
               ${area.events.map((event, i) =>{
-                console.log(event.organizer.displayName+area.area)
-              console.log(event.organizer.displayName.toLowerCase().trim()==area.area.toLowerCase().trim())
-              return event.organizer.displayName.toLowerCase().trim()==area.area.toLowerCase().trim()?`<a class="event" href="${event.htmlLink}"><p>${event.summary} - ${formatDate(event.start.dateTime)} to ${formatDate(event.end.dateTime)}</p></a>`:null
+                 return event.organizer.displayName.toLowerCase().trim()==area.area.toLowerCase().trim()?`<a class="event" href="${event.htmlLink}"><p>${event.summary} - ${formatDate(event.start.dateTime)} to ${formatDate(event.end.dateTime)}</p></a>`:null
   }  ).join('')} 
             </span>
           </span>`

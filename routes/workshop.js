@@ -825,7 +825,7 @@ module.exports = function (authMiddleware) {
                   }
                 }
               }})
-              console.log("CELLF",collection)
+          
               res.json({collection:collection})
              }
    
