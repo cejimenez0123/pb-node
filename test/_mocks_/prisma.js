@@ -4,6 +4,7 @@ module.exports = jest.mock('@prisma/client', () => {
         create: jest.fn(),
         findUnique: jest.fn(),
         findFirst: jest.fn(),
+        findMany: jest.fn(),
         findFirstOrThrow: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),

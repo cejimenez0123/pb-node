@@ -1,15 +1,17 @@
-const e = require("express")
 
+const jwt = require('jsonwebtoken');
 
-
-module.exports = function eventNewsletterTemplate({events,email}){
-//     
-    if (events.length) {
-
-    return {
+const eventNewsletterTemplate=({events,user})=>{
+  
+   
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+    let params = new URLSearchParams({token:token})
+   
+    return{
+    
          from: process.env.pbEmail, // Sender address
-         to: email, // Recipient's email
-         subject: 'Congratulations! Your Application Has Been Approved 🎉',
+         to: user.email, // Recipient's email
+         subject: 'Plumbum Writers Community - Upcoming Events🎉',
          html: `<!DOCTYPE html>
 <html>
 <head>
@@ -23,6 +25,21 @@ module.exports = function eventNewsletterTemplate({events,email}){
       margin: 0;
       padding: 0;
     }
+    .no-events {
+        text-align: center;
+        padding: 20px;
+        background-color: #F0F7F0; /* Matches the event background */
+        border-radius: 8px; /* Matches the event border radius */
+        margin-bottom: 15px; /* Matches the event margin bottom */
+        font-family: 'Open Sans', sans-serif;
+        color: #4A604A; /* Matches the paragraph color */
+        font-size: 16px; /* Matches the paragraph font size */
+        line-height: 1.6; /* Matches the paragraph line height */
+      }
+      
+      .no-events p {
+        margin: 0; /*Reset default paragraph margins*/
+      }
     .container {
       max-width: 600px;
       margin: 20px auto;
@@ -98,7 +115,7 @@ module.exports = function eventNewsletterTemplate({events,email}){
     }
     .footer a {
       color: #2F4F2F;
-      text-decoration: none;
+      text-decoration: none;}
 <!DOCTYPE html>
 <html>
 <head>
@@ -151,26 +168,26 @@ module.exports = function eventNewsletterTemplate({events,email}){
 <body>
   <div class="container">
     <h1>Hey there, Plumbum writer!</h1>
-    <p>Hope your writing is flowing, your coffee's still warm, and your existential dread is at a manageable level. We've got some events happening around NYC, and we'd love to see your lovely face there. Or just your words — we’ll take what we can get.</p>
+    <p>Hope things are well! Hope you're enjoying the process! Here's events to get your creative juices flowing!>
     
     <h2>🌿 This Week’s Creative Happenings</h2>
   
-    ${events.map(area=>{
-            return(`
-            <br/>
-            <span>
+    ${events.length?events.map(area => 
+       `<span>
+            <br />
             <h3>${area.area}</h3>
-            <br/>
-            <span class="events>
-             ${area.events.map((event,i) => {
-
-                return(`<a  class="event" href="${event.htmlLink}"><p>${event.summary} - ${formatDate(event.start.dateTime)} to ${formatDate(event.end.dateTime)}</p></a>`)
-             })}
+            <br />
+            <span class="events">
+              ${area.events.map((event, i) =>{
+                console.log(event.organizer.displayName+area.area)
+              console.log(event.organizer.displayName.toLowerCase().trim()==area.area.toLowerCase().trim())
+              return event.organizer.displayName.toLowerCase().trim()==area.area.toLowerCase().trim()?`<a class="event" href="${event.htmlLink}"><p>${event.summary} - ${formatDate(event.start.dateTime)} to ${formatDate(event.end.dateTime)}</p></a>`:null
+  }  ).join('')} 
             </span>
-            </span>`)})}
-    
-     
-    
+          </span>`
+      ).join(''):`<span class="no-events">
+      <p>No events scheduled this time. Stay tuned!</p>
+    </span>`}`+` 
 </ul>
     <h2>🎵 Call for DJs and Performers</h2>
     <p>We’re planning a DJ showcase! The theme? *Body Moving is Body Healing*. If you know a DJ or live act who can get people dancing like no one’s watching, send them our way. <a href="mailto:plumbumapp@gmail.com">plumbumapp@gmail.com</a>.</p>
@@ -179,18 +196,17 @@ module.exports = function eventNewsletterTemplate({events,email}){
     <p>Yep, we’re on Slack now! Connect with fellow writers, share your work, get feedback, and join writing sprints. Plus, we’re working on adding notifications for when someone comments on your work or posts new writing. Community = accountability, right? <a href="https://join.slack.com/t/plumbumwriters/shared_invite/zt-2zvkzyi02-dRlhqb0wvHAaU~~dUgh7hQ">Join here</a>.</p>
 
     <h2>📅 Want More Events?</h2>
-    <p>We’re also keeping track of the coolest writing-adjacent events in NYC. Think readings, workshops, and maybe a weird puppet show that’s actually genius. Check out the full calendar: <a href="https://plumbum.app/calendar">Plumbum Calendar</a>.</p>
+    <p>We’re also keeping track of the coolest writing-adjacent events in NYC. Think readings, workshops, and maybe a weird puppet show that’s actually genius. Check out the full calendar: <a href="https://plumbum.app/events">Plumbum Calendar</a>.</p>
 
-    <div class="footer">
-      <p>Not feeling these updates? No worries. <a href="https://plumbum.app/subscribe">Update your email preferences</a>.</p>
+    <span class="footer">
+      <p>Not feeling these updates? No worries. <a href="${process.env.DOMAIN}/subscribe?${params.toString()}">Update your email preferences</a>.</p>
       <p>Plumbum: Where Writers Gather, Procrastinate, and Sometimes Actually Write.</p>
-    </div>
+    </span>
   </div>
 </body>
-</html>`}}}
-
+</html>`}}
+module.exports = eventNewsletterTemplate
     // Render events
-
 
     function formatDate(isoString) {
         const date = new Date(isoString);

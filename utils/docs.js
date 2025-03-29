@@ -3,14 +3,14 @@ let { calendar } = require("@googleapis/calendar");
 // Initialize Calendar API with API key
 calendar = calendar({ version: "v3" });
 
- async function fetchPublicEvents() {
+ async function fetchPublicEvents(calendarId) {
   const now = new Date();
   const sevenDaysLater = new Date();
   sevenDaysLater.setDate(now.getDate() + 7);
 
   try {
     const res = await calendar.events.list({
-      calendarId: process.env.DOWNTOWN_CAL_ID, // Public Calendar ID
+      calendarId: calendarId, // Public Calendar ID
       key: process.env.GOOGLE_API_KEY,
       timeMin: now.toISOString(),
       timeMax: sevenDaysLater.toISOString(),
@@ -21,12 +21,11 @@ calendar = calendar({ version: "v3" });
     const events = res.data.items;
 
     if (events.length) {
-      return events
-      // console.log(`${JSON.stringify(events[2])}`)
-      // console.log("Upcoming events:");
-      // events.forEach((event) => {
-      //   console.log(`<a href="${event.htmlLink}">${event.summary} - ${event.start.dateTime || event.start.date}</a>`);
-      // });
+    
+      // let events=[{area:"Downtown",events:downtownEvents},{area:"Uptown",events:uptownEvents},{area:"Queens",events:queensEvents},{area:"Virtual",events:virtualEvents}]
+    
+    return events
+
     } else {
       console.log("No upcoming events found.");
     }
