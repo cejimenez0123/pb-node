@@ -1,12 +1,29 @@
 
 const jwt = require('jsonwebtoken');
 
-const eventNewsletterTemplate=({events,user})=>{
-  
-   
+const eventNewsletterTemplate=({events,user,days})=>{
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
     let params = new URLSearchParams({token:token})
-   
+    let str = "Weekly"
+    switch (days) {
+        case 1:
+         str = "Daily"
+          break;
+      
+        case 3:
+        str = "Next Three Days"
+          break;
+      
+        case 7:
+          str = "Weekly"
+          break;
+        case days>28:
+           str = "Monthly"
+            break;
+      
+        default:
+          throw new Error('Invalid range type. Use "monthly", "weekly", or "next-three-days".');
+      }
     return{
     
          from: process.env.pbEmail, // Sender address
@@ -170,7 +187,7 @@ const eventNewsletterTemplate=({events,user})=>{
     <h1>Hey there, Plumbum writer!</h1>
     <p>Hope things are well! Hope you're enjoying the process! Here's events to get your creative juices flowing!>
     
-    <h2>🌿 This Week’s Creative Happenings</h2>
+    <h2>🌿 Next ${str} Creative Happenings</h2>
   
     ${events.length?events.map(area => 
        `<span>
