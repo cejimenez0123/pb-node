@@ -1,8 +1,7 @@
 const cron = require('node-cron');
 const sendEventNewsletterEmail = require('../newsletter/sendEventNewsletterEmail');
 const fetchEvents = require('../newsletter/fetchEvents');
-// const newsletterTemplate = require('../html/newsletterTemplate');
-
+const prisma = require("../db")
 const weeklyJob = cron.schedule('0 9 * * 0', () => {
   const days = 7
    prisma.user.findMany({where:{emailFrequency:{equals:days}}}).then(users=>{
@@ -22,15 +21,15 @@ console.log(i,user.email)
      })}})})
 
 
-const threeDayJob = cron.schedule('0 10 */3 * *', () => {
+const threeDayJob = cron.schedule('0 10 */3 * *',async () => {
   console.log('Running weekly email task');
   let days = 3
 
-  prisma.user.findMany({where:{emailFrequency:{
-        lte:3
-    }}}).then(users=>{
-   fetchEvents(days).then(events=>{
-    let i =0 
+  let users =await prisma.user.findMany({where:{   emailFrequency: {
+    gt: 0, 
+    lte: 3   
+  }}})
+   let events= await fetchEvents(days)
     for(const user of users){
  
  
@@ -42,29 +41,25 @@ const threeDayJob = cron.schedule('0 10 */3 * *', () => {
         console.log("Unsuccessful Weekly email")
         console.log(err.message)
       }) } })
-    })  })
+
 const monthlyJob = cron.schedule('0 10 * * 0', async () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
 
-  // Get the last day of the current month
-  const lastDayOfMonth = new Date(year, month + 1, 0);
-  const days = lastDayOfMonth - today 
 
-       prisma.user.findMany({where:{emailFrequency:{gte:days}}}).then(users=>{
+  const days = 27
+     let users = await prisma.user.findMany({where:{emailFrequency:{gte:days}}})
         let i =0 
         for(const user of users){
          
-        fetchEvents(days).then(events=>{
+       const events = await fetchEvents(days)
     
          sleep(1100).then(()=>{
-          sendEventNewsletterEmail(user,events).then(res=>{
+          sendEventNewsletterEmail(user,events,days).then(res=>{
             i+=1
     console.log(i,user.email)
         }).catch(err=>{
           console.log(err)
         })
          })
-         })}})})
+         }
+        })
 module.exports = {weeklyJob,threeDayJob,monthlyJob}

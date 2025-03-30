@@ -6,12 +6,14 @@ jest.mock('./sendEmail');
 jest.mock('./fetchPublicEvents');
 jest.mock('../../html/eventNewsletterTemplate');
 
-const sendEventNewsletterEmail = jest.fn(async (user) => {
+const sendEventNewsletterEmail = jest.fn(async (user,events) => {
   if (!user) {
     console.log('No User Found');
     return "No User Found";
   }
-
+  if(!events){
+      return "Failed to fetch events"
+    }
   try {
    
     fetchEvents.mockResolvedValueOnce([[
