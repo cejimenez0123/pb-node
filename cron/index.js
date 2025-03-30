@@ -41,8 +41,8 @@ const threeDayJob = cron.schedule('0 10 */3 * *',async () => {
         console.log("Unsuccessful Weekly email")
         console.log(err.message)
       }) } })
-
-const monthlyJob = cron.schedule('0 10 * * 0', async () => {
+      // '0 10 * * 0'
+const monthlyJob = cron.schedule('45 10 * * 0', async () => {
 
 
   const days = 27
