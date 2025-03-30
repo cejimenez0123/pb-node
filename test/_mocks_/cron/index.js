@@ -52,7 +52,6 @@ const monthlyJob = cron.schedule('0 10 * * 0', async () => {
   for (const user of users) {
     const events = await fetchEvents(days);
     await sleep(1100);
-
     try {
       await sendEventNewsletterEmail(user, events);
       console.log(user.email);

@@ -2,23 +2,23 @@ const cron = require('node-cron');
 const sendEventNewsletterEmail = require('../newsletter/sendEventNewsletterEmail');
 const fetchEvents = require('../newsletter/fetchEvents');
 const prisma = require("../db")
-const weeklyJob = cron.schedule('0 9 * * 0', () => {
+const weeklyJob = cron.schedule('0 9 * * 0', async () => {
   const days = 7
-   prisma.user.findMany({where:{emailFrequency:{equals:days}}}).then(users=>{
+  const users = prisma.user.findMany({where:{emailFrequency:{equals:days}}})
     let i =0 
     for(const user of users){
      
-    fetchEvents(days).then(events=>{
-
+    let events = await fetchEvents(days)
+try{
      sleep(1100).then(()=>{
       sendEventNewsletterEmail(user,events,days).then(res=>{
         i+=1
 console.log(i,user.email)
-    }).catch(err=>{
-      console.log(err)
     })
-     })
-     })}})})
+  })}catch(err){
+console.err("WEEKLY JOB ERROR"+err.message)
+  
+}}})
 
 
 const threeDayJob = cron.schedule('0 10 */3 * *',async () => {
@@ -32,7 +32,7 @@ const threeDayJob = cron.schedule('0 10 */3 * *',async () => {
    let events= await fetchEvents(days)
     for(const user of users){
  
- 
+      try{
       sendEventNewsletterEmail(user,events).then((res)=>{
         i+=1
         console.log(i,user.email)
@@ -40,9 +40,13 @@ const threeDayJob = cron.schedule('0 10 */3 * *',async () => {
       }).catch(err=>{
         console.log("Unsuccessful Weekly email")
         console.log(err.message)
-      }) } })
+      })
+    }catch(err){
+      console.err("three day JOB ERROR"+err.message)
+    }
+     }})
       // '0 10 * * 0'
-const monthlyJob = cron.schedule('45 10 * * 0', async () => {
+const monthlyJob = cron.schedule('0 11 * * 0', async () => {
 
 
   const days = 27
@@ -51,7 +55,7 @@ const monthlyJob = cron.schedule('45 10 * * 0', async () => {
         for(const user of users){
          
        const events = await fetchEvents(days)
-    
+    try{
          sleep(1100).then(()=>{
           sendEventNewsletterEmail(user,events,days).then(res=>{
             i+=1
@@ -61,7 +65,9 @@ const monthlyJob = cron.schedule('45 10 * * 0', async () => {
           console.log("Unsuccessful Monthly email task")
           console.log(err)
         })
-         })
+         })}catch(err){
+          console.err("Monthly JOB ERROR"+err.message)
+         }
          }
         })
 module.exports = {weeklyJob,threeDayJob,monthlyJob}
