@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const sendEventNewsletterEmail = require('../newsletter/sendEventNewsletterEmail');
 const fetchEvents = require('../newsletter/fetchEvents');
 const prisma = require("../db")
-const weeklyJob = cron.schedule('0 9 * * 0', async () => {
+const weeklyJob = cron.schedule('30 11 * * 0', async () => {
   const days = 7
   const users = prisma.user.findMany({where:{emailFrequency:{equals:days}}})
     let i =0 
@@ -45,8 +45,8 @@ const threeDayJob = cron.schedule('0 10 */3 * *',async () => {
       console.err("three day JOB ERROR"+err.message)
     }
      }})
-      // '0 10 * * 0'
-const monthlyJob = cron.schedule('15 11 * * 0', async () => {
+     
+const monthlyJob = cron.schedule('0 10 * * 0', async () => {
 
 
   const days = 27
