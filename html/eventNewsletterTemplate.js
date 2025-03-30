@@ -185,7 +185,7 @@ const eventNewsletterTemplate=({events,user,days})=>{
 <body>
   <div class="container">
     <h1>Hey there, Plumbum writer!</h1>
-    <p>Hope things are well! Hope you're enjoying the process! Here's events to get your creative juices flowing!>
+    <p>Hope things are well! Hope you're enjoying the process! Here's events to get your creative juices flowing!</p>
     
     <h2>🌿 Next ${str} Creative Happenings</h2>
   

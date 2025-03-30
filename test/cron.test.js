@@ -67,9 +67,7 @@ describe('Cron Job for Sending Event Newsletter Emails', () => {
    console.log(weeklyJob.mock)
     const weeklyJobFunction = weeklyJob.mock.calls[0][1];
     weeklyJobFunction();
-//   console.log(JSON.stringify(weeklyJob.mock))
-//   const weeklyJobFunction = cron.schedule.mock.calls[0][1];
-//   await weeklyJobFunction();
+
 
 expect(prisma.user.findMany).toHaveBeenCalledWith({ where: { emailFrequency: { equals: days } } });
 expect(fetchEvents).toHaveBeenCalledWith(days);
