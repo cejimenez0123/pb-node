@@ -12,8 +12,8 @@ module.exports = sendEmail=async (template)=>{
         from:process.env.pbEmail
       });
 transporter.sendMail(template).then(res=>{
-console.log("Success")
-return 200
+
+console.log(template.email)
  }).catch(err=>{
    console.log(err)
    console.log(err.message)
