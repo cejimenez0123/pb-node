@@ -10,7 +10,7 @@ module.exports = async function sendEventNewsletterEmail(user,events,days) {
   }
 
   try {
-    const template = eventNewsletterTemplate({ events, email: user.email,days});
+    const template = eventNewsletterTemplate({ events, user,days});
     await sendEmail(template);
     return 200;
   } catch (error) {

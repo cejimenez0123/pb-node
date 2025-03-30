@@ -1,7 +1,6 @@
 let { calendar } = require("@googleapis/calendar");
 
-// Initialize Calendar API with API key
-calendar = calendar({ version: "v3" });
+
 
  async function fetchPublicEvents(calendarId) {
   const now = new Date();
@@ -9,7 +8,7 @@ calendar = calendar({ version: "v3" });
   sevenDaysLater.setDate(now.getDate() + 7);
 
   try {
-    const res = await calendar.events.list({
+    const res = await calendar({ version: "v3" }).events.list({
       calendarId: calendarId, // Public Calendar ID
       key: process.env.GOOGLE_API_KEY,
       timeMin: now.toISOString(),
@@ -22,7 +21,6 @@ calendar = calendar({ version: "v3" });
 
     if (events.length) {
     
-      // let events=[{area:"Downtown",events:downtownEvents},{area:"Uptown",events:uptownEvents},{area:"Queens",events:queensEvents},{area:"Virtual",events:virtualEvents}]
     
     return events
 
