@@ -56,7 +56,9 @@ const monthlyJob = cron.schedule('45 10 * * 0', async () => {
           sendEventNewsletterEmail(user,events,days).then(res=>{
             i+=1
     console.log(i,user.email)
+    console.log("Successful Monthly email task")
         }).catch(err=>{
+          console.log("Unsuccessful Monthly email task")
           console.log(err)
         })
          })
