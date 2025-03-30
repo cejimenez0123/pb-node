@@ -46,7 +46,7 @@ const threeDayJob = cron.schedule('0 10 */3 * *',async () => {
     }
      }})
       // '0 10 * * 0'
-const monthlyJob = cron.schedule('0 11 * * 0', async () => {
+const monthlyJob = cron.schedule('15 11 * * 0', async () => {
 
 
   const days = 27
