@@ -1554,7 +1554,7 @@ console.log(error)
                 },
                 create:{
                    profileId:sTc.profile.id,
-                   collectionId:sTc.collection.id,
+                   collectionId:id,
                    storyId:sTc.story.id,
                    index:sTc.index
                     }
@@ -1568,7 +1568,7 @@ console.log(error)
                 index:cTc.index
             },create:{
                 childCollectionId:cTc.childCollection.id,
-                parentCollectionId:cTc.parentCollection.id,
+                parentCollectionId:id,
                 index:cTc.index,
                 profileId:cTc.profile.id
             }})
