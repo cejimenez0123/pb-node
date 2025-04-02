@@ -25,7 +25,7 @@ model User{
   igHandle String?
   referredBy Referral?   @relation(name:"ReferredByUser",fields: [referredById], references: [id],onDelete: NoAction, onUpdate: NoAction) 
   referredById String? @db.ObjectId
-  emailFrequency Int? @default(1)
+  emailFrequency Int? @default(7)
   referrals Referral[]  @relation(name: "UserReferrals") 
   lastEmailed   DateTime?  @default(now())
   profiles Profile[]
