@@ -14,7 +14,14 @@ const weeklyJob = cron.schedule('0 9 * * 0', async () => {
 })
 const weeklyEmail=()=>{
   const days = 7
- prisma.user.findMany({where:{emailFrequency:{not:0}}}).then(users=>{
+ prisma.user.findMany({
+    where: {
+      emailFrequency: {
+        gt: 0,
+        lte: 24
+      }
+    }
+  }).then(users=>{
   let i =0 
   
   for(const user of users){
