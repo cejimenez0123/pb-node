@@ -1,20 +1,14 @@
-const sendEmail = require("./sendEmail");
 const eventNewsletterTemplate = require("../html/eventNewsletterTemplate");
-
-module.exports = async function sendEventNewsletterEmail(user,events,days) {
-  if (!user) {
-    return "No User Found";
-  }
-  if(!events){
-    return "Failed to fetch events"
-  }
-
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
+module.exports = async function  sendEventNewsletterEmail(user,events,days){
   try {
     const template = eventNewsletterTemplate({ events, user,days});
-    await sendEmail(template);
-    return 200;
-  } catch (error) {
-    console.log("Error sending email:", error.message);
-    return error.message;
+    const response = await resend.emails.send(template);
+    console.log(response)
+    return response;
+  } catch (err) {
+    console.error("Resend error:", err);
+    throw err;
   }
-};
+}

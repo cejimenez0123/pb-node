@@ -14,14 +14,14 @@ function sleep(ms) {
 const weeklyJob = cron.schedule('0 9 * * 0', async () => {
   const days = 7;
   const users = await prisma.user.findMany({ where: { emailFrequency: { equals: days } } });
-
+let i = 0
   for (const user of users) {
     const events = await fetchEvents(days);
     await sleep(1100);
 
     try {
       await sendEventNewsletterEmail(user, events, days);
-      console.log(user.email);
+      console.log(i,user.email);
     } catch (err) {
       console.error(err);
     }

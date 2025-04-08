@@ -25,21 +25,21 @@ const weeklyEmail=()=>{
 console.log(i,user.email)
 
 }).catch(err=>{
-
+console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
   }))})}})}
 const threeDayJob = cron.schedule('0 10 */3 * *',async () => {
-  console.log('Running weekly email task');
+  console.log('Running three day email task');
   let days = 3
 
   let users =await prisma.user.findMany({where:{   emailFrequency: {
     gt: 0, 
     lte: 3   
   }}})
+   let i = 0
    let events= await fetchEvents(days)
     for(const user of users){
- 
       try{
-      sendEventNewsletterEmail(user,events).then((res)=>{
+      sendEventNewsletterEmail(user,events,7).then((res)=>{
         i+=1
         console.log(i,user.email)
         console.log("Successful weekly email task")
@@ -48,13 +48,11 @@ const threeDayJob = cron.schedule('0 10 */3 * *',async () => {
         console.log(err.message)
       })
     }catch(err){
-      console.err("three day JOB ERROR"+err.message)
+      console.err("Three day JOB ERROR "+err.message)
     }
      }})
      
 const monthlyJob = cron.schedule('0 12 1-7 * 0', async () => {
-
-
   const days = 27
      let users = await prisma.user.findMany({where:{emailFrequency:{gte:days}}})
         let i =0 

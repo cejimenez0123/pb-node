@@ -827,6 +827,7 @@ Reset Pasword
           igHandle,
           email,
           frequency,
+          thirdPlaces
      
       
         
@@ -836,7 +837,7 @@ Reset Pasword
         subscription: "newsletter",
         preferredName:fullName,
         igHandle:igHandle,    
-        emailFrequency:frequency
+        emailFrequency:frequency??7
     }})
     const transporter = nodemailer.createTransport({
       service: 'gmail', 

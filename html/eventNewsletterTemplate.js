@@ -1,35 +1,15 @@
 
 const jwt = require('jsonwebtoken');
 
-const eventNewsletterTemplate=({events,user,days})=>{
+const eventNewsletterTemplate=({events,user,days=7})=>{
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
     let params = new URLSearchParams({token:token})
     let str = "Weekly"
-    switch (days) {
-        case 1:
-         str = "Daily"
-          break;
-      
-        case 3:
-        str = "Next Three Days"
-          break;
-      
-        case 7:
-          str = "Weekly"
-          break;
-        case days>28:
-           str = "Monthly"
-            break;
-      
-        default:
-          throw new Error('Invalid range type. Use "monthly", "weekly", or "next-three-days".');
-      }
     return{
-    
-         from: process.env.pbEmail, // Sender address
-         to: user.email, // Recipient's email
-         subject: 'Plumbum Writers Community - Upcoming Events🎉',
-         html: `<!DOCTYPE html>
+      from: `Plumbum <${process.env.pbEmail}>`,
+      to:user.email,
+      subject: 'Plumbum Writers Community - Upcoming Events🎉',
+      html: `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
@@ -65,6 +45,15 @@ const eventNewsletterTemplate=({events,user,days})=>{
       border-radius: 8px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
     }
+ 
+    .event {
+      list-style-type: none;
+      margin-bottom: 15px;
+      padding: 12px;
+      background-color: #F0F7F0;
+      border-radius: 8px;
+    }
+  
     .header {
       text-align: center;
       margin-bottom: 30px;
@@ -99,20 +88,8 @@ const eventNewsletterTemplate=({events,user,days})=>{
         text-decoration: underline;
         font-weight: 600;
       }
-      .event {
-        margin-bottom: 15px;
-        padding: 12px;
-        background-color: #F0F7F0;
-        border-radius: 8px;
-      }
-      .event a {
-        color: #2F4F2F;
-        font-weight: 600;
-        text-decoration: none;
-      }
-      .event a:hover {
-        text-decoration: underline;
-      }
+   
+
     a.button {
       display: inline-block;
       margin-top: 15px;
@@ -168,18 +145,15 @@ const eventNewsletterTemplate=({events,user,days})=>{
       color: #3D6B47;
       text-decoration: underline;
     }
-    .event {
-      margin-bottom: 30px;
-    }
+  
+
     .footer {
       font-size: 12px;
       color: #4A604A;
       margin-top: 40px;
       text-align: center;
     }
-    ul {
-        list-style-type: none;
-      }
+  
   </style>
 </head>
 <body>
@@ -188,22 +162,19 @@ const eventNewsletterTemplate=({events,user,days})=>{
     <p>Hope things are well! Hope you're enjoying the process! Here's events to get your creative juices flowing!</p>
     
     <h2>🌿 Next ${str} Creative Happenings</h2>
-  
-    ${events.length?events.map(area => 
-       `<span>
+ 
+    ${events && events.length?events.map(area => 
+       ` <h3>${area.area}</h3>
             <br />
-            <h3>${area.area}</h3>
-            <br />
-            <span class="events">
+              <ul  class="events">
               ${area.events.map((event, i) =>{
-                 return event.organizer.displayName.toLowerCase().trim()==area.area.toLowerCase().trim()?`<a class="event" href="${event.htmlLink}"><p>${event.summary} - ${formatDate(event.start.dateTime)} to ${formatDate(event.end.dateTime)}</p></a>`:null
-  }  ).join('')} 
-            </span>
-          </span>`
+                 return event.organizer.displayName.toLowerCase().trim()==area.area.toLowerCase().trim()?`<br/><a  href="${event.htmlLink}"><p>${event.summary} - ${formatDate(event.start.dateTime)} to ${formatDate(event.end.dateTime)}</p></a>`:null
+  }  ).join('')}</ul>
+          
+        `
       ).join(''):`<span class="no-events">
       <p>No events scheduled this time. Stay tuned!</p>
     </span>`}`+` 
-</ul>
     <h2>🎵 Call for DJs and Performers</h2>
     <p>We’re planning a DJ showcase! The theme? *Body Moving is Body Healing*. If you know a DJ or live act who can get people dancing like no one’s watching, send them our way. <a href="mailto:plumbumapp@gmail.com">plumbumapp@gmail.com</a>.</p>
 

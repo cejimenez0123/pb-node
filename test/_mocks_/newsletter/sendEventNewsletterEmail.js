@@ -27,7 +27,7 @@ const sendEventNewsletterEmail = jest.fn(async (user,events) => {
 
     // Mock sendEmail to simulate email sending
     sendEmail.mockResolvedValue({ messageId: 'mock-message-id' });
-    const events = fetchEvents(days)
+    const events = await fetchEvents()
 
     // Generate the email template
     const template = eventNewsletterTemplate({ events, email: user.email });
