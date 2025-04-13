@@ -1,7 +1,8 @@
 
 const jwt = require('jsonwebtoken');
 
-const eventNewsletterTemplate=({events,user,days=7})=>{
+const eventNewsletterTemplate=(events,user,days)=>{
+  console.log("Template",user)
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
     let params = new URLSearchParams({token:token})
     let str = "Weekly"

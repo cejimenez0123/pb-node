@@ -38,7 +38,7 @@ describe('Cron Job for Sending Event Newsletter Emails', () => {
 
     // Mock the fetchPublicEvents function to return the mock events
     fetchEvents.mockResolvedValueOnce(mockEvents);
-    let template = eventNewsletterTemplate({events:mockEvents,user})
+    let template = eventNewsletterTemplate(mockEvents,user)
   
   
     sendEmail.mockResolvedValue({ messageId: 'mock-message-id' });

@@ -13,7 +13,7 @@ module.exports = sendEmail=async (template)=>{
       });
 transporter.sendMail(template).then(res=>{
 
-console.log(template.email)
+
  }).catch(err=>{
    console.log(err)
    console.log(err.message)

@@ -30,7 +30,7 @@ const sendEventNewsletterEmail = jest.fn(async (user,events) => {
     const events = await fetchEvents()
 
     // Generate the email template
-    const template = eventNewsletterTemplate({ events, email: user.email });
+    const template = eventNewsletterTemplate(events,user,7);
 
     // Send the email
     await sendEmail(template);
