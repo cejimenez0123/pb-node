@@ -464,13 +464,9 @@ let mailOptions = forgotPasswordTemplate(user)
              res.status(200).json({ token,message: `User ${action}'d successfully` });
             }
       
-      }else{
-        let user = await prisma.user.findFirstOrThrow({where:{
-          id:{equals:applicantId}
-        }})
-       res.status(200).json({ token,user:user,message: `Newsletter Approved` });
-      }
-    
+          }else{
+            res.json({message:"Not interested"})
+          }
     
   }catch (error) {
           res.status(409).json(error)
