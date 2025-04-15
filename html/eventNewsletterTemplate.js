@@ -165,13 +165,10 @@ const eventNewsletterTemplate=(events,user,days)=>{
  
     ${events && events.length?events.map(area => 
        ` <h3>${area.area}</h3>
-            <br />
               <ul  class="events">
               ${area.events.map((event, i) =>{
                  return event.organizer.displayName.toLowerCase().trim()==area.area.toLowerCase().trim()?`<br/><a  href="${event.htmlLink}"><p>${event.summary} - ${formatDate(event.start.dateTime)} to ${formatDate(event.end.dateTime)}</p></a>`:null
-  }  ).join('')}</ul>
-          
-        `
+  }  ).join('')}</ul>`
       ).join(''):`<span class="no-events">
       <p>No events scheduled this time. Stay tuned!</p>
     </span>`}`+` 
