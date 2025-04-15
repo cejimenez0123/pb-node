@@ -1,5 +1,6 @@
 
 
+const jwt = require('jsonwebtoken');
 
 module.exports = function approvalTemplate(user){
     const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
