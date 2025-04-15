@@ -3,16 +3,22 @@ const prisma = require("../db");
 const bcrypt = require("bcryptjs")
 const jwt = require('jsonwebtoken');
 const generateMongoId = require("./generateMongoId");
-const nodemailer = require('nodemailer');
 const approvalTemplate = require('../html/approvalTemplate');
 const newsletterSurveyTemplate = require('../html/newsletterSurveyTemplate');
 const subscriptionConfirmation = require('../html/subscriptionConfirmation');
 const feedbackTemplate = require('../html/feedbackTemplate');
+const applyTemplate = require('../html/applyTemplate');
+const { Resend } = require('resend');
+const forgotPasswordTemplate = require('../html/forgotPasswordTemplate');
+const recievedReferralTemplate = require('../html/recievedReferralTemplate');
+
 const router = express.Router()
 function isHex(num) {
+
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
 }
 module.exports = function (authMiddleware){
+  const resend = new Resend(process.env.RESEND_API_KEY);
     router.get("/user",authMiddleware,async(req,res)=>{
       
       res.json({user:req.user})
@@ -267,104 +273,20 @@ const user = await prisma.user.create({
   }
 })
 
-const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
 
    
-    const transporter = nodemailer.createTransport({
-        service: 'gmail', 
-        auth: {
-          user: process.env.pbEmail, 
-          pass: process.env.pbPassword 
-        },
-        from:process.env.pbEmail
-      });
 
-        let mailOptions = {
-            from:  process.env.pbEmail,
-            to:email ,// Email to yourself
-            subject: 'You’ve Been Invited to Join Plumbum!',
-              html: `
-                
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Plumbum Referral</title>
-      <style>
-        body {
-          font-family: 'Arial', sans-serif;
-          background-color: #2E2E2E;
-          color: #D4D4D4;
-          margin: 0;
-          padding: 0;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-        }
-        .container {
-          text-align: center;
-          background-color: #1D1D1D;
-          border-radius: 10px;
-          padding: 40px 30px;
-          width: 80%;
-          max-width: 600px;
-          box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
-        }
-        h1 {
-          font-size: 3em;
-          color: #A9C5D3;
-          margin-bottom: 20px;
-          letter-spacing: 2px;
-        }
-        p {
-          font-size: 1.2em;
-          margin: 20px 0;
-          color: #D4D4D4;
-        }
-        a {
-          font-size: 1.4em;
-          color: #B1A7D5;
-          text-decoration: none;
-          padding: 10px 20px;
-          border: 2px solid #B1A7D5;
-          border-radius: 5px;
-          transition: background-color 0.3s, color 0.3s;
-        }
-        a:hover {
-          background-color: #B1A7D5;
-          color: #1D1D1D;
-        }
-        .footer {
-          margin-top: 30px;
-          font-size: 0.9em;
-          color: #A9C5D3;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>Plumbum</h1>
-        <p>Hello ${name},</p>
-        <p>You've been invited to join Plumbum, a place where creativity and community come together. We believe your voice can make a difference in this artistic space.</p>
-        <p>To get started, simply click the link below and sign up:</p>
+const mailOptions = recievedReferralTemplate(email,name)
 
-        <a href="${process.env.DOMAIN}/signup?token=${token}" target="_blank">Join Plumbum</a>
-        <p class="footer">If you did not request this invitation, feel free to ignore this email.</p>
-     
-      </div>
-    </body>
-    </html>
-              `
-          };
-          try {
-            await transporter.sendMail(mailOptions);
-            res.json({user,message:'Referred Succesfully!'});
-          } catch (error) {
-            console.error(error);
-            res.json({error})
-}}catch(error){
+          
+  
+             resend.emails.send(mailOptions).then(()=>{
+              res.json({user,message:'Referred Succesfully!'});
+            }).catch(err=>{
+              throw err
+            })
+
+        }catch(error){
   res.json({error})
 }})
 
@@ -375,14 +297,6 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
             igHandle,
             fullName,
             email,
-            whyApply,
-            howFindOut,
-            communityNeeds,
-            workshopPreference,
-            feedbackFrequency,
-            comfortLevel,
-            platformFeatures,
-            genres
         } = req.body
 
     try{
@@ -393,113 +307,23 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
             igHandle:igHandle,
         }})
      
-       const transporter = nodemailer.createTransport({
-            service: 'gmail', 
-            auth: {
-              user: process.env.pbEmail, 
-              pass: process.env.pbPassword 
-            },
-            from:process.env.pbEmail
-          });
-          const params = new URLSearchParams({
-            applicantId:user.id,
-            action:"approve",
-            email,
-          });
-          let parms = `/auth/review?`+params.toString()
-          let path = process.env.BASEPATH+parms
 
-        //   await prisma.user.create({email:email,verified:false})
-            let mailOptions = {
-                from: email,
-                to: process.env.pbEmail, // Email to yourself
-                subject: 'New Plumbum Application',
-                  html: `
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <head>
-                      <meta charset="UTF-8">
-                      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                      <title>Application Review</title>
-                      <style>
-                        body {
-                          font-family: Arial, sans-serif;
-                          background-color: #f9f9f9;
-                          color: #333;
-                          padding: 20px;
-                        }
-                        .container {
-                          background: #fff;
-                          padding: 20px;
-                          border-radius: 8px;
-                          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                        }
-                        .header {
-                          font-size: 1.5em;
-                          margin-bottom: 20px;
-                        }
-                        .info {
-                          margin-bottom: 20px;
-                        }
-                        .info p {
-                          margin: 5px 0;
-                        }
-                        .form {
-                          margin-top: 20px;
-                        }
-                        button {
-                          background: #4CAF50;
-                          color: white;
-                          border: none;
-                          padding: 10px 20px;
-                          font-size: 1em;
-                          border-radius: 5px;
-                          cursor: pointer;
-                          transition: background 0.3s;
-                        }
-                        button:hover {
-                          background: #45a049;
-                        }
-                      </style>
-                    </head>
-                    <body>
-                      <div class="container">
-                        <div class="header">Review Plumbum Applicant</div>
-                        <div class="info">
-                        <p><strong>Name:</strong> ${fullName}</p>
-                        <p><strong>Email:</strong> ${email}</p>
-                        <p><strong>Instagram Handle:</strong> ${igHandle}</p>
-                        <p><strong>Why did they apply:</strong> ${whyApply}</p>
-                        
-                        <p><strong>How did they find out:</strong> ${howFindOut}</p>
-                        <p><strong>Community Need:</strong> ${communityNeeds}</p>
-                        <p><strong>Comfort Level:</strong> ${comfortLevel}</p>
-                        <p><strong>platform features:</strong> ${platformFeatures}</p>
-                        <p><strong>Workshop Preference:</strong>${workshopPreference}</p>
-                        <p><strong>Feedback Frequency:</strong>${feedbackFrequency}</p>
-                        <p><strong>Genres:</strong></p>
-                        <ul>
-                        ${genres.map(genre=>{
-                        return(`<li><p>${genre}</p></li>`)})}
-                        </ul>
-                        </div>
-                        <div class="form">
-                        <a href="${path}" 
-                        style="display: inline-block; background: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                        Approve Application
-                      </a>
-                        </div>
-                      </div>
-                    </body>
-                    </html>
-                  `
-              };
-            
-                await transporter.sendMail(mailOptions);
-                res.status(201).json({path:parms,user,message:'Applied Successfully!'});
-        
+          let mailOptions = applyTemplate(user,req.body)
 
+         let response  =  await resend.emails.send(mailOptions)
+         if(response.error){
+          throw response.err
+         }else{
+         const params = new URLSearchParams({
+          applicantId:user.id,
+          action:"approve",
+          email,
+        });
+        const parms = `/auth/review?`+params.toString()
+
+         res.status(201).json({path:parms,user,message:'Applied Successfully!'});
+      }
+      
             }catch(error){
               
                 if(error.message.includes("Unique")){
@@ -549,119 +373,77 @@ const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
         res.json({error})
       }
     })
+
+    router.post("/newsletter/apply",async (req,res)=>{
+   
+      const {
+          email,
+      } = req.body
+
+  try{
+      const user = await prisma.user.update({where:{
+        email:email
+        
+      },data:{
+        subscription:"basic"
+      }})
+      
+          let mailOptions = applyTemplate(user,req.body)
+          let response =  await resend.emails.send(mailOptions)
+      
+          if(response.data){
+          const params = new URLSearchParams({
+            applicantId:user.id,
+            action:"approve",
+            email,
+          });
+          let parms = `/auth/review?`+params.toString()
+        
+          res.status(201).json({path:parms,user,message:'Applied Successfully!'});
+        }else{
+          throw response.error
+        }
+             
+          }catch(error){
+              if(error.message.includes("Unique")){
+                  res.status(409).json({message:"User has already applied"})
+              }
+                console.log(error)
+                res.status(403).json({error})
+              
+          }
+
+  })
+
     router.post("/forgot-password",async (req,res)=>{
         const {email}=req.body
-        const transporter = nodemailer.createTransport({
-          service: 'gmail', 
-          auth: {
-            user: process.env.pbEmail, 
-            pass: process.env.pbPassword 
-          }
-        ,
-          from: process.env.pbEmail, 
-        });
+
         try{
-        let user =  await prisma.user.findFirst({where:{email:{
-            equals:email
+        let user =  await prisma.user.findFirstOrThrow({where:{email:{equalsemail
           }},include:{
             profiles:true
           }})
-        const token = jwt.sign({ id:user.id }, process.env.JWT_SECRET);
-        const forgetPasswordLink = process.env.DOMAIN+`/reset-password?token=${token}`
 
+let mailOptions = forgotPasswordTemplate(user)
 
-              const mailOptions = {
-                  from: process.env.pbEmail, // Sender address
-                  to: email, // Recipient's email
-                  subject: 'Reset Password',
-                  html: `
-                    <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-                      <h1 style="color: #5A5A5A;">Welcome to Plumbum!</h1>
-                      <p style="font-size: 16px; color: #5A5A5A;">
-                We're sorry you forgot your password. You can reset with the link below.
-                      </p>
-                      <p style="font-size: 16px; color: #5A5A5A;">
-                        Click the button to reset password:
-                      </p>
-                      <a href="${forgetPasswordLink}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-size: 16px;">
-Reset Pasword
-                    </a>
-                      <p style="font-size: 14px; color: #5A5A5A; margin-top: 20px;">
-                        If you have any questions, feel free to reach out to us at plumbumapp@gmail.com
-                      </p>
-                      <footer style="font-size: 12px; color: #9E9E9E; margin-top: 20px;">
-                        &copy; ${new Date().getFullYear()} Plumbum. All rights reserved.
-                      </footer>
-                    </div>
-                  `,
-                };
-                await transporter.sendMail(mailOptions);
-              
+                resend.emails.send(mailOptions).then(res=>{
+                  res.status(201).json({path:parms,user,message:'Applied Successfully!'});
+          
+                }).catch(err=>{throw err})
+                
                 res.status(200).json({message:"If there is an account you will recieve an email"})
-       
-            }catch(err){
-                try{
-                   if(email){  
-            let  user =  await prisma.user.findFirst({where:{email:{equals:email}},include:{profiles:true}})
-              let name = user.profiles[0]?user.profiles[0].username:null
-            const token = jwt.sign({ username:name,email }, process.env.JWT_SECRET);
-            const forgetPasswordLink = process.env.DOMAIN+`/reset-password?token=${token}`
-                  const mailOptions = {
-                      from: process.env.pbEmail, // Sender address
-                      to: email, // Recipient's email
-                      subject: 'Reset Password',
-                      html: `
-                        <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-                          <h1 style="color: #5A5A5A;">Welcome to Plumbum!</h1>
-                          <p style="font-size: 16px; color: #5A5A5A;">
-                    We're sorry you forgot your password. You can reset with the link below.
-                          </p>
-                          <p style="font-size: 16px; color: #5A5A5A;">
-                            Click the button to reset password:
-                          </p>
-                          <a href="${forgetPasswordLink}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-size: 16px;">
-    Reset Pasword
-                        </a>
-                          <p style="font-size: 14px; color: #5A5A5A; margin-top: 20px;">
-                            If you have any questions, feel free to reach out to us at plumbumapp@gmail.com
-                          </p>
-                          <footer style="font-size: 12px; color: #9E9E9E; margin-top: 20px;">
-                            &copy; ${new Date().getFullYear()} Plumbum. All rights reserved.
-                          </footer>
-                        </div>
-                      `,
-                    };
-                    await transporter.sendMail(mailOptions);
-                    res.status(200).json({message:"If there is an account you will recieve an email"})
-          }else{
-
-
-            res.status(200).json({message:"If there is an account you will recieve an email"})
-
-          }
-           
                 }catch(err){
-        console.log(err)
-                  res.status(409).json(err)
-                }}
+   
+                  res.status(409).json({err,message:"If there is an account you will recieve an email"})
+                }
     })
     router.get('/review', async (req, res) => {
       const { applicantId, action,email,newsletter} = req.query;
    
       try {
         if(!newsletter){
-      const transport = nodemailer.createTransport({
-        service: 'gmail', 
-        auth: {
-          user: process.env.pbEmail, 
-          pass: process.env.pbPassword 
-        },
-        from:process.env.pbEmail
-      });
+  
     
-    
-
-        
           let user = await prisma.user.findFirstOrThrow({where:{
             id:{equals:applicantId}
           }})
@@ -673,14 +455,15 @@ Reset Pasword
         }})
       
           const token = jwt.sign({ applicantId }, process.env.JWT_SECRET);
-          const signupLink = process.env.DOMAIN+`/signup?token=${token}`;
+
+          const mailOptions = approvalTemplate(user)
+          resend.emails.send(mailOptions).then(()=>{
+            return res.status(200).json({ token,message: `User ${action}'d successfully` });
+          }).catch(err=>{
+            throw err
+          })
           
-    
-    
-          const mailOptions = approvalTemplate({name:user.preferredName,email:email,signupLink:signupLink})
-          await transport.sendMail(mailOptions)
-          return res.status(200).json({ token,message: `User ${action}'d successfully` });
-        }
+            }
       
       }else{
         let user = await prisma.user.findFirstOrThrow({where:{
@@ -713,6 +496,59 @@ Reset Pasword
           res.status(409).json({error:err})
         }
       })
+      // router.post("/newsletter-to-user",async(req,res)=>{
+      //   const { token, email, password ,username,profilePicture,selfStatement,isPrivate} = req.body;
+      
+      //   try {
+      
+      //     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      //     const {userId}=decoded
+      //     const hashedPassword = await bcrypt.hash(password, 10);
+      //     let user = await prisma.user.update({where:{id:userId},
+      //       data:{password:hashedPassword,
+   
+      //         profiles:{
+      //           create:{
+      //             isPrivate:isPrivate,
+      //             profilePic:profilePicture,
+      //             selfStatement:selfStatement,
+
+      //           }
+      //         }
+      //     },include:{
+      //       profiles:{
+      //         include:true
+      //       }
+      //     }}
+       
+    
+      
+          // if(!user){
+
+  
+    //     if(!newUser.password){
+    //       res.json({ message:"User already exists. Go to forgot password at login"});
+        
+    //     }else{
+    //     if(newUser&&newUser.profiles && newUser.profiles.length==0){
+    // const profile =  await createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId:newUser.id})
+    //       // Increment referral usage
+    //       await prisma.referral.update({
+    //         where: {id:referralId },
+    //         data: { usageCount: { increment: 1 } }
+    //       });
+        
+    //      const userToken = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET);
+    //       res.json({ firstTime:true,message: 'User created successfully',token:userToken,profile:profile});
+    //     }else{
+         
+    //       res.json({ message:"User already exists. Go to forgot password at login"});
+    //     }}}}
+    //     } catch (error) {
+    //       console.error(error);
+    //       res.status(400).json({ message: 'Error processing referral' });
+    //     }
+    //   })
       router.post('/use-referral', async (req, res) => {
         const { token, email, password ,username,profilePicture,selfStatement,isPrivate} = req.body;
       
@@ -839,21 +675,13 @@ Reset Pasword
         igHandle:igHandle,    
         emailFrequency:frequency??7
     }})
-    const transporter = nodemailer.createTransport({
-      service: 'gmail', 
-      auth: {
-        user: process.env.pbEmail, 
-        pass: process.env.pbPassword 
-      },
-      from:process.env.pbEmail
-    });
 
     const token = jwt.sign({ userId:user.id }, process.env.JWT_SECRET);
     let surveyTemplate = newsletterSurveyTemplate({params:req.body})
     let confirmationTemplate = subscriptionConfirmation({token,email:email})
-  
-            await transporter.sendMail(confirmationTemplate);
-            await transporter.sendMail(surveyTemplate);
+    await resend.emails.send(confirmationTemplate)
+    await resend.emails.send(surveyTemplate)
+         
             res.status(201).json({user,message:'Success'});
           }catch(error){
             console.log(error)
@@ -870,21 +698,14 @@ Reset Pasword
           purpose,
           message
       }=req.body
-     
-
-    const transporter = nodemailer.createTransport({
-      service: 'gmail', 
-      auth: {
-        user: process.env.pbEmail, 
-        pass: process.env.pbPassword 
-      },
-      from:email
-    });
+    
 let template = feedbackTemplate({email,name:preferredName,subject,message,purpose})
 
-            await transporter.sendMail(template);
-            // await transporter.sendMail(surveyTemplate);
-            res.status(201).json({message:'Success'});
+resend.emails.send(template).then(()=>{
+  res.status(201).json({message:'Success'});
+}).catch(err=>{
+  throw err
+})
           }catch(error){
             console.log(error)
 
@@ -900,8 +721,7 @@ let template = feedbackTemplate({email,name:preferredName,subject,message,purpos
      
        try{
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log(decoded)
-   
+
         if (!username||!password) {
             return res.status(400).json({ message: 'Missing required fields' });
           }

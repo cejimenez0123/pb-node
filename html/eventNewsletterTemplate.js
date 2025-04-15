@@ -2,7 +2,6 @@
 const jwt = require('jsonwebtoken');
 
 const eventNewsletterTemplate=(events,user,days)=>{
-  console.log("Template",user)
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
     let params = new URLSearchParams({token:token})
     let str = "Weekly"
@@ -178,6 +177,8 @@ const eventNewsletterTemplate=(events,user,days)=>{
     </span>`}`+` 
     <h2>🎵 Call for DJs and Performers</h2>
     <p>We’re planning a DJ showcase! The theme? *Body Moving is Body Healing*. If you know a DJ or live act who can get people dancing like no one’s watching, send them our way. <a href="mailto:plumbumapp@gmail.com">plumbumapp@gmail.com</a>.</p>
+    <h2>💬 Become a user! Post your own weirdness/h2>
+    <p>Yep, even on the newsletter you can still join! <a href="${process.env.DOMAIN+"/apply/newsletter"}">become a user here</a>.</p>
 
     <h2>💬 Join Our Slack Community</h2>
     <p>Yep, we’re on Slack now! Connect with fellow writers, share your work, get feedback, and join writing sprints. Plus, we’re working on adding notifications for when someone comments on your work or posts new writing. Community = accountability, right? <a href="https://join.slack.com/t/plumbumwriters/shared_invite/zt-2zvkzyi02-dRlhqb0wvHAaU~~dUgh7hQ">Join here</a>.</p>

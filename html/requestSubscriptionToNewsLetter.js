@@ -2,7 +2,7 @@
 module.exports = function requestSubscriptionToNewsletter({token,email}){
     let params = new URLSearchParams({token:token})
     return {
-         from: process.env.pbEmail, // Sender address
+         from: `Plumbum <${process.env.pbEmail}>`, // Sender address
          to: email, // Recipient's email
          subject: `Plumbum Newsletter Update`,
          html: `<!DOCTYPE html>

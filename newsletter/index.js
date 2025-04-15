@@ -33,7 +33,7 @@ const sendEmails=async ()=>{
 
 
 
-sendEmails().then(res=>console.log("Done"))
+
 module.exports =sendEmails
 
 

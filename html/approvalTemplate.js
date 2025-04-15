@@ -1,14 +1,16 @@
 
 
 
-module.exports = function approvalTemplate({name,email,signupLink}){
+module.exports = function approvalTemplate(user){
+    const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
+  const signupLink = process.env.DOMAIN+`/signup?token=${token}`;
    return {
-        from: process.env.pbEmail, // Sender address
-        to: email, // Recipient's email
+        from: `Plumbum <${process.env.pbEmail}>`, // Sender address
+        to: user.email, // Recipient's email
         subject: 'Congratulations! Your Application Has Been Approved 🎉',
         html: `
           <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-            <h1 style="color: #5A5A5A;">Welcome to Plumbum, ${name}!</h1>
+            <h1 style="color: #5A5A5A;">Welcome to Plumbum, ${user.preferrdName}!</h1>
             <p style="font-size: 16px; color: #5A5A5A;">
               We’re thrilled to let you know that your application has been approved. 
               You’re now part of a vibrant community of creators, thinkers, and writers.

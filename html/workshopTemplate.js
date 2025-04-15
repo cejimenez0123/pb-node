@@ -2,7 +2,7 @@
 module.exports = function workshopTemplate({email}){
     // let params = new URLSearchParams({token:token})
         return {
-             from: process.env.pbEmail, // Sender address
+             from: `Plumbum <${process.env.pbEmail}>` // Sender address
              to: email, // Recipient's email
              subject: `Plumbum Workshop Tomorrow: Write Your Creative Future with Us`,
              html:`<!DOCTYPE html>

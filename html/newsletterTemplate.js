@@ -1,8 +1,6 @@
 module.exports = function newsletterTemplate({email,sTcs,comments,collections,followers}){
-    console.log("ppop",{email,sTcs,comments,collections,followers})
- 
         return {
-            from: process.env.pbEmail, // Sender address
+            from: `Plumbum <${process.env.pbEmail}>`,// Sender address
             to: email, // Recipient's email
             subject: `Plumbum Newsletter Update`,
             html: `<!DOCTYPE html>

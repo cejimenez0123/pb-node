@@ -6,7 +6,7 @@
 module.exports = function slackEventTemplate({email}){
 
     return {
-         from: process.env.pbEmail, // Sender address
+         from: `Plumbum <${process.env.pbEmail}>`,// Sender address
          to: email, // Recipient's email
          subject: `Meet, Write, Connect—Plumbum’s Mixer & Slack Invite`,
          html: `<!DOCTYPE html>

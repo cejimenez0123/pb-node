@@ -1,9 +1,7 @@
-
-module.exports =function forgotPasswordTemplate(user){
+module.exports = function resetPasswordBasicTemplate({token,user}){
     const token = jwt.sign({ id:user.id }, process.env.JWT_SECRET);
     const forgetPasswordLink = process.env.DOMAIN+`/reset-password?token=${token}`
-return {
-    from: `Plumbum <${process.env.pbEmail}>`, // Sender address
+    return {from: `Plumbum <${process.env.pbEmail}>`,// Sender address
     to: user.email, // Recipient's email
     subject: 'Reset Password',
     html: `
@@ -26,4 +24,4 @@ Reset Pasword
         </footer>
       </div>
     `,
-  }}
+  };}

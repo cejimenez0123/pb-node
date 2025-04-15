@@ -5,7 +5,7 @@
 module.exports = function subscriptionConfirmationTemplate({token,email}){
 let params = new URLSearchParams({token:token})
     return {
-         from: process.env.pbEmail, // Sender address
+         from: `Plumbum <${process.env.pbEmail}>`, // Sender address
          to: email, // Recipient's email
          subject: `Plumbum Newsletter Confirmation`,
          html:`<head>
@@ -27,7 +27,9 @@ let params = new URLSearchParams({token:token})
         <div style="text-align: center; margin: 20px 0;">
         <a href="${process.env.DOMAIN}/subscribe?${params.toString()}" classname="button">Manage Subscription</a>
       </div>
-
+      <h2>💬 If you want to become a user! Post your own weirdness for your own platform</h2>
+      <p>Yep, even on the newsletter you can still join! <a href="${process.env.DOMAIN+"/apply/newsletter"}">become a user here</a>.</p>
+  
       <p style="color: #374151; font-size: 14px; text-align: center;">
         Need a break? No hard feelings.  
         <a href="${process.env.BASEPATH}/auth/unsubscribe?${params.toString()}" style="color: #065f46; text-decoration: underline;">Unsubscribe here</a>.
