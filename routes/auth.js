@@ -439,22 +439,22 @@ let mailOptions = forgotPasswordTemplate(user)
                 }
     })
     router.get('/review', async (req, res) => {
-      const { action,email} = req.query;
+ 
    
       try {
-      
+        const { action,email} = req.query;
 
-        if (user &&action=="approve" &&email) {
+        if (action=="approve"&&email) {
             
          
           let user = await prisma.user.update({where:{
             email:email.toLocaleLowerCase().trim(),},data:{
               subscription:"basic",
               verified:true
-            }})   
+            }}) 
       
            
-          const token = jwt.sign({ applicantId }, process.env.JWT_SECRET);
+          // const token = jwt.sign({ applicantId }, process.env.JWT_SECRET);
 
           const mailOptions = approvalTemplate(user)
           let response = await resend.emails.send(mailOptions)
@@ -471,7 +471,7 @@ let mailOptions = forgotPasswordTemplate(user)
     
   }catch (error) {
           res.status(409).json(error)
-        }
+  }
       });
       router.delete("/",authMiddleware,async(req,res)=>{
         try{
