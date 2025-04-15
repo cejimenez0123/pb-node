@@ -461,10 +461,11 @@ let mailOptions = forgotPasswordTemplate(user)
           if(response.error){
             throw response.error
           }
-             res.status(200).json({ token,message: `User ${action}'d successfully` });
+          res.status(200).json({ token,message: `User ${action}'d successfully` });
             
       
           }else{
+            console.log(response.error)
             res.json({message:"Not interested"})
           }
     
