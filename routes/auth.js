@@ -442,18 +442,17 @@ let mailOptions = forgotPasswordTemplate(user)
       const { applicantId, action,email,newsletter} = req.query;
    
       try {
-        if(!newsletter){
-  
-    
-          let user = await prisma.user.findFirstOrThrow({where:{
-            id:{equals:applicantId}
-          }})
+      
+
         if (user &&action=="approve" &&email) {
             
-           
-        user = await prisma.user.update({where:{id:applicantId},data:{
-        verified:true
-        }})
+         
+          let user = await prisma.user.update({where:{
+            id:applicantId,},data:{
+              subscription:"basic",
+              verified:true
+            }})   
+      
       
           const token = jwt.sign({ applicantId }, process.env.JWT_SECRET);
 
@@ -470,7 +469,10 @@ let mailOptions = forgotPasswordTemplate(user)
           id:{equals:applicantId}
         }})
        res.status(200).json({ token,user:user,message: `Newsletter Approved` });
-      }}}catch (error) {
+      }
+    
+    
+  }catch (error) {
           res.status(409).json(error)
         }
       });
