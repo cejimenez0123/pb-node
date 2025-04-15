@@ -325,13 +325,10 @@ const mailOptions = recievedReferralTemplate(email,name)
       }
       
             }catch(error){
-              
-                if(error.message.includes("Unique")){
-                    res.status(409).json({message:"User has already applied"})
-                }else{
+      
                   console.log(error)
                   res.status(403).json({error})
-                }
+                
             }
 
     })
