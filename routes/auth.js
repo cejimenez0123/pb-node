@@ -439,7 +439,7 @@ let mailOptions = forgotPasswordTemplate(user)
                 }
     })
     router.get('/review', async (req, res) => {
-      const { applicantId, action,email} = req.query;
+      const { action,email} = req.query;
    
       try {
       
@@ -448,12 +448,12 @@ let mailOptions = forgotPasswordTemplate(user)
             
          
           let user = await prisma.user.update({where:{
-            id:applicantId,},data:{
+            email:email.toLocaleLowerCase().trim(),},data:{
               subscription:"basic",
               verified:true
             }})   
       
-      
+           
           const token = jwt.sign({ applicantId }, process.env.JWT_SECRET);
 
           const mailOptions = approvalTemplate(user)

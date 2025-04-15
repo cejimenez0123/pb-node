@@ -3,8 +3,8 @@
 
 module.exports = function approvalTemplate(user){
     const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
-  const signupLink = process.env.DOMAIN+`/signup?token=${token}`;
-   return {
+    const signupLink = process.env.DOMAIN+`/signup?token=${token}`;
+    return {
         from: `Plumbum <${process.env.pbEmail}>`, // Sender address
         to: user.email, // Recipient's email
         subject: 'Congratulations! Your Application Has Been Approved 🎉',
