@@ -1,12 +1,8 @@
 let { calendar } = require("@googleapis/calendar");
-
-
-
- async function fetchPublicEvents(calendarId) {
+async function fetchPublicEvents(calendarId) {
   const now = new Date();
   const sevenDaysLater = new Date();
   sevenDaysLater.setDate(now.getDate() + 7);
-
   try {
     const res = await calendar({ version: "v3" }).events.list({
       calendarId: calendarId, // Public Calendar ID
@@ -16,14 +12,9 @@ let { calendar } = require("@googleapis/calendar");
       singleEvents: true,
       orderBy: 'startTime',
     });
-
     const events = res.data.items;
-
     if (events.length) {
-    
-    
-    return events
-
+      return events
     } else {
       console.log("No upcoming events found.");
     }
@@ -31,6 +22,4 @@ let { calendar } = require("@googleapis/calendar");
     console.error("Error fetching events:", error.response?.data || error.message);
   }
 }
-
-
 module.exports = fetchPublicEvents

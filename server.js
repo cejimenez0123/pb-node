@@ -19,7 +19,6 @@ const passport = require("passport")
 const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const { Server } = require('socket.io');
-const please = require("./please.js")
 const activeUsers = new Map()
 const docs = require("./utils/docs.js")
 const app = express();
@@ -101,8 +100,6 @@ io.on('connection', (socket) => {
   // Register user
   socket.on('register', async ({ profileId, location }) => {
     try {
-       
-      // Update the database
       let locale= null
     if(location){
         locale = await  prisma.location.findFirst({where:{
