@@ -439,7 +439,7 @@ let mailOptions = forgotPasswordTemplate(user)
                 }
     })
     router.get('/review', async (req, res) => {
-      const { applicantId, action,email,newsletter} = req.query;
+      const { applicantId, action,email} = req.query;
    
       try {
       
@@ -460,9 +460,9 @@ let mailOptions = forgotPasswordTemplate(user)
           let response = await resend.emails.send(mailOptions)
           if(response.error){
             throw response.error
-          }else{
+          }
              res.status(200).json({ token,message: `User ${action}'d successfully` });
-            }
+            
       
           }else{
             res.json({message:"Not interested"})
