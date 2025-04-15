@@ -388,7 +388,7 @@ const mailOptions = recievedReferralTemplate(email,name)
         subscription:"basic"
       }})
       
-          let mailOptions = applyTemplate(user,req.body)
+          let mailOptions = applyTemplate(user,req.body,false)
           let response =  await resend.emails.send(mailOptions)
       
           if(response.data){
@@ -396,6 +396,7 @@ const mailOptions = recievedReferralTemplate(email,name)
             applicantId:user.id,
             action:"approve",
             email,
+            newsletter:true,
           });
           let parms = `/auth/review?`+params.toString()
         
@@ -457,23 +458,19 @@ let mailOptions = forgotPasswordTemplate(user)
           const token = jwt.sign({ applicantId }, process.env.JWT_SECRET);
 
           const mailOptions = approvalTemplate(user)
-          resend.emails.send(mailOptions).then(()=>{
-            return res.status(200).json({ token,message: `User ${action}'d successfully` });
-          }).catch(err=>{
-            throw err
-          })
-          
+          let response = await resend.emails.send(mailOptions)
+          if(response.error){
+            throw response.error
+          }else{
+             res.status(200).json({ token,message: `User ${action}'d successfully` });
             }
       
       }else{
         let user = await prisma.user.findFirstOrThrow({where:{
           id:{equals:applicantId}
         }})
-        return res.status(200).json({ token,user:user,message: `Newsletter Approved` });
-      }
-      }
-         catch (error) {
-        
+       res.status(200).json({ token,user:user,message: `Newsletter Approved` });
+      }}}catch (error) {
           res.status(409).json(error)
         }
       });

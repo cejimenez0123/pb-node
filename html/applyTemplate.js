@@ -1,6 +1,6 @@
 
 
-module.exports = function applyTemplate(user,body){
+module.exports = function applyTemplate(user,body,newsletter){
     const {
         email,
         igHandle,
@@ -18,6 +18,7 @@ const params = new URLSearchParams({
     applicantId:user.id,
     action:"approve",
     email,
+    newsletter
   });
   let parms = `/auth/review?`+params.toString()
   let path = process.env.BASEPATH+parms
