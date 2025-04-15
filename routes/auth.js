@@ -300,8 +300,13 @@ const mailOptions = recievedReferralTemplate(email,name)
         } = req.body
 
     try{
-    
-       let user = await prisma.user.create({data:{
+    let user =  await prisma.user.findFirst({where:{
+        email:{equals:email}
+      }})
+if(user){
+  res.status(403).json({error:new Error("Not Unique")})
+}else{
+        user = await prisma.user.create({data:{
             email:email,
             preferredName:fullName,
             igHandle:igHandle,
@@ -323,11 +328,11 @@ const mailOptions = recievedReferralTemplate(email,name)
 
          res.status(201).json({path:parms,user,message:'Applied Successfully!'});
       }
-      
+    }
             }catch(error){
       
                   console.log(error)
-                  res.status(403).json({error})
+                  res.status(403).json({error,message:error.message})
                 
             }
 
