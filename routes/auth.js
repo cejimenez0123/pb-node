@@ -442,13 +442,13 @@ let mailOptions = forgotPasswordTemplate(user)
  
    
       try {
-        const { action,email} = req.query;
+        const {applicantId,action,email} = req.query;
 
         if (action=="approve"&&email) {
             
          
           let user = await prisma.user.update({where:{
-            email:email.toLocaleLowerCase().trim(),},data:{
+            id:applicantId,},data:{
               subscription:"basic",
               verified:true
             }}) 
@@ -470,6 +470,7 @@ let mailOptions = forgotPasswordTemplate(user)
           }
     
   }catch (error) {
+    console.log(error)
           res.status(409).json(error)
   }
       });
