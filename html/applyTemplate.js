@@ -1,6 +1,6 @@
 
 
-module.exports = function applyTemplate(user,body,newsletter){
+module.exports = function applyTemplate(user,body,newsletter=false){
     const {
         email,
         igHandle,
