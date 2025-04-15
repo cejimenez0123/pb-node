@@ -454,14 +454,14 @@ let mailOptions = forgotPasswordTemplate(user)
             }}) 
       
            
-          // const token = jwt.sign({ applicantId }, process.env.JWT_SECRET);
+         
 
           const mailOptions = approvalTemplate(user)
           let response = await resend.emails.send(mailOptions)
           if(response.error){
             throw response.error
           }
-          res.status(200).json({ token,message: `User ${action}'d successfully` });
+          res.status(200).json({ message: `User ${action}'d successfully` });
             
       
           }else{
