@@ -3,7 +3,7 @@
 
 module.exports = function approvalFromNewsletterTemplate(user){
   const token = jwt.sign({ applicantId:user.id }, process.env.JWT_SECRET);
-  const signupLink = process.env.BASEPATH=+`/signup?token=${token}`;
+  const signupLink = process.env.DOMAIN=+`/signup?token=${token}`;
   return {
          from:`Plumbum <${process.env.pbEmail}>`,// Sender address
          to: email, // Recipient's email

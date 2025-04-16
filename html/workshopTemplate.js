@@ -1,10 +1,12 @@
-
-module.exports = function workshopTemplate({email}){
+const jwt = require("jsonwebtoken")
+module.exports = function workshopTemplate(user){
     // let params = new URLSearchParams({token:token})
+    const token = jwt.sign({ userId:user.id }, process.env.JWT_SECRET);
+    let params = new URLSearchParams({token:token})
         return {
              from: `Plumbum <${process.env.pbEmail}>`, // Sender address
-             to: email, // Recipient's email
-             subject: `Plumbum Workshop Tomorrow: Write Your Creative Future with Us`,
+             to: user.email, // Recipient's email
+             subject: `Plumbum Workshop This Saturday: Poets Being Human`,
              html:`<!DOCTYPE html>
              <html>
              <head>
@@ -75,17 +77,19 @@ module.exports = function workshopTemplate({email}){
              <body>
                  <div class="container">
                  <h1>✨ Writing Our Creative Futures ✨</h1>
-                 <p>Join us <strong>tomorrow</strong> for a transformative writers' workshop inspired by <strong>N.K. Jemisin</strong>. We’ll be exploring the question: <strong>"Why not?"</strong>—breaking past barriers to write the stories we truly want for ourselves.</p>
-                 <p>This is a space to push past self-doubt, embrace creative freedom, and envision a future through writing.</p>
+                 <p>Join us <strong>tomorrow</strong> for a transformative writers' workshop inspired by <strong>Amiri Baraka</strong>. We’ll be exploring the frustrations that create compelling characters. Peeling the onion that adds flavor..</p>
+                 <p>This is a space to find grace in truths that are uniquely human, embrace being kinder to yourself, and envision a future where there's space for people to be human.</p>
                  <span style="text-align: center;>
-                 <a href="https://partiful.com/e/jLzoS5nNZsdhoQV2uZva">
-                 <img src="cid:workshop" alt="Wrtiers Workshop" style="margin:auto; max-width: 18em; border-radius: 8px;"/></a>
-               <br/><a href="https://partiful.com/e/jLzoS5nNZsdhoQV2uZva">RSVP here</a>
+                 <a href="https://partiful.com/e/66swqidgRvXSDm7FH3sO">
+                
+                
+                 <img src="https://drive.usercontent.google.com/download?id=1YT0Xih8yjFZGnCP2-ZNRpe71Cg3LyDvo" alt="Writers Workshop" style="margin:auto; max-width: 18em; border-radius: 8px;"/></a>
+               <br/><a href="https://partiful.com/e/66swqidgRvXSDm7FH3sO">RSVP here</a>
                </span>
                      <h2>📢 Join Our New Slack Community!</h2>
                      <p>We now have a dedicated Slack space for writers to connect, get feedback, and stay inspired. You’ll find:</p>
                      <ul>
-                         <li>A shared <a href="https://plumbum.app/calendar">calendar<a/> of NYC writing events & creative meetups</li>
+                         <li>A shared <a href="https://plumbum.app/events">calendar<a/> of NYC writing events & creative meetups</li>
                          <li>Daily writing sprints & accountability check-ins</li>
                          <li>Opportunities to collaborate and suggest events</li>
                      </ul>
@@ -101,12 +105,14 @@ module.exports = function workshopTemplate({email}){
                      <p>Stay tuned—more ways to keep the creative energy flowing are on the way!</p>
              
                      <h2>🎶 Seeking DJs & Live Acts for Our Showcase!</h2>
-                     <p>We're planning a DJ showcase—because <strong>body moving is body healing</strong>. If you know DJs or live acts who can get people dancing, send them our way!</p>
+                     <p>We're planning a Mixer for this summer <strong>body moving is body healing</strong>. If you know DJs or live acts who can get people dancing, send them our way!</p>
                      <p>Have suggestions for collaborators, locations, or future events? We’d love to hear it through the <a href="https://plumbum.app/feedback">feedback page.</a></p>
              
                      <p>Let’s create, move, and heal—together.</p>
                      <p>See you at the workshop!</p>
-             
+                     <div style="text-align: center; margin: 20px 0;">
+                     <a href="${process.env.DOMAIN}/subscribe?${params.toString()}" style="background-color: #10b981; color: white; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-size: 16px; display: inline-block;">Update Email Preferences</a>
+                   </div>
                      <div class="footer">
                          <p>Plumbum Writers Workshop | <a href="https://plumbum.app">Visit Our Website</a></p>
                      </div>
@@ -114,11 +120,6 @@ module.exports = function workshopTemplate({email}){
              </body>
              </html>
              `,
-attachments: [
-   {
-     filename: "workshop.png", // Change to your file name
-     path:  __dirname+"/images/workshop.png", // Local file path
-     cid: "workshop", 
-   },]
+
 
     }}
