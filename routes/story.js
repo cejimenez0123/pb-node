@@ -2,7 +2,7 @@ const express = require('express');
 const prisma = require("../db");
 const router = express.Router()
 const updateWriterLevelMiddleware = require("../middleware/updateWriterLevelMiddleware")
-
+const fetchEvents = require("../newsletter/fetchEvents")
 const recommendStories = async (profileId) => {
     // Fetch user history
     const profile = await prisma.profile.findFirst({where:{
@@ -602,6 +602,16 @@ await Promise.all(promises)
         console.log({error})
         res.json({error})
     }
+    })
+    router.get("/events/:days",async(req,res)=>{
+        try{
+       let days = req.params.days
+
+      let events = await fetchEvents(days)
+      res.json({events})
+        }catch(err){
+            res.json({err})
+        }
     })
 
     return router
