@@ -495,59 +495,7 @@ let mailOptions = forgotPasswordTemplate(user)
           res.status(409).json({error:err})
         }
       })
-      // router.post("/newsletter-to-user",async(req,res)=>{
-      //   const { token, email, password ,username,profilePicture,selfStatement,isPrivate} = req.body;
-      
-      //   try {
-      
-      //     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      //     const {userId}=decoded
-      //     const hashedPassword = await bcrypt.hash(password, 10);
-      //     let user = await prisma.user.update({where:{id:userId},
-      //       data:{password:hashedPassword,
-   
-      //         profiles:{
-      //           create:{
-      //             isPrivate:isPrivate,
-      //             profilePic:profilePicture,
-      //             selfStatement:selfStatement,
 
-      //           }
-      //         }
-      //     },include:{
-      //       profiles:{
-      //         include:true
-      //       }
-      //     }}
-       
-    
-      
-          // if(!user){
-
-  
-    //     if(!newUser.password){
-    //       res.json({ message:"User already exists. Go to forgot password at login"});
-        
-    //     }else{
-    //     if(newUser&&newUser.profiles && newUser.profiles.length==0){
-    // const profile =  await createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId:newUser.id})
-    //       // Increment referral usage
-    //       await prisma.referral.update({
-    //         where: {id:referralId },
-    //         data: { usageCount: { increment: 1 } }
-    //       });
-        
-    //      const userToken = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET);
-    //       res.json({ firstTime:true,message: 'User created successfully',token:userToken,profile:profile});
-    //     }else{
-         
-    //       res.json({ message:"User already exists. Go to forgot password at login"});
-    //     }}}}
-    //     } catch (error) {
-    //       console.error(error);
-    //       res.status(400).json({ message: 'Error processing referral' });
-    //     }
-    //   })
       router.post('/use-referral', async (req, res) => {
         const { token, email, password ,username,profilePicture,selfStatement,isPrivate} = req.body;
       
