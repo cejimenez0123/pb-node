@@ -303,8 +303,9 @@ const mailOptions = recievedReferralTemplate(email,name)
     let user =  await prisma.user.findFirst({where:{
         email:{equals:email}
       }})
+      console.log(user)
 if(user){
-  res.status(403).json({error:new Error("Not Unique")})
+        throw new Error("Not Unique")
 }else{
         user = await prisma.user.create({data:{
             email:email,
@@ -313,7 +314,7 @@ if(user){
         }})
      
 
-          let mailOptions = applyTemplate(user,req.body)
+          let mailOptions = applyTemplate(user,req.body,false)
 
          let response  =  await resend.emails.send(mailOptions)
          if(response.error){
