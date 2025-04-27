@@ -10,7 +10,7 @@ module.exports = function approvalFromNewsletterTemplate(user){
          subject: 'Congratulations! Your Application Has Been Approved 🎉',
          html: `
            <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-             <h1 style="color: #5A5A5A;">Welcome to Plumbum, ${user.prefferedName}!</h1>
+             <h1 style="color: #5A5A5A;">Welcome to Plumbum, ${user.preferredName}!</h1>
              <p style="font-size: 16px; color: #5A5A5A;">
                We’re thrilled to let you know that your application has been approved. 
                You’re now part of a vibrant community of creators, thinkers, and writers.
