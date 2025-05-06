@@ -1199,10 +1199,9 @@ try{
 }
 })
 router.post("/:id/collection",authMiddleware,async (req,res)=>{
-    //ADD COLLECTION TO COLLECTION
-   
+
    try{
-    //
+
      const {id}=req.params
     const {list,profile}=req.body
    

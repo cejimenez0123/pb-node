@@ -241,7 +241,7 @@ model Comment {
   profileId String? @db.ObjectId
   profile Profile? @relation(fields: [profileId], references: [id])
   storyId String    @db.ObjectId
-  story      Story      @relation(fields: [storyId], references: [id])
+  story   Story      @relation(fields: [storyId], references: [id])
   parentId String?  @db.ObjectId
   parent Comment? @relation(name: "ChildToParent", fields: [parentId], references: [id],onDelete:NoAction,onUpdate:NoAction)
   hashtags HashtagComment[]

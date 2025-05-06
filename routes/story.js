@@ -314,12 +314,14 @@ module.exports = function ({authMiddleware}){
     
         res.json({list})
     })
-    router.get("/:id/comment/public",async (req,res)=>{
-
+    router.get("/:storyId/comment/public",async (req,res)=>{
+        let id = req.params.storyId
+        console.log(req.params)
         try{
-        let comments =await prisma.comment.findMany({where:{
+            
+        let comments = await prisma.comment.findMany({where:{
              storyId:{
-                 equals:req.params.id
+                 equals:id
              }
          },include:{profile:true}})
         
@@ -333,6 +335,7 @@ module.exports = function ({authMiddleware}){
      })
     router.get("/:id/comment/protected",authMiddleware,async (req,res)=>{
       try{
+        console.log(req.params.id)
         let comments =await prisma.comment.findMany({where:{
             storyId:{
                 equals:req.params.id
@@ -425,7 +428,7 @@ try{
                    }
                 },
                 author:true,
-                comments:true,
+                comments:{include:{profile:true,parent:true}},
                 hashtags:{
                     include:{
                         hashtag:true
@@ -438,40 +441,39 @@ try{
                   }
                 }
             }})
-        if(story){
-            res.status(200).json({story})
-
-        }else{
-            res.status(404).json({message:"Story not found"})
-        }
+    
+res.status(200).json({story})
 
     }catch(error){
+    
         res.status({error})
     }
     })
     router.get("/:id/public",async (req,res)=>{
        try{
-            let story = await prisma.story.findFirst({where: {
-                   AND:[{ 
-                    id:{equals:req.params.id}},{
-                    isPrivate:{
-                        equals:false
-                    }
-                   }]},include:{
-                    hashtags:{
-                        include:{
-                            hashtag:true
-                        }
-                    },
-                author:true,
-                comments:true,
-            }})
-           
-            if(story){    
+        let id = req.params.id
+        let story = await prisma.story.findFirst({where:{
+            id:{equals:id}
+        },include:{
+            author:true,
+            hashtags:true,
+            collections:{
+                include:{
+                    collection:true
+                }
+            },
+            comments:{
+                include:{
+                    profile:true
+                }
+            }
+        }})
+    
+            if(story && story.isPrivate==false||story.collections.find(col=>col.collection.isPrivate==false)){    
                 res.status(200).json({story})
     
             }else{
-                res.status(404).json({message:"Story not found"})
+                res.json({message:"Story not found"})
             }
             
         }catch(error){
