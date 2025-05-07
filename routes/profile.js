@@ -467,6 +467,7 @@ try{
                     }
                 },
                 likedStories:true,
+                historyStories:true,
                 collections:true,
                 stories:true,
                 location:true,

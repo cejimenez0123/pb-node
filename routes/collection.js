@@ -1199,7 +1199,7 @@ try{
 }
 })
 router.post("/:id/collection",authMiddleware,async (req,res)=>{
-
+let collection = null
    try{
 
      const {id}=req.params
@@ -1238,7 +1238,7 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
         })
     })
    
-           let collection =  await prisma.collection.update({
+           collection =  await prisma.collection.update({
             where:{id:id},data:{
                 type: "library",
                 updated: new Date(),
@@ -1286,7 +1286,7 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
             }
         }
     }})
-    res.json({collection})
+  
             }else{
                 let colId = list[0]
                 collection = await prisma.collection.findFirst({where:{
@@ -1314,14 +1314,14 @@ router.post("/:id/collection",authMiddleware,async (req,res)=>{
            }
        }
    }})
-   res.json({collection})
+
             }
    
-
+            res.json({collection})
 
 }catch(error){
-
-    res.json(409).json({error})
+console.log(error)
+    res.json({error})
 }}
 )
 router.post("/:id/story",authMiddleware,async (req,res)=>{
@@ -1432,40 +1432,40 @@ console.log(error)
 
 
 
-    router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
-        //DELETE STORY FROM COLLECTION
-        try{
-        const {stId}=req.params
-       let stc= await prisma.storyToCollection.findFirst({where:{
-            id:stId
-        },include:{
-            story:true
-        }})
-        await prisma.storyToCollection.delete({where:{
-            id:stId
-        }})
-       let collection = await prisma.collection.findMany({where:{
-            id:stc.collectionId
-        },include:{
-            storyIdList:{
-                include:{
-                    story:true
-                }
-            },
-            childCollections:{
-                include:{
-                    childCollection:true
-                }
+router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
+    //DELETE STORY FROM COLLECTION
+    try{
+    const {stId}=req.params
+   let stc= await prisma.storyToCollection.findFirst({where:{
+        id:stId
+    },include:{
+        story:true
+    }})
+    await prisma.storyToCollection.delete({where:{
+        id:stId
+    }})
+   let collection = await prisma.collection.findMany({where:{
+        id:stc.collectionId
+    },include:{
+        storyIdList:{
+            include:{
+                story:true
             }
-        }})
-    
-        res.json({collection,story:stc.story,message:"Deleted Successfully"})
-    }catch(error){
+        },
+        childCollections:{
+            include:{
+                childCollection:true
+            }
+        }
+    }})
 
-        res.json({error})
-    }
+    res.json({collection,story:stc.story,message:"Deleted Successfully"})
+}catch(error){
 
-    })
+    res.json({error})
+}
+
+})
     router.delete("/collection/",authMiddleware,async (req,res)=>{
 
     })

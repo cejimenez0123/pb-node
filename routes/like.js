@@ -17,7 +17,16 @@ module.exports = function (authMiddleware){
             connect:{
                 id:story.id
             }
+            
           }
+        }})
+        await prisma.story.update({where:{
+            id:story.id,
+            
+        },data:{
+            priority:{
+                increment:1
+            }
         }})
         let updatedProfile = await prisma.profile.findFirst({where:{id:{equals:profile.id}},include:{
             likedStories:true,
