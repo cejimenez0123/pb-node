@@ -303,16 +303,16 @@ const mailOptions = recievedReferralTemplate(email,name)
     let user =  await prisma.user.findFirst({where:{
         email:{equals:email}
       }})
-      console.log(user)
-if(user){
+    
+    if(!!user){
         throw new Error("Not Unique")
-}else{
+    }else{
         user = await prisma.user.create({data:{
             email:email,
             preferredName:fullName,
             igHandle:igHandle,
         }})
-     
+        console.log(user)
 
           let mailOptions = applyTemplate(user,req.body,false)
 
