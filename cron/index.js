@@ -27,10 +27,15 @@ const weeklyEmail=async()=>{
     const user = users[i]
     await sleep(1000)
   sendEventNewsletterEmail(user,events,days).then(res=>{
-
-console.log(i,"Successful email sent to"+user.email)
-
-}).catch(err=>{
+    if(!res.data.error){
+      console.log(i,"Success: "+user.email)
+    }else{
+      console.log(i,"Error "+user.email)
+    }
+    
+  }).catch(err=>{
 console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
   })}}
+
+
 module.exports = weeklyJob

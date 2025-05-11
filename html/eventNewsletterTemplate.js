@@ -104,7 +104,7 @@ const eventNewsletterTemplate=(events,user,days)=>{
       
           <h2>📅 Summer Schedule Preview</h2>
           <p>Want to see what’s ahead? Check out our Summer 2025 Schedule below!</p>
-          <img src="cid:summer_schedule" alt="Summer Schedule" width="100%" style="border-radius: 8px;" />
+          <img src="https://drive.usercontent.google.com/download?id=1u0nt20ZrSNsLMJ-PP_Ku0Q9X-uOMS42u&export=view&authuser=0" alt="Summer Schedule" width="100%" style="border-radius: 8px;" />
       
           <h2>🎵 Call for DJs and Musical Acts</h2>
           <p>We’re planning a dance and music showcase! The theme? <em>Body Moving is Body Healing</em>. We’re seeking DJs, vocalists, and live performers who bring the vibes. Know someone? Hit us up at <a href="mailto:plumbumapp@gmail.com">plumbumapp@gmail.com</a>.</p>
@@ -126,16 +126,7 @@ const eventNewsletterTemplate=(events,user,days)=>{
       </body>
       </html>
       `,
-attachments: [
-   {
-     filename: "1.png", // Change to your file name
-     path:  __dirname+"/images/1.png", // Local file path
-     cid: "event_flyer", 
-   }, {
-    filename: "2.png", // Change to your file name
-    path:  __dirname+"/images/2.png", // Local file path
-    cid: "summer_schedule", 
-  },]
+
 }}
 module.exports = eventNewsletterTemplate
     // Render events

@@ -5,7 +5,7 @@ module.exports = async function  sendEventNewsletterEmail(user,events,days=7){
   try {
     const template = eventNewsletterTemplate(events,user,days);
     const response = await resend.emails.send(template);
-    console.log(response)
+ 
     return response;
   } catch (err) {
     console.error("Resend error:", err);
