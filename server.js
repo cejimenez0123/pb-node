@@ -69,8 +69,6 @@ function authMiddleware(req, res, next) {
   })(req, res, next);
 }
 setUpPassportLocal(passport);
-// app.use(passport.initialize());
-// const authMiddleware = passport.authenticate('bearer', { session: false });
 app.use("/history",historyRoutes(authMiddleware))
 app.use("/like",likeRoutes(authMiddleware))
 app.use("/hashtag",hashtagRoutes(authMiddleware))

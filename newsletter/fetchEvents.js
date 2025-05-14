@@ -20,7 +20,7 @@ async function fetchPublicEvents(calendarId,days=7) {
       if (events.length) {
         return events;
       } else {
-        console.log("No upcoming events found.");
+        
         return [];
       }
     } catch (error) {
