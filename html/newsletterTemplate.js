@@ -95,7 +95,7 @@ module.exports = function newsletterTemplate({email,sTcs,comments,collections,fo
                         </div>`).join("")
                 }
                 <p><a href="[Followers URL]" class="btn">See Your Followers</a></p>
-            </div>
+       
             
             <!-- Collection Updates Section -->
             <div class="section">
@@ -115,6 +115,7 @@ module.exports = function newsletterTemplate({email,sTcs,comments,collections,fo
                 <p>Want to customize your email preferences? <a href="[Manage Settings URL]">Manage Your Settings</a></p>
                 <p><a href="[Unsubscribe URL]">Unsubscribe</a></p>
             </div>
+        </div>
         </div>
     </body>
     </html>`

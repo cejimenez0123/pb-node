@@ -43,6 +43,7 @@ const lastEmailed = user.lastEmailed
             }
         }
     }})
+
     let rTc =  await prisma.roleToCollection.findMany({where:{
         profileId:{
             equals:profile.id
