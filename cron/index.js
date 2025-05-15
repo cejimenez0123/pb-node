@@ -4,26 +4,26 @@ const fetchEvents = require('../newsletter/fetchEvents');
 const prisma = require("../db")
 const sleep = require("../utils/sleep")
 const fetchAlerts = require("../newsletter/fetchAlerts")
-// const dailyJob = cron.schedule('0 9 * * *', async () => {
-//    const users = await prisma.user.findMany({include:{
-//       profiles:true
-//     }})
+const dailyJob = cron.schedule('0 9 * * *', async () => {
+   const users = await prisma.user.findMany({where:{email:{equals:process.env.myEmail}},include:{
+      profiles:true
+    }})
   
-//     for(let i=0;i<users.length;i++){
-//       let user = users[i]
-//       let profile = user.profiles[0]
+    for(let i=0;i<users.length;i++){
+      let user = users[i]
+      let profile = user.profiles[0]
 
-//       if(profile){
-//       if (shouldSendEmail(user.lastEmailed, user.emailFrequency)) {
+      if(profile){
+      if (shouldSendEmail(user.lastEmailed, user.emailFrequency)) {
         
-//         console.log("Sending email!");
-//     } else {
-//         console.log("Not enough time has passed since the last email.");
-//     }
-//   }
-//     }
+        console.log("Sending email!");
+    } else {
+        console.log("Not enough time has passed since the last email.");
+    }
+  }
+    }
     
-// })
+})
 
 const weeklyJob = cron.schedule('0 9 * * 0', async () => {
   try{
@@ -68,4 +68,4 @@ console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
   }
   
 
-module.exports = weeklyJob
+module.exports = {weeklyJob,dailyJob}
