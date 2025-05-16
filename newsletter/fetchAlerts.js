@@ -2,7 +2,7 @@
 const { profile } = require("console")
 const prisma = require("../db")
 const fetchEvents = require("./fetchEvents")
-async function fetchAlerts(profile){
+async function fetchAlerts(profile,days=1){
     let user = await prisma.user.findFirst({where:{
         profiles:{
             some:{
@@ -10,7 +10,7 @@ async function fetchAlerts(profile){
             }
         }
 }})
-    let events =await fetchEvents(1)
+    let events =await fetchEvents(days)
 
 ;
 const lastEmailed = user.lastEmailed

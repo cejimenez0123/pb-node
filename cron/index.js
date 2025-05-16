@@ -3,6 +3,7 @@ const sendEventNewsletterEmail = require('../newsletter/sendEventNewsletterEmail
 const fetchEvents = require('../newsletter/fetchEvents');
 const prisma = require("../db")
 const sleep = require("../utils/sleep")
+const sendEmail = require("../newsletter/sendEmail")
 const fetchAlerts = require("../newsletter/fetchAlerts")
 const dailyJob = cron.schedule('0 9 * * *', async () => {
    const users = await prisma.user.findMany({where:{email:{equals:process.env.myEmail}},include:{
@@ -15,8 +16,18 @@ const dailyJob = cron.schedule('0 9 * * *', async () => {
 
       if(profile){
       if (shouldSendEmail(user.lastEmailed, user.emailFrequency)) {
+        let profile = await prisma.profile.findFirst({where:{user:{email:{equals:emails[0]}}}})
+        let notify = await fetchAlerts(profile)
+        let email = notificationTemplate({email:user.email},notify)
+        await sleep(1000)
+      //   sendEmail(email).then(async res=>{
+      // prisma.user.update({where:{id:user.id},data:{
+      //       lastEmailed: new Date()
+      //     }}).then(res=>{})}).catch(res=>{
+      //       console.log(user.email,"NOT EMAILED")
+      //     })
+       
         
-        console.log("Sending email!");
     } else {
         console.log("Not enough time has passed since the last email.");
     }

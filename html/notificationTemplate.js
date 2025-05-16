@@ -122,7 +122,7 @@ module.exports = function notificationTemplate(user, { profile, comments = [], r
           </td></tr>
         </table>`).join('')}` : ""}
 
-      <p><a href="https://plumbum.app" style="display: inline-block; padding: 12px 20px; background-color: #3D6B47; color: #ffffff; border-radius: 5px; text-decoration: none; font-weight: bold;">Go to your dashboard</a></p>
+      <p><a href="https://plumbum.app/profile/home" style="display: inline-block; padding: 12px 20px; background-color: #3D6B47; color: #ffffff; border-radius: 5px; text-decoration: none; font-weight: bold;">Go to your dashboard</a></p>
 
       <div style="margin-top: 40px; font-size: 12px; color: #3D6B47; text-align: center;">
         <p>You’re receiving this email because you signed up for updates from Plumbum.</p>
