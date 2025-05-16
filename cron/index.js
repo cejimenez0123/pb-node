@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const sendEventNewsletterEmail = require('../newsletter/sendEventNewsletterEmail');
 const fetchEvents = require('../newsletter/fetchEvents');
+const notificationTemplate = require("../html/notificationTemplate")
 const prisma = require("../db")
 const sleep = require("../utils/sleep")
 const sendEmail = require("../newsletter/sendEmail")
@@ -22,7 +23,7 @@ const dailyJob = cron.schedule('0 9 * * *', async () => {
         let template = notificationTemplate({email:user.email},notify)
         await sleep(1000)
   if(comments.length>0||roles.length>0||following.length>0||followers.length>0||collections.length>0||events.length>0){
-        sendEmail(email).then(async res=>{
+        sendEmail(template).then(async res=>{
    prisma.user.update({where:{id:user.id},data:{
             lastEmailed: new Date()
           }}).then(res=>{
@@ -30,11 +31,11 @@ const dailyJob = cron.schedule('0 9 * * *', async () => {
           })
         
         }).catch(res=>{
-            console.log(user.email,"NOT EMAILED")
+            console.log(user.username,"NOT EMAILED")
           })
        
   }else{
-    console.log(user.email,"NOT EMAILED:NOTHING TO SHOW")
+    console.log(user.username,"NOT EMAILED:NOTHING TO SHOW")
   }
     } else {
         console.log("Not enough time has passed since the last email.");

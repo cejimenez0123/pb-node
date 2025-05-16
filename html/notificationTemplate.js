@@ -100,17 +100,22 @@ module.exports = function notificationTemplate(user, { profile, comments = [], r
         }).join('')}`;
       }).join(''):""}
 
-      ${comments.length > 0 ? `
+      ${comments.length > 0 ?`
         <h2 style="font-family: 'Montserrat', sans-serif; color: #3D6B47;">New Comments</h2>
-        ${comments.slice(0, 2).map(comment => `
+        ${comments.slice(0, 2).map(comment =>{ 
+      
+          if(!comment.parentId){
+          return`
         <table width="100%" style="background: #F0F7F0; margin-bottom: 20px; border-radius: 8px; padding: 16px;">
           <tr><td>
             <p><strong>${comment.profile?.username || "Someone"}</strong> commented on your story
-              <a href="https://plumbum.app/page/${comment.story?.id || ""}" style="color: #3D6B47; font-weight: 600; text-decoration: underline;">${comment.story?.title || "Untitled"}</a>:</p>
+              <a href="https://plumbum.app/story/${comment.storyId}" style="color: #3D6B47; font-weight: 600; text-decoration: underline;">${comment.story?.title || "Untitled"}</a>:</p>
             <p>"${comment.content || ""}"</p>
             <p style="font-size: 12px; color: #777;">${new Date(comment.created).toLocaleString()}</p>
           </td></tr>
-        </table>`).join('')}` : ""}
+        </table>`}else{
+          return ""
+        }}).join('')}` : ""}
 
       ${followers.length > 0 ? `
         <h2 style="font-family: 'Montserrat', sans-serif; color: #3D6B47;">New Followers</h2>
