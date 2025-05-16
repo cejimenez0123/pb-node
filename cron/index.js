@@ -6,7 +6,8 @@ const prisma = require("../db")
 const sleep = require("../utils/sleep")
 const sendEmail = require("../newsletter/sendEmail")
 const fetchAlerts = require("../newsletter/fetchAlerts")
-const dailyJob = cron.schedule('0 9 * * *', async () => {
+// 0 9 * * *
+const dailyJob = cron.schedule('30 9 * * *', async () => {
    const users = await prisma.user.findMany({where:{email:{equals:process.env.myEmail}},include:{
       profiles:true
     }})
