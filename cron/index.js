@@ -7,16 +7,18 @@ const sleep = require("../utils/sleep")
 const sendEmail = require("../newsletter/sendEmail")
 const fetchAlerts = require("../newsletter/fetchAlerts")
 // 0 9 * * *
-const dailyJob = cron.schedule('20 10 * * *', async () => {
+const dailyJob = cron.schedule('40 11 * * *', async () => {
    const users = await prisma.user.findMany({where:{email:{equals:process.env.myEmail}},include:{
       profiles:true
     }})
   
     for(let i=0;i<users.length;i++){
       let user = users[i]
+      console.log(i)
       let profile = user.profiles[0]
 
       if(profile){
+        console.log(profile.username)
       if (shouldSendEmail(user.lastEmailed, user.emailFrequency)) {
         let profile = await prisma.profile.findFirst({where:{user:{email:{equals:emails[0]}}}})
         let notify = await fetchAlerts(profile)
