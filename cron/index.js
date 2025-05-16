@@ -25,7 +25,7 @@ const dailyJob = cron.schedule('0 10 * * *', async () => {
         await sleep(1000)
   if(comments.length>0||roles.length>0||following.length>0||followers.length>0||collections.length>0||events.length>0){
         sendEmail(template).then(async res=>{
-          console.log(profile.username)
+          console.log(i,profile.username)
    prisma.user.update({where:{id:user.id},data:{
             lastEmailed: new Date()
           }}).then(res=>{
