@@ -14,16 +14,20 @@ async function fetchAlerts(profile,days=1){
 
 ;
 const lastEmailed = user.lastEmailed
-    prisma.collection.findMany({orderBy:{
+    let collections =await prisma.collection.findMany({take:5,orderBy:{
         created:"desc"
     },where:{
-        followersAre:{
-            
+        roles:{
+            some:{
+                profileId:profile.id
+            }
         }
+       
     }})
     const productsCount = await prisma.collection.count();
     const skip = Math.floor(Math.random() * productsCount);
-    const collections = await prisma.collection.findMany({take:5,
+    if(collections.length==0){}
+   collections = await prisma.collection.findMany({take:5,
         orderBy:{
             created:"desc"
         },where:{

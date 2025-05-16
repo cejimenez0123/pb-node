@@ -15,7 +15,7 @@ const dailyJob = cron.schedule('0 9 * * *', async () => {
   }
 })
 const dailyTask=async ()=>{
-  const users = await prisma.user.findMany({include:{
+  const users = await prisma.user.findMany({where:{email:{equals:process.env.myEmail}},include:{
     profiles:true
   }})
 
@@ -92,5 +92,5 @@ console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
     return elapsedTimeDays >= frequencyDays;
   }
   
-
+dailyTask()
 module.exports = {weeklyJob,dailyJob}
