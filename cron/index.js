@@ -15,7 +15,7 @@ const dailyJob = cron.schedule('0 9 * * *', async () => {
   }
 })
 const dailyTask=async ()=>{
-  const users = await prisma.user.findMany({where:{email:{equals:process.env.myEmail}},include:{
+  const users = await prisma.user.findMany({include:{
     profiles:true
   }})
 
