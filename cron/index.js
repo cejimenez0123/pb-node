@@ -6,49 +6,50 @@ const prisma = require("../db")
 const sleep = require("../utils/sleep")
 const sendEmail = require("../newsletter/sendEmail")
 const fetchAlerts = require("../newsletter/fetchAlerts")
-// 0 9 * * *
-const dailyJob = cron.schedule('48 12 * * *', async () => {
-   const users = await prisma.user.findMany({where:{email:{equals:process.env.myEmail}},include:{
-      profiles:true
-    }})
-  
-    for(let i=0;i<users.length;i++){
-      const user = users[i]
-      console.log(i)
-      const profile = user.profiles[0]
 
-      if(profile){
-        console.log(profile.username)
-      if (shouldSendEmail(user.lastEmailed, user.emailFrequency)) {
-        let profile = await prisma.profile.findFirst({where:{user:{email:{equals:emails[0]}}}})
-        let notify = await fetchAlerts(profile)
-       const {comments,roles,following,followers,collections,events} = notify
-        let template = notificationTemplate({email:user.email},notify)
-        await sleep(1000)
-  if(comments.length>0||roles.length>0||following.length>0||followers.length>0||collections.length>0||events.length>0){
-        sendEmail(template).then(async res=>{
-          console.log(i,profile.username)
-   prisma.user.update({where:{id:user.id},data:{
-            lastEmailed: new Date()
-          }}).then(res=>{
-
-          })
-        
-        }).catch(res=>{
-            console.log(user.username,"NOT EMAILED")
-          })
-       
-  }else{
-    console.log(user.username,"NOT EMAILED:NOTHING TO SHOW")
+const dailyJob = cron.schedule('0 9 * * *', async () => {
+  try{
+ await dailyTask()
+  }catch(err){
+    console.log(err)
   }
-    } else {
-        console.log("Not enough time has passed since the last email.");
-    }
-  }
-    }
-    
 })
+const dailyTask=async ()=>{
+  const users = await prisma.user.findMany({include:{
+    profiles:true
+  }})
 
+  for(let i=0;i<users.length;i++){
+    const user = users[i]
+    console.log(i)
+    const profile = user.profiles[0]
+
+    if(profile){
+     
+    if (shouldSendEmail(user.lastEmailed, user.emailFrequency)) {
+      let profile = await prisma.profile.findFirst({where:{user:{email:{equals:user.email}}}})
+      let notify = await fetchAlerts(profile)
+     const {comments,roles,following,followers,collections,events} = notify
+      let template = notificationTemplate({email:user.email},notify)
+      await sleep(1000)
+if(comments.length>0||roles.length>0||following.length>0||followers.length>0||collections.length>0||events.length>0){
+      await sendEmail(template)
+        console.log(i,profile.username)
+ await prisma.user.update({where:{id:user.id},data:{
+          lastEmailed: new Date()
+        }})
+      
+     
+     
+}else{
+  console.log(user.username,"NOT EMAILED:NOTHING TO SHOW")
+}
+  } else {
+      console.log("Not enough time has passed since the last email.");
+  }
+}
+  }
+}
 const weeklyJob = cron.schedule('0 9 * * 0', async () => {
   try{
   weeklyEmail()
@@ -91,5 +92,5 @@ console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
     return elapsedTimeDays >= frequencyDays;
   }
   
-
+dailyTask().then(res=>{})
 module.exports = {weeklyJob,dailyJob}
