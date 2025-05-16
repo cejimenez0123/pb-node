@@ -75,7 +75,7 @@ module.exports = function notificationTemplate(user, { profile, comments = [], r
     ` : ""}
     
 
-      ${filteredEvents.map(({ area, events: areaEvents }) => {
+      ${filteredEvents.length>0?filteredEvents.map(({ area, events: areaEvents }) => {
         if (!areaEvents.length) return '';
         return `
         <h2 style="font-family: 'Montserrat', sans-serif; color: #3D6B47;">${area} Events</h2>
@@ -98,7 +98,7 @@ module.exports = function notificationTemplate(user, { profile, comments = [], r
             </td></tr>
           </table>`;
         }).join('')}`;
-      }).join('')}
+      }).join(''):""}
 
       ${comments.length > 0 ? `
         <h2 style="font-family: 'Montserrat', sans-serif; color: #3D6B47;">New Comments</h2>

@@ -313,7 +313,7 @@ const mailOptions = recievedReferralTemplate(email,name)
             preferredName:fullName,
             igHandle:igHandle,
         }})
-        console.log(user)
+     
 
           let mailOptions = applyTemplate(user,req.body,false)
 

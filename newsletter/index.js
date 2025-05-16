@@ -34,7 +34,7 @@ async function sendEmails(){
    let email = notificationTemplate(user,notify)
    return sendEmail(email)
 }
-
+sendEmails().then()
 
 module.exports =sendEmails
 

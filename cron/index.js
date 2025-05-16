@@ -18,17 +18,24 @@ const dailyJob = cron.schedule('0 9 * * *', async () => {
       if (shouldSendEmail(user.lastEmailed, user.emailFrequency)) {
         let profile = await prisma.profile.findFirst({where:{user:{email:{equals:emails[0]}}}})
         let notify = await fetchAlerts(profile)
+       const {comments,roles,following,followers,collections,events} = notify
         let template = notificationTemplate({email:user.email},notify)
         await sleep(1000)
-       
+  if(comments.length>0||roles.length>0||following.length>0||followers.length>0||collections.length>0||events.length>0){
         sendEmail(email).then(async res=>{
-      prisma.user.update({where:{id:user.id},data:{
+   prisma.user.update({where:{id:user.id},data:{
             lastEmailed: new Date()
-          }}).then(res=>{})}).catch(res=>{
+          }}).then(res=>{
+
+          })
+        
+        }).catch(res=>{
             console.log(user.email,"NOT EMAILED")
           })
        
-        
+  }else{
+    console.log(user.email,"NOT EMAILED:NOTHING TO SHOW")
+  }
     } else {
         console.log("Not enough time has passed since the last email.");
     }
