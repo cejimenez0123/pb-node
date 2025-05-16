@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken")
 module.exports = function workshopTemplate(user){
-    // let params = new URLSearchParams({token:token})
+
     const token = jwt.sign({ userId:user.id }, process.env.JWT_SECRET);
     let params = new URLSearchParams({token:token})
         return {

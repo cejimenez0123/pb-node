@@ -1,9 +1,7 @@
 
 const prisma = require('../db');
 const notificationTemplate = require('../html/notificationTemplate');
-const slackEventTemplate = require('../html/slackEventTemplate');
-const workshopTemplate = require('../html/workshopTemplate');
-const sleep = require('../utils/sleep');
+
 const fetchAlerts = require('./fetchAlerts');
 
 const sendEmail = require("./sendEmail")
@@ -31,11 +29,12 @@ const emails = [process.env.myEmail]
 async function sendEmails(){
    let profile = await prisma.profile.findFirst({where:{user:{email:{equals:emails[0]}}}})
    let notify = await fetchAlerts(profile)
+   let user = await prisma.user.findFirst({where:{email:{equals:emails[0]}}})
 
-
-   let email = notificationTemplate({email:emails[0]},notify)
-   sendEmail(email)
+   let email = notificationTemplate(user,notify)
+   return sendEmail(email)
 }
+
 
 module.exports =sendEmails
 

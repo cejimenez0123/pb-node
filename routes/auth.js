@@ -186,9 +186,10 @@ module.exports = function (authMiddleware){
       try{
      
       const {frequency,token}=req.body
+      console.log("token",token)
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const {userId}=decoded
-   
+        console.log("Decode",decoded)
       if(frequency==0){
         const user = await prisma.user.update({where:{
           id:userId},data:{
