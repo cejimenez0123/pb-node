@@ -7,7 +7,7 @@ const sleep = require("../utils/sleep")
 const sendEmail = require("../newsletter/sendEmail")
 const fetchAlerts = require("../newsletter/fetchAlerts")
 // 0 9 * * *
-const dailyJob = cron.schedule('30 9 * * *', async () => {
+const dailyJob = cron.schedule('0 10 * * *', async () => {
    const users = await prisma.user.findMany({where:{email:{equals:process.env.myEmail}},include:{
       profiles:true
     }})
@@ -25,6 +25,7 @@ const dailyJob = cron.schedule('30 9 * * *', async () => {
         await sleep(1000)
   if(comments.length>0||roles.length>0||following.length>0||followers.length>0||collections.length>0||events.length>0){
         sendEmail(template).then(async res=>{
+          console.log(profile.username)
    prisma.user.update({where:{id:user.id},data:{
             lastEmailed: new Date()
           }}).then(res=>{
