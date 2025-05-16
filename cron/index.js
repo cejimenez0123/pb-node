@@ -92,5 +92,5 @@ console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
     return elapsedTimeDays >= frequencyDays;
   }
   
-dailyTask().then(res=>{})
+
 module.exports = {weeklyJob,dailyJob}

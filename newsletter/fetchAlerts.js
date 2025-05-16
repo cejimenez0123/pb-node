@@ -14,12 +14,19 @@ async function fetchAlerts(profile,days=1){
 
 ;
 const lastEmailed = user.lastEmailed
-    prisma.collection.findMany({where:{
+    prisma.collection.findMany({orderBy:{
+        created:"desc"
+    },where:{
         followersAre:{
             
         }
     }})
-    const collections = await prisma.collection.findMany({where:{
+    const productsCount = await prisma.collection.count();
+    const skip = Math.floor(Math.random() * productsCount);
+    const collections = await prisma.collection.findMany({take:5,
+        orderBy:{
+            created:"desc"
+        },where:{
        AND:[
         {isPrivate:{
             equals:false
@@ -27,9 +34,6 @@ const lastEmailed = user.lastEmailed
         {profileId:{
             not:profile.id
         }},
-        // {created:{
-        //     gt:lastEmailed
-        // }}
        ]
     
     },include:{
@@ -44,7 +48,9 @@ const lastEmailed = user.lastEmailed
         }
     }})
 
-    let rTc =  await prisma.roleToCollection.findMany({where:{
+    let rTc =  await prisma.roleToCollection.findMany({orderBy:{
+        created:"desc"
+    },where:{
         profileId:{
             equals:profile.id
         }
@@ -81,7 +87,9 @@ const lastEmailed = user.lastEmailed
             }
         }
     }})
-    const following = await prisma.follow.findMany({where:{
+    const following = await prisma.follow.findMany({orderBy:{
+        created:"desc"
+    },where:{
         followerId:{
             equals:profile.id
         }
@@ -125,7 +133,9 @@ const lastEmailed = user.lastEmailed
             }
         }
 }}})
-   let followers = await prisma.follow.findMany({where:{
+   let followers = await prisma.follow.findMany({orderBy:{
+    created:"desc"
+},where:{
         followingId:{
             equals:profile.id
         },
@@ -135,7 +145,9 @@ const lastEmailed = user.lastEmailed
     },include:{
         follower:true
     }})
-    let comments = await prisma.comment.findMany({where:{
+    let comments = await prisma.comment.findMany({orderBy:{
+        created:"desc"
+    },where:{
         AND:[{story:{
             authorId:{
                 equals:profile.id
