@@ -35,7 +35,7 @@ async function sendEmails(){
    return sendEmail(email)
 }
 
-
+sendEmails().then(res=>{})
 module.exports =sendEmails
 
 

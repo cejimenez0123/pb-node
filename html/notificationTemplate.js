@@ -20,7 +20,7 @@ function limitWords(text, maxWords = 250) {
 module.exports = function notificationTemplate(user, { profile, comments = [], roles = [], following = [], followers = [], collections = [], events = [] }) {
   const hasUpdates = comments.length || roles.length || following.length || followers.length || collections.length || events.length;
   if (!hasUpdates) return null;
-  console.log("user",user)
+
   const token = jwt.sign({ userId:user.id }, process.env.JWT_SECRET);
   const params = new URLSearchParams({ token });
 
