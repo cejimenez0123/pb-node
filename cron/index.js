@@ -9,7 +9,7 @@ const fetchAlerts = require("../newsletter/fetchAlerts")
 
 const dailyJob = cron.schedule('0 9 * * *', async () => {
   try{
- await dailyTask()
+//  await dailyTask()
   }catch(err){
     console.log(err)
   }
@@ -92,5 +92,5 @@ console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
     return elapsedTimeDays >= frequencyDays;
   }
   
-dailyTask()
+
 module.exports = {weeklyJob,dailyJob}
