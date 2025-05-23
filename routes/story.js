@@ -278,7 +278,18 @@ module.exports = function ({authMiddleware}){
                     id:{equals:profile.id}
                 }},{needsFeedback:{equals:true}}]
             },include:{
-                author:true
+                author:true,
+                collections:{
+                    include:{
+                        collection:{
+                            select:{
+                                id:true,
+                                isPrivate:true,
+                                title:true
+                            }
+                        }
+                    }
+                }
             }})
             res.status(200).json({stories})
  
@@ -422,9 +433,25 @@ try{
         let story = await prisma.story.findFirst({where: {
             id:req.params.id},include:{
                 collections:{
-                   select:{
-                    id:true,
-                    collectionId:true
+                   include:{
+                    collection:{
+                        select:{
+                            id:true,
+                            title:true,
+                            type:true,
+                            isPrivate:true,
+                            roles:{
+                                include:{
+                                    
+                                    profile:{
+                                        select:{
+                                            id:true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                    }
                 },
                 author:true,
@@ -434,6 +461,7 @@ try{
                         hashtag:true
                     }
                 },
+                
                 betaReaders:{
                   include:{
                     profile:true,
@@ -445,7 +473,7 @@ try{
 res.status(200).json({story})
 
     }catch(error){
-    
+        console.log(error)
         res.status({error})
     }
     })
@@ -459,7 +487,14 @@ res.status(200).json({story})
             hashtags:true,
             collections:{
                 include:{
-                    collection:true
+                    collection:{
+                        select:{
+                            id:true,
+                            isPrivate:true,
+                            title:true,
+                          
+                        }
+                    }
                 }
             },
             comments:{

@@ -383,6 +383,7 @@ module.exports = function (authMiddleware) {
           equals:true
         }
       }})
+      
       if(story){
         const stor = await prisma.story.update({where:{id:story.id
         },data:{
@@ -430,12 +431,16 @@ module.exports = function (authMiddleware) {
   
         const collections = await prisma.collection.findMany({
             where: {
-              type:{
+              AND:[{type:{
                 equals:"feedback",
-              },
-              location:{
+              }},
+              {location:{
                 isNot:null
-              },
+              }},{
+                profileId:{
+                  notIn:[profile.id,process.env.PLUMBUM_PROFILE_ID]
+                }
+              }]
               
             },
             include: {
@@ -655,24 +660,37 @@ module.exports = function (authMiddleware) {
                 equals:profile.id
               }
             }})
-          
-  
-          // const profiles = await prisma.profile.findMany({where:{
-          //   isActive:{
-          //     equals:true
-          //   }},include:{
-          //       stories:{
-          //         where:{
-          //           needsFeedback:true
-          //         }
-          //       }
-          //   }})
+    
       
             const collections = await prisma.collection.findMany({
                 where: {
-                  type:{
-                    equals:"feedback",
+                  AND:[{
+                    type:{
+                      equals:"feedback",
+                    }
+                  },{
+                    profile:{
+                      id: {
+                        notIn:[profile.id,process.env.PLUMBUM_PROFILE_ID]
+                      }
+                    }
                   },
+                 {storyIdList:{
+                  some:{
+                    story:{
+                      authorId:{
+                        notIn:[profile.id,process.env.PLUMBUM_PROFILE_ID]
+                      }
+                    }
+                  }
+                 }},{roles:{
+                        some:{
+                          profileId:{
+                            notIn:[profile.id,process.env.PLUMBUM_PROFILE_ID]
+                          }
+                        }
+                      }}]
+                  ,
                   OR:[{location:{
                     is:null
                   }},{isOpenCollaboration:{equals:true}}]
