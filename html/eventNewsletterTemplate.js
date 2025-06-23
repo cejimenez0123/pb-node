@@ -1,10 +1,46 @@
 
 const jwt = require('jsonwebtoken');
 
+
 const eventNewsletterTemplate=(events,user,days)=>{
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
     let params = new URLSearchParams({token:token})
-    let str = "Weekly"
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+
+    
+      today.setHours(0, 0, 0, 0);
+      
+      const allEvents = [
+        { date: parseEventDate("Mon. June 9th", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home" },
+        { date: parseEventDate("Sat. June 21st", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
+        { date: parseEventDate("Mon. July 14", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home" },
+        { date: parseEventDate("Sat. July 19th", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
+        { date: parseEventDate("Sat. August 9th", today.getFullYear()), description: "Open Mic @ Boogie Down Grind" }, // Exclude this in workshop filter?
+        { date: parseEventDate("Mon. August 11th", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home" },
+        { date: parseEventDate("Sat. August 23rd", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
+        { date: parseEventDate("Thurs. August 28th", today.getFullYear()), description: "Mixer @ ndrew Freedman Home" } // Exclude this in workshop filter?
+      ];
+      
+      // 1. Filter out events before today (optional, if you only want upcoming)
+      const upcomingEvents = allEvents.filter(event => event.date >= today);
+      // 2. Sort by date (earliest first)
+      upcomingEvents.sort((a, b) => a.date - b.date);
+      // 3. Take the next two events
+      const nextTwoEvents = upcomingEvents.slice(0, 2);
+      
+    function formatDate(date) {
+      // Format as "Month Day" (e.g., "June 9")
+      return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+    }
+    
+    const htmlList = `
+      <ul>
+        ${nextTwoEvents.map(event => `<li><strong>${formatDate(event.date)}</strong>: ${event.description}</li>`).join('')}
+      </ul>
+    `;
+    
     return{
       from: `Plumbum <${process.env.pbEmail}>`,
       to:user.email,
@@ -84,10 +120,12 @@ const eventNewsletterTemplate=(events,user,days)=>{
       
           <h2>📝 Upcoming Writer Workshops</h2>
           <p>Join us for generative writing sessions, constructive feedback, and fresh inspiration:</p>
-          <ul>
-            <li><strong>May 31</strong>: Workshop & community check-in</li>
-            <li><strong>June 9</strong>: Hybrid generative session + feedback</li>
-          </ul>
+         ${ // <ul>
+          //   <li><strong>May 31</strong>: Workshop & community check-in</li>
+          //   <li><strong>June 9</strong>: Hybrid generative session + feedback</li>
+          // </ul>
+          htmlList
+        }
           <p>RSVP and full details will be posted in Slack and on the calendar!</p>
       
           <h2>🌿 This Week’s Creative Events</h2>
@@ -104,7 +142,7 @@ const eventNewsletterTemplate=(events,user,days)=>{
       
           <h2>📅 Summer Schedule Preview</h2>
           <p>Want to see what’s ahead? Check out our Summer 2025 Schedule below!</p>
-          <img src="https://drive.usercontent.google.com/download?id=1u0nt20ZrSNsLMJ-PP_Ku0Q9X-uOMS42u&export=view&authuser=0" alt="Summer Schedule" width="100%" style="border-radius: 8px;" />
+          <img src="https://drive.usercontent.google.com/download?id=1P6hpXQQYqW1ceSr6_2bYWLMz827De_wL&export=view&authuser=0" alt="Summer Schedule" width="100%" style="border-radius: 8px;" />
       
           <h2>🎵 Call for DJs and Musical Acts</h2>
           <p>We’re planning a dance and music showcase! The theme? <em>Body Moving is Body Healing</em>. We’re seeking DJs, vocalists, and live performers who bring the vibes. Know someone? Hit us up at <a href="mailto:plumbumapp@gmail.com">plumbumapp@gmail.com</a>.</p>
@@ -130,6 +168,18 @@ const eventNewsletterTemplate=(events,user,days)=>{
 }}
 module.exports = eventNewsletterTemplate
     // Render events
+function parseEventDate(dateString, year) {
+      // Remove day of week abbreviations (e.g., "Mon. ", "Tue. ")
+      let cleanedDateString = dateString.replace(/(Mon\.|Tue\.|Wed\.|Thu\.|Fri\.|Sat\.|Sun\.|Thurs\.)/g, '');
+      // Remove ordinal suffixes (e.g., "9th" -> "9")
+      cleanedDateString = cleanedDateString.replace(/(\d+)(st|nd|rd|th)/g, '$1').trim();
+      // Append the year for accurate parsing
+      const date = new Date(`${cleanedDateString}, ${year}`);
+      // Set time to 00:00:00.000 to compare dates based on day
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+    
 function formatDate(isoString) {
         try {
           const date = new Date(isoString);
@@ -154,4 +204,26 @@ function formatDate(isoString) {
           console.error("Error formatting date:", error);
           return "Invalid Date";
         }
+      }
+function dateEvents(events, user, days) {
+        // (Assuming you want to use allEvents from above, not the 'events' param)
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+        let params = new URLSearchParams({ token: token });
+        let str = "Weekly";
+      
+        // As above: filter, sort, select next two
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const upcomingEvents = allEvents.filter(event => event.date >= today);
+        upcomingEvents.sort((a, b) => a.date - b.date);
+        const nextTwoEvents = upcomingEvents.slice(0, 2);
+      
+        // Generate HTML
+        const htmlList = `
+          <ul>
+            ${nextTwoEvents.map(event => `<li><strong>${formatDate(event.date)}</strong>: ${event.description}</li>`).join('')}
+          </ul>
+        `;
+      
+        return htmlList;
       }

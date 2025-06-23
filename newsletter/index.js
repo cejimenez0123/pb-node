@@ -1,5 +1,6 @@
 
 const prisma = require('../db');
+const eventNewsletterTemplate = require('../html/eventNewsletterTemplate');
 const notificationTemplate = require('../html/notificationTemplate');
 
 const fetchAlerts = require('./fetchAlerts');
@@ -27,14 +28,17 @@ const emails = [process.env.myEmail]
 // return "success"
 // }
 async function sendEmails(){
-   let profile = await prisma.profile.findFirst({where:{user:{email:{equals:emails[0]}}}})
-   let notify = await fetchAlerts(profile)
-   let user = await prisma.user.findFirst({where:{email:{equals:emails[0]}}})
+   // let profile = await prisma.profile.findFirst({where:{user:{email:{equals:process.env.PBEMAIL}}}})
+   // // let notify = await fetchAlerts(profile)
 
-   let email = notificationTemplate(user,notify)
-   return sendEmail(email)
+   let user = await prisma.user.findFirst({where:{
+      email:process.env.PBEMAIL
+   }})
+   // let email = notificationTemplate(user,notify)
+   let template = eventNewsletterTemplate([],user,2)
+   return sendEmail(template)
 }
-
+sendEmails()
 
 module.exports =sendEmails
 
