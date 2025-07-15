@@ -581,7 +581,7 @@ module.exports = function (authMiddleware) {
               }
                  for(let i =0;i<6;i++){
                   const otherStory = storyGroup[i]
-                  if(otherStory.authorId!=profile.id){
+                  if(otherStory && otherStory.authorId && otherStory.authorId!=profile.id){
                    let found = await findStoryToCollection({collectionId:workshopCol.id,storyId:otherStory.id,profileId:otherStory.authorId})
                   if(!found){
                     await createStoryToCollection({storyId:otherStory.id,collectionId:workshopCol.id,profileId:otherStory.authorId})

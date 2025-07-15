@@ -38,7 +38,7 @@ async function sendEmails(){
    let template = eventNewsletterTemplate([],user,2)
    return sendEmail(template)
 }
-sendEmails()
+
 
 module.exports =sendEmails
 
