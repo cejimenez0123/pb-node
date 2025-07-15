@@ -580,6 +580,7 @@ module.exports = function (authMiddleware) {
               }
               }
                  for(let i =0;i<6;i++){
+
                   const otherStory = storyGroup[i]
                   if(otherStory && otherStory.authorId && otherStory.authorId!=profile.id){
                    let found = await findStoryToCollection({collectionId:workshopCol.id,storyId:otherStory.id,profileId:otherStory.authorId})
