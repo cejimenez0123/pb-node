@@ -79,7 +79,7 @@ module.exports = function (authMiddleware){
         res.status(200).json({profiles:profiles})
     })
     router.post("/",async(req,res)=>{
-        const  {email,password,username,profilePicture,selfStatement,privacy}=req.body
+        const  {email,googleId,password,username,profilePicture,selfStatement,privacy}=req.body
         try{
            
             const decoded = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
@@ -89,7 +89,9 @@ module.exports = function (authMiddleware){
                const user = await prisma.user.update({
                 where:{
                   id:decoded.applicantId
+                
                 },data:{
+                    googleId:googleId,
                     password:hashedPassword,
                     verified:true
                 }

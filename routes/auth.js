@@ -359,6 +359,76 @@ const mailOptions = recievedReferralTemplate(email,name)
     res.json({error})
   }
     })
+    async function createNewProfileCollections(profile){
+      const homeCol = await prisma.collection.create({data:{
+        title:"Home",
+        purpose:"Add Collections to home to up with updates",
+        isOpenCollaboration:false,
+        isPrivate:true,
+        profile:{
+          connect:{
+            id:profile.id
+          }
+        }
+      }
+      })
+    const archCol= await prisma.collection.create({data:{
+        title:"Archive",
+        purpose:"Save things for later",
+        isOpenCollaboration:false,
+        isPrivate:true,
+        profile:{
+          connect:{
+            id:profile.id
+          }
+        }
+      }
+      })
+      await prisma.profileToCollection.create({
+        data:{
+          collection:{
+            connect:{
+              id:homeCol.id
+            }
+          },
+          type:"home",
+          profile:{
+            connect:{
+              id:profile.id
+            }
+          }
+        }
+      })
+      let profileToColl= await prisma.profileToCollection.create({data:{
+        collection:{
+            connect:{
+                id:archCol.id
+            }
+        },type:"archive",
+        profile:{
+            connect:{
+                id:profile.id
+            }
+        }
+
+    },include:{
+        collection:true,
+        profile:{
+            include:{
+              likedStories:true,
+                followers:true,
+                stories:true,
+                collections:true,
+                profileToCollections:{
+                    include:{
+                        collection:true
+                    }
+                }
+            }
+        }
+    }})
+
+    }
     router.get("/unsubscribe",async (req,res)=>{
       try{
       const {token}= req.query
@@ -538,7 +608,7 @@ let mailOptions = forgotPasswordTemplate(user)
         }else{
         if(newUser&&newUser.profiles && newUser.profiles.length==0){
     const profile =  await createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId:newUser.id})
-          // Increment referral usage
+          
           await prisma.referral.update({
             where: {id:referralId },
             data: { usageCount: { increment: 1 } }
@@ -559,14 +629,26 @@ let mailOptions = forgotPasswordTemplate(user)
         const { email, password, uId } = req.body;
 
        try{
+        let user = null
         if(uId){
+
+
+          user = await prisma.user.findFirst({where:{
+              googleId:uId
+            }})
+
+
+        }else{
+          user = await prisma.user.findFirst({ where: { email:email } });
         
-            const user = await prisma.user.findFirst({ where: { email:email } });
-       
-            if (!user || user.email!=email) {
+        
+        }
+console.log("userrr",user)
+        if (!user || user.email!=email) {
             
                 return res.status(401).json({ message: 'Invalid email or password' });
-              }
+        }
+
         await prisma.profile.updateMany({where:{
           userId:{
             equals:user.id
@@ -576,34 +658,36 @@ let mailOptions = forgotPasswordTemplate(user)
           isActive:true
         }})
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-      
-        res.json({ token,user });
-      }else{
        
-        const user = await prisma.user.findFirst({ where: { email:{equals:email} }});
-    
-        if (!user || !bcrypt.compareSync(password, user.password)) {
-            return res.status(401).json({ message: 'Invalid email or password' });
-        }
-      
-        await prisma.profile.updateMany({where:{
-          userId:{
-            equals:user.id
-          }
-        },data:{
-          lastActive: new Date(),
-          isActive:true
-        }})
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '2d' });
-
         res.json({ token,user });
-       }
-
-
+   
+       
 }catch(error){
-  console.log(error)
+  console.log("CCC",error)
   res.status(409).json({error})
-}})
+}
+
+})
+ // const user = await prisma.user.findFirst({ where: { email:{equals:email} }});
+    
+        // if (!user || !bcrypt.compareSync(password, user.password)) {
+        //     return res.status(401).json({ message: 'Invalid email or password' });
+        // }
+      
+        // await prisma.profile.updateMany({where:{
+        //   userId:{
+        //     equals:user.id
+        //   }
+        // },data:{
+        //   lastActive: new Date(),
+        //   isActive:true
+        // }})
+        // const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '2d' });
+
+        // res.json({ token,user });
+      
+
+
     router.post("/newsletter",async (req,res)=>{
       try{
       const{
@@ -664,29 +748,42 @@ resend.emails.send(template).then(()=>{
 
     router.post("/register",async (req,res)=>{
     
-        const{token,email,password,username,
+        const{token,email,googleId,password,username,
         profilePicture,selfStatement,privacy,frequency
        }=req.body
      
        try{
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-        if (!username||!password) {
+console.log(googleId)
+        if ((!username||!googleId)||(!password&&!googleId)) {
             return res.status(400).json({ message: 'Missing required fields' });
           }
-      
-    
-     
-          const hashedPassword = await bcrypt.hash(password, 10);
-        
-        const user = await prisma.user.update({where:{
+          let verifiedToken
+          let user
+     if(password){
+      const hashedPassword = await bcrypt.hash(password, 10);
+  
+      user = await prisma.user.update({where:{
             id:decoded.applicantId
         },data:{
+          googleId:googleId,
             password:hashedPassword,
             verified:true,
             emailFrequency:parseInt(frequency)
         },include:{profiles:true}})
-        const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+      }else{
+        user = await prisma.user.update({where:{
+          id:decoded.applicantId
+      },data:{
+        googleId:googleId,
+    
+          verified:true,
+          emailFrequency:parseInt(frequency)
+      },include:{profiles:true}})
+    }
+     verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+      
+        // const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
        if(user.profiles.length==0){
         if(profilePicture){
         const profile = await prisma.profile.create({
@@ -702,77 +799,10 @@ resend.emails.send(template).then(()=>{
                 }
             }
         })
-       const homeCol = await prisma.collection.create({data:{
-          title:"Home",
-          purpose:"Add Collections to home to up with updates",
-          isOpenCollaboration:false,
-          isPrivate:true,
-          profile:{
-            connect:{
-              id:profile.id
-            }
-          }
-        }
-        })
-      const archCol= await prisma.collection.create({data:{
-          title:"Archive",
-          purpose:"Save things for later",
-          isOpenCollaboration:false,
-          isPrivate:true,
-          profile:{
-            connect:{
-              id:profile.id
-            }
-          }
-        }
-        })
- 
 
-        await prisma.profileToCollection.create({
-          data:{
-            collection:{
-              connect:{
-                id:homeCol.id
-              }
-            },
-            type:"home",
-            profile:{
-              connect:{
-                id:profile.id
-              }
-            }
-          }
-        })
-        let profileToColl= await prisma.profileToCollection.create({data:{
-          collection:{
-              connect:{
-                  id:archCol.id
-              }
-          },type:"archive",
-          profile:{
-              connect:{
-                  id:profile.id
-              }
-          }
-
-      },include:{
-          collection:true,
-          profile:{
-              include:{
-                likedStories:true,
-                  followers:true,
-                  stories:true,
-                  collections:true,
-                  profileToCollections:{
-                      include:{
-                          collection:true
-                      }
-                  }
-              }
-          }
-      }})
-
-        res.status(200).json({firstTime:true,profile:profileToColl.profile,token:verifiedToken})
+        await createNewProfileCollections(profile)
+        
+        res.json({firstTime:true,profile:profile,token:verifiedToken})
       }else{
         const profile = await prisma.profile.create({
           data:{
@@ -786,18 +816,19 @@ resend.emails.send(template).then(()=>{
               }
           }
       })
-      res.status(200).json({firstTime:true,profile,token:verifiedToken})
+      res.json({firstTime:true,profile,token:verifiedToken})
      } 
     }else{
       const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-      res.status(200).json({firstTime:true,profile:user.profiles[0],token:verifiedToken})
+      res.json({firstTime:true,profile:user.profiles[0],token:verifiedToken})
     
       }
       }catch(error){
+        console.log(error)
         if(error.message.includes("Unique")){
           res.status(409).json("USERNAME IS NOT UNIQUE")
         }else{
-        console.log(error)
+
         res.status(409).json({error})
         }
       }
@@ -975,6 +1006,7 @@ resend.emails.send(template).then(()=>{
     }
  
 }catch(e){
+  console.log(e)
     res.status(404).json({message:"User not found"})
 }
 
