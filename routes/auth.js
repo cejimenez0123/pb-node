@@ -627,8 +627,10 @@ let mailOptions = forgotPasswordTemplate(user)
       });
     router.post("/session",async (req,res)=>{
         const { email, password, uId } = req.body;
-
+      console.log()
        try{
+        console.log("uID",uId)
+        console.log("ERRE",email)
         let user = null
         if(uId){
 
@@ -636,14 +638,29 @@ let mailOptions = forgotPasswordTemplate(user)
           user = await prisma.user.findFirst({where:{
               googleId:uId
             }})
-
+          if(!user){
+           user = await prisma.user.update({where:{
+              email:email,
+              
+            },data:{
+              googleId:uId
+            }})
+          }
 
         }else{
           user = await prisma.user.findFirst({ where: { email:email } });
-        
+          if(uId){
+          user = await prisma.user.update({where:{
+              email:email
+            },data:{
+              googleId:uId,
+              lastActive: new Date(),
+          isActive:true
+            }})
+          }
         
         }
-console.log("userrr",user)
+
         if (!user || user.email!=email) {
             
                 return res.status(401).json({ message: 'Invalid email or password' });
@@ -657,13 +674,14 @@ console.log("userrr",user)
           lastActive: new Date(),
           isActive:true
         }})
+        console.log("usds",user)
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-       
+      
         res.json({ token,user });
    
        
 }catch(error){
-  console.log("CCC",error)
+
   res.status(409).json({error})
 }
 
@@ -745,7 +763,28 @@ resend.emails.send(template).then(()=>{
             res.status(409).json({error})
           }
     })
-
+    router.post("/google",async (req,res)=>{
+      const {email,googleId, accessToken}=req.body
+      let user = await prisma.user.findFirst({where:{
+        email:email
+      }})
+      if(user.googleId==googleId){
+       user = await prisma.user.update({
+            where:{
+              email:email
+            },
+            data:{
+              googleId:googleId
+            }
+          })
+          let profile= await prisma.profile.findFirst({where:{
+            userId:user.id
+          }})
+          res.json({profile})
+      }else{
+        res.json({message:"No user found"})
+      }
+    })
     router.post("/register",async (req,res)=>{
     
         const{token,email,googleId,password,username,
@@ -754,7 +793,6 @@ resend.emails.send(template).then(()=>{
      
        try{
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-console.log(googleId)
         if ((!username||!googleId)||(!password&&!googleId)) {
             return res.status(400).json({ message: 'Missing required fields' });
           }
