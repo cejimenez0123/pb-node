@@ -629,8 +629,7 @@ let mailOptions = forgotPasswordTemplate(user)
         const { email, password, uId } = req.body;
       console.log()
        try{
-        console.log("uID",uId)
-        console.log("ERRE",email)
+      
         let user = null
         if(uId){
 
@@ -674,7 +673,7 @@ let mailOptions = forgotPasswordTemplate(user)
           lastActive: new Date(),
           isActive:true
         }})
-        console.log("usds",user)
+
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
       
         res.json({ token,user });
