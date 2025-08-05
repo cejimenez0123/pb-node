@@ -21,12 +21,10 @@ const dailyTask=async ()=>{
 
   for(let i=0;i<users.length;i++){
     const user = users[i]
-    console.log(i)
     const profile = user.profiles[0]
-
     if(profile){
      
-    if (shouldSendEmail(user.lastEmailed, user.emailFrequency)) {
+      if (shouldSendEmail(user.lastEmailed, user.emailFrequency)) {
       let profile = await prisma.profile.findFirst({where:{user:{email:{equals:user.email}}}})
       let notify = await fetchAlerts(profile)
      const {comments,roles,following,followers,collections,events} = notify

@@ -1,5 +1,6 @@
 
 const jwt = require('jsonwebtoken');
+const { parse } = require('path');
 
 
 const eventNewsletterTemplate=(events,user,days)=>{
@@ -17,27 +18,32 @@ const eventNewsletterTemplate=(events,user,days)=>{
         { date: parseEventDate("Sat. June 21st", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
         { date: parseEventDate("Mon. July 14", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home" },
         { date: parseEventDate("Sat. July 19th", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
-        { date: parseEventDate("Sat. August 9th", today.getFullYear()), description: "Open Mic @ Boogie Down Grind" }, // Exclude this in workshop filter?
-        { date: parseEventDate("Mon. August 11th", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home" },
+        { date: parseEventDate("Sat. August 16th", today.getFullYear()), description: "Open Mic @ Boogie Down Grind",link:"https://partiful.com/e/4xLnLRiDC2QDvs1PUId8" }, 
+        { date: parseEventDate("Mon. August 11th", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home",link:"https://partiful.com/e/hCkUYQlaHLrbg36xMLmH" },
         { date: parseEventDate("Sat. August 23rd", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
-        { date: parseEventDate("Thurs. August 28th", today.getFullYear()), description: "Mixer @ ndrew Freedman Home" } // Exclude this in workshop filter?
+        { date: parseEventDate("Thurs. August 28th", today.getFullYear()), description: "Mixer @ Andrew Freedman Home" } 
       ];
       
       // 1. Filter out events before today (optional, if you only want upcoming)
       const upcomingEvents = allEvents.filter(event => event.date >= today);
-      // 2. Sort by date (earliest first)
+    
       upcomingEvents.sort((a, b) => a.date - b.date);
       // 3. Take the next two events
       const nextTwoEvents = upcomingEvents.slice(0, 2);
       
-    function formatDate(date) {
-      // Format as "Month Day" (e.g., "June 9")
-      return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-    }
+      function formatDate(date) {
+        if (!date) return ''; // Return empty string if null or undefined
+      
+        const d = date instanceof Date ? date : new Date(date);
+        if (isNaN(d)) return ''; // Return empty string if invalid date
+      
+        return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+      }
+      
     
     const htmlList = `
       <ul>
-        ${nextTwoEvents.map(event => `<li><strong>${formatDate(event.date)}</strong>: ${event.description}</li>`).join('')}
+        ${nextTwoEvents.map(event => `<a href="${event.link??""}"><li><strong>${formatDate(event.date)}</strong>: ${event.description}</li></a>`).join('')}
       </ul>
     `;
     
@@ -120,10 +126,7 @@ const eventNewsletterTemplate=(events,user,days)=>{
       
           <h2>📝 Upcoming Writer Workshops</h2>
           <p>Join us for generative writing sessions, constructive feedback, and fresh inspiration:</p>
-         ${ // <ul>
-          //   <li><strong>May 31</strong>: Workshop & community check-in</li>
-          //   <li><strong>June 9</strong>: Hybrid generative session + feedback</li>
-          // </ul>
+         ${ 
           htmlList
         }
           <p>RSVP and full details will be posted in Slack and on the calendar!</p>
@@ -134,19 +137,20 @@ const eventNewsletterTemplate=(events,user,days)=>{
             <ul>
               ${area.events.map(event => 
                 event.organizer.displayName.toLowerCase().trim() === area.area.toLowerCase().trim() ? 
-                `<li class="event"><a href="${event.htmlLink}">${event.summary} - ${formatDate(event.start.dateTime)} to ${formatDate(event.end.dateTime)}</a></li>` 
+                `<li class="event"><a href="${linkifyFirstUrl(event.description)}">${event.summary} - ${formatEventDate(event.start.dateTime)} to ${formatEventDate(event.end.dateTime)}</a></li>` 
                 : ''
               ).join('')}
             </ul>`
           ).join('') : `<div class="event"><p>No events scheduled this time. Stay tuned!</p></div>`}
       
-          <h2>📅 Summer Schedule Preview</h2>
-          <p>Want to see what’s ahead? Check out our Summer 2025 Schedule below!</p>
-          <img src="https://drive.usercontent.google.com/download?id=1P6hpXQQYqW1ceSr6_2bYWLMz827De_wL&export=view&authuser=0" alt="Summer Schedule" width="100%" style="border-radius: 8px;" />
-      
-          <h2>🎵 Call for DJs and Musical Acts</h2>
-          <p>We’re planning a dance and music showcase! The theme? <em>Body Moving is Body Healing</em>. We’re seeking DJs, vocalists, and live performers who bring the vibes. Know someone? Hit us up at <a href="mailto:plumbumapp@gmail.com">plumbumapp@gmail.com</a>.</p>
-      
+       
+          <h2>🎵 We have our acts for the Mixer</h2>
+          <ul>
+          <li><a href="https://www.instagram.com/anevolution_"> Anevolution_ </a></li>
+         <li> <a href="https://www.instagram.com/e.8az6/"> Eric.az</a></li>
+          <li><a href="https://www.instagram.com/sagi_868/"> Sagi</a></li>
+          </ul>
+          <p>Are mixer is coming up on Thursday August 28th. The theme is foward so dress looking ahead to who you want to be with new and old clothes.
           <h2>👥 Join Our Slack</h2>
           <p>Our Slack is where it all happens — writing sprints, live edits, meme exchanges, and drop-in hangouts. <a href="https://join.slack.com/t/plumbumwriters/shared_invite/zt-2zvkzyi02-dRlhqb0wvHAaU~~dUgh7hQ">Join here</a>.</p>
       
@@ -180,7 +184,7 @@ function parseEventDate(dateString, year) {
       return date;
     }
     
-function formatDate(isoString) {
+function formatEventDate(isoString) {
         try {
           const date = new Date(isoString);
       
@@ -191,6 +195,7 @@ function formatDate(isoString) {
           // Convert to New York City Time
           const options = {
             timeZone: 'America/New_York',
+            weekday:"short",
             hour: 'numeric',
             minute: '2-digit',
             hour12: true,
@@ -205,25 +210,22 @@ function formatDate(isoString) {
           return "Invalid Date";
         }
       }
-function dateEvents(events, user, days) {
-        // (Assuming you want to use allEvents from above, not the 'events' param)
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-        let params = new URLSearchParams({ token: token });
-        let str = "Weekly";
-      
-        // As above: filter, sort, select next two
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const upcomingEvents = allEvents.filter(event => event.date >= today);
-        upcomingEvents.sort((a, b) => a.date - b.date);
-        const nextTwoEvents = upcomingEvents.slice(0, 2);
-      
-        // Generate HTML
-        const htmlList = `
-          <ul>
-            ${nextTwoEvents.map(event => `<li><strong>${formatDate(event.date)}</strong>: ${event.description}</li>`).join('')}
-          </ul>
-        `;
-      
-        return htmlList;
-      }
+
+const linkifyFirstUrl=(text) =>{
+  if (!text) return '';
+
+  // Remove HTML tags
+  const strippedText = text.replace(/<[^>]*>/g, '');
+
+  // Match the first URL in plain text
+  const urlRegex = /(https?:\/\/[^\s]+)/i;
+  const match = strippedText.match(urlRegex);
+
+  if (!match) return ''; // No URL found
+
+  const url = match[0];
+ 
+  return url;
+}
+  
+ 

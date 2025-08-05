@@ -627,7 +627,7 @@ let mailOptions = forgotPasswordTemplate(user)
       });
     router.post("/session",async (req,res)=>{
         const { email, password, uId } = req.body;
-      console.log()
+      
        try{
       
         let user = null
