@@ -11,7 +11,7 @@ const applyTemplate = require('../html/applyTemplate');
 const { Resend } = require('resend');
 const forgotPasswordTemplate = require('../html/forgotPasswordTemplate');
 const recievedReferralTemplate = require('../html/recievedReferralTemplate');
-
+const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken")
 const router = express.Router()
 function isHex(num) {
 
@@ -761,6 +761,17 @@ resend.emails.send(template).then(()=>{
 
             res.status(409).json({error})
           }
+    })
+    router.post("/ios",async (req,res)=>{
+      let {idToken} = req.body
+      verifyAppleIdentityToken(idToken, clientId)
+        .then(payload => {
+          console.log('Verified token payload:', payload);
+          console.log('User email:', payload.email);
+        })
+        .catch(err => {
+          console.error('Token verification failed:', err);
+        });
     })
     router.post("/google",async (req,res)=>{
       const {email,googleId, accessToken}=req.body

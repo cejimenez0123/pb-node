@@ -41,7 +41,6 @@ async function sendEmails(){
    return sendEmail(template)
 }
 
-sendEmails().then(res=>console.log("done"))
 module.exports =sendEmails
 
 
