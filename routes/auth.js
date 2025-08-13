@@ -715,7 +715,7 @@ let mailOptions = forgotPasswordTemplate(user)
               email: user.email 
             }, 
             process.env.JWT_SECRET,
-            { expiresIn: '24h' } // Add token expiration
+         
           );
           
           res.json({ token, user });
