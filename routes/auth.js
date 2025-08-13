@@ -304,19 +304,14 @@ const mailOptions = recievedReferralTemplate(email,name)
         } = req.body
         let user 
     try{
-
-  user = await prisma.user.findFirst({where:{
-        email:{equals:email}
+      let mail = email
+      if(idToken){
+        let payload = await verifyAppleIdentityToken(idToken)
+        mail = payload.email
+      
+      user = await prisma.user.findFirst({where:{
+        email:{equals:mail}
       }})
-    
-    if(!!user){
-        throw new Error("Not Unique")
-    }else if(idToken){
-     
-        const payload = await verifyAppleIdentityToken(idToken)
-
-        user =await prisma.user.findFirst({where:{
-         email:{equals:payload.email}}})
         if(!user){
           user = await prisma.user.create({data:{
             email:payload.email,
@@ -338,9 +333,35 @@ const mailOptions = recievedReferralTemplate(email,name)
 
          res.status(201).json({path:parms,user,message:'Applied Successfully!'});
     
-       
+      }else{
+        throw new Error("Not Unique")
+      }
+  }else if(googleId){
+
+    user = await prisma.user.findFirst({where:{
+      googleId:{equals:googleId}
+    }})
+    if(!user){
+        user = await prisma.user.create({data:{
+          email:payload.email,
+          preferredName:fullName,
+          igHandle:igHandle,
+      }})
+   
+        let mailOptions = applyTemplate(user,req.body,false)
+        let template = applicationConfirmationTemplate(user)
+
+       await resend.emails.send(template)
+     let response  =  await resend.emails.send(mailOptions)
+              const params = new URLSearchParams({
+        applicantId:user.id,
+        action:"approve",
+        email,
+      });
+      const parms = `/auth/review?`+params.toString()
+
+       res.status(201).json({path:parms,user,message:'Applied Successfully!'});
     }
-  
   }else if(email){
     
         user = await prisma.user.create({data:{
@@ -365,8 +386,8 @@ const mailOptions = recievedReferralTemplate(email,name)
         const parms = `/auth/review?`+params.toString()
 
          res.status(201).json({path:parms,user,message:'Applied Successfully!'});
-      }
-    }
+      }}
+  
             }catch(error){
       
               
