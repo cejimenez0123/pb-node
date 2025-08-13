@@ -302,10 +302,10 @@ const mailOptions = recievedReferralTemplate(email,name)
             fullName,
             email,
         } = req.body
-
+        let user 
     try{
 
-    let user =  await prisma.user.findFirst({where:{
+  user = await prisma.user.findFirst({where:{
         email:{equals:email}
       }})
     
@@ -371,8 +371,8 @@ const mailOptions = recievedReferralTemplate(email,name)
     }
             }catch(error){
       
-                  console.log(error)
-                  res.status(403).json({error,message:error.message})
+              
+                  res.status(403).json({user,error,message:error.message})
                 
             }
 
