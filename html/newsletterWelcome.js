@@ -91,12 +91,12 @@ module.exports = function applicationConfirmationTemplate(user = {}, opts = {}) 
 
   ${cardTableOpen()}
     ${h1(`Thanks for Applying, ${name}!`)}
-    ${p(`We’re excited you applied to Plumbum. Our team reviews applications with care to keep the community thoughtful and supportive.`)}
+    ${p(`We’re excited you applied to Plumbum. We reviews applications with care to keep the community thoughtful and supportive.`)}
     ${p(`While we’re processing your application, you can jump into our Slack to meet other writers, swap feedback, and catch live prompts and sprints.`)}
     ${cta(slackInvite, "Join the Slack Community")}
     ${h2("What to Expect Next")}
     <ul style="margin:0 0 14px 18px; color:#4A604A; font-size:16px; line-height:1.6; padding:0;">
-      <li style="margin-bottom:8px;">Application review (you’ll get an email from us soon).</li>
+      <li style="margin-bottom:8px;">Application review.</li>
       <li style="margin-bottom:8px;">Community invites and writing sprints in Slack.</li>
       <li style="margin-bottom:8px;">Early access to events, mixers, and workshops.</li>
     </ul>
@@ -115,7 +115,7 @@ module.exports = function applicationConfirmationTemplate(user = {}, opts = {}) 
   return {
     from: `Plumbum <${process.env.pbEmail}>`,
     to: user.email,
-    subject: "We got your application — welcome to Plumbum 💌",
+    subject: "We got your application — Plumbum 💌",
     html
   };
 }
