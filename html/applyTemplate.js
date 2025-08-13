@@ -92,8 +92,8 @@ const params = new URLSearchParams({
                 <p><strong>Feedback Frequency:</strong>${feedbackFrequency}</p>
                 <p><strong>Genres:</strong></p>
                 <ul>
-                ${genres.map(genre=>{
-                return(`<li><p>${genre}</p></li>`)})}
+                ${genres&&genres.length?genres.map(genre=>{
+                return(`<li><p>${genre}</p></li>`)}):null}
                 </ul>
                 </div>
                 <div class="form">

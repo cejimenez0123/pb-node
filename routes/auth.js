@@ -312,7 +312,7 @@ const mailOptions = recievedReferralTemplate(email,name)
       user = await prisma.user.findFirst({where:{
         email:{equals:mail}
       }})
-        if(!user){
+        if(!user||!user.id){
           user = await prisma.user.create({data:{
             email:mail,
             preferredName:fullName??"",
