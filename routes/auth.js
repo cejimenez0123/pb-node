@@ -958,9 +958,9 @@ resend.emails.send(template).then(()=>{
     })
       
     router.post("/ios",async (req,res)=>{
-      let user = null
-      let {idToken} = req.body
-  const payload = await verifyAppleIdentityToken(idToken)
+  //     let user = null
+  //     let {idToken} = req.body
+  // const payload = await verifyAppleIdentityToken(idToken)
     
           // Verified token payload: {
 
