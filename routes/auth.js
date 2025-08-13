@@ -625,76 +625,179 @@ let mailOptions = forgotPasswordTemplate(user)
           res.status(400).json({ message: 'Error processing referral' });
         }
       });
-    router.post("/session",async (req,res)=>{
-        const { email, password, uId,identityToken} = req.body;
-      
-       try{
-      
-        let user = null
-        if(identityToken){
-
-        const payload = await verifyAppleIdentityToken(identityToken)
-        user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
-      console.log(payload,user)  
-      }else if(uId){
-
-
-          user = await prisma.user.findFirst({where:{
-              googleId:uId
-            }})
-          if(!user){
-           user = await prisma.user.update({where:{
-              email:email,
-              
-            },data:{
-              googleId:uId
-            }})
+      router.post("/session", async (req, res) => {
+        const { email, password, uId, identityToken } = req.body;
+        
+        try {
+          let user = null;
+          
+          // Apple Login Flow
+          if (identityToken) {
+            const payload = await verifyAppleIdentityToken(identityToken);
+            user = await prisma.user.findFirst({
+              where: { email: { equals: payload.email } }
+            });
+            
+            if (!user) {
+              return res.status(401).json({ message: 'User not found for Apple login' });
+            }
+            console.log("Apple login payload:", payload, user);
           }
+          // Google Login Flow
+          else if (uId) {
+            user = await prisma.user.findFirst({
+              where: { googleId: uId }
+            });
+            
+            // If user not found by googleId but email provided, link the account
+            if (!user && email) {
+              user = await prisma.user.findFirst({
+                where: { email: email }
+              });
+              
+              if (user) {
+                // Link Google account to existing user
+                user = await prisma.user.update({
+                  where: { id: user.id },
+                  data: { googleId: uId }
+                });
+              }
+            }
+            
+            if (!user) {
+              return res.status(401).json({ message: 'User not found for Google login' });
+            }
+          }
+          // Email/Password Login Flow
+          else if (email && password) {
+            user = await prisma.user.findFirst({
+              where: { email: email }
+            });
+            
+            if (!user) {
+              return res.status(401).json({ message: 'Invalid email or password' });
+            }
+            
+            // Add password verification here
+            // const isValidPassword = await bcrypt.compare(password, user.password);
+            // if (!isValidPassword) {
+            //   return res.status(401).json({ message: 'Invalid email or password' });
+            // }
+          }
+          else {
+            return res.status(400).json({ message: 'Missing required login credentials' });
+          }
+          
+          console.log("Authenticated user:", user);
+          
+          // Update user activity
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              lastActive: new Date(),
+              isActive: true
+            }
+          });
+          
+          // Update profile activity
+          await prisma.profile.updateMany({
+            where: { userId: { equals: user.id } },
+            data: {
+              lastActive: new Date(),
+              isActive: true
+            }
+          });
+          
+          // Generate JWT token with user.id
+          const token = jwt.sign(
+            { 
+              userId: user.id,
+              email: user.email 
+            }, 
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' } // Add token expiration
+          );
+          
+          res.json({ token, user });
+          
+        } catch (error) {
+          console.error("Login error:", error);
+          res.status(500).json({ 
+            message: 'Internal server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+          });
+        }
+      });
+//     router.post("/session",async (req,res)=>{
+//         const { email, password, uId,identityToken} = req.body;
+      
+//        try{
+      
+//         let user = null
+//         if(identityToken){
+
+//         const payload = await verifyAppleIdentityToken(identityToken)
+//         user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
+//       console.log(payload,user)  
+//       }else if(uId){
+
+
+//           user = await prisma.user.findFirst({where:{
+//               googleId:uId
+//             }})
+//           if(!user){
+//            user = await prisma.user.update({where:{
+//               email:email,
+              
+//             },data:{
+//               googleId:uId
+//             }})
+//           }
 
         
 
-        }else{
-          user = await prisma.user.findFirst({ where: { email:email } });
-          if(uId){
-          user = await prisma.user.update({where:{
-              email:email
-            },data:{
-              googleId:uId,
-              lastActive: new Date(),
-          isActive:true
-            }})
-          }
-          if(identityToken){
-            const payload = await verifyAppleIdentityToken(identityToken)
-        user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
-      console.log("1"+payload,user)
-          }
-         if (!user || (email &user.email!=email)) {
+//         }else{
+//           user = await prisma.user.findFirst({ where: { email:email } });
+//           if(uId){
+//           user = await prisma.user.update({where:{
+//               email:email
+//             },data:{
+//               googleId:uId,
+//               lastActive: new Date(),
+//           isActive:true
+//             }})
+//           }
+//           if(identityToken){
+//             const payload = await verifyAppleIdentityToken(identityToken)
+//         user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
+//       console.log("1"+payload,user)
+//           }
+//          if (!user || (email &user.email!=email)) {
             
-                return res.status(401).json({ message: 'Invalid email or password' });
-        }
-        }
-        console.log("CDCD",user)
-        await prisma.profile.updateMany({where:{
-          userId:{
-            equals:user.id
-          }
-        },data:{
-          lastActive: new Date(),
-          isActive:true
-        }})
+//                 return res.status(401).json({ message: 'Invalid email or password' });
+//         }
+//         }
+//         console.log("CDCD",user)
+//         await prisma.profile.updateMany({where:{
+//           userId:{
+//             equals:user.id
+//           }
+//         },data:{
+//           lastActive: new Date(),
+//           isActive:true
+//         }})
 
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+//         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
       
-        res.json({ token,user });
+//         res.json({ token,user });
    
        
-}catch(error){
+// }catch(error){
 
-  res.status(409).json({error})
-}
+//   res.status(409).json({error})
+// }
 
-})
+// })
  // const user = await prisma.user.findFirst({ where: { email:{equals:email} }});
     
         // if (!user || !bcrypt.compareSync(password, user.password)) {
