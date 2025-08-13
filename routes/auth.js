@@ -635,8 +635,8 @@ let mailOptions = forgotPasswordTemplate(user)
 
         const payload = await verifyAppleIdentityToken(identityToken)
         user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
-     
-        }else if(uId){
+      console.log(payload,user)  
+      }else if(uId){
 
 
           user = await prisma.user.findFirst({where:{
@@ -664,11 +664,17 @@ let mailOptions = forgotPasswordTemplate(user)
           isActive:true
             }})
           }
+          if(identityToken){
+            const payload = await verifyAppleIdentityToken(identityToken)
+        user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
+      console.log("1"+payload,user)
+          }
          if (!user || (email &user.email!=email)) {
             
                 return res.status(401).json({ message: 'Invalid email or password' });
         }
         }
+        console.log("CDCD",user)
         await prisma.profile.updateMany({where:{
           userId:{
             equals:user.id
