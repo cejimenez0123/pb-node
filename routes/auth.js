@@ -2,6 +2,8 @@ const express = require('express');
 const prisma = require("../db");
 const bcrypt = require("bcryptjs")
 const jwt = require('jsonwebtoken');
+const newsletterWelcomeTemplate = require("../html/newsletterWelcome")
+const applicationConfirmationTemplate = require("../html/applyConfirmationTemplate")
 const generateMongoId = require("./generateMongoId");
 const approvalTemplate = require('../html/approvalTemplate');
 const newsletterSurveyTemplate = require('../html/newsletterSurveyTemplate');
@@ -316,7 +318,8 @@ const mailOptions = recievedReferralTemplate(email,name)
      
 
           let mailOptions = applyTemplate(user,req.body,false)
-
+            let template = applicationConfirmationTemplate(user)
+           await resend.emails.send(template)
          let response  =  await resend.emails.send(mailOptions)
          if(response.error){
           throw response.err
@@ -464,7 +467,8 @@ const mailOptions = recievedReferralTemplate(email,name)
       
           let mailOptions = applyTemplate(user,req.body,false)
           let response =  await resend.emails.send(mailOptions)
-      
+          let applyWelcome = newsletterWelcomeTemplate(user)
+          let welcomeRes =  await resend.emails.send(applyWelcome)
           if(response.data){
           const params = new URLSearchParams({
             applicantId:user.id,
@@ -875,7 +879,7 @@ resend.emails.send(template).then(()=>{
             res.status(409).json({error})
           }
     })
-    // router.post("/ios",async (req,res)=>{ 
+    
 
 
     router.post("/apply/ios",async (req,res)=>{
