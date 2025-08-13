@@ -764,7 +764,7 @@ resend.emails.send(template).then(()=>{
     })
     router.post("/ios",async (req,res)=>{
       let {idToken} = req.body
-      verifyAppleIdentityToken(idToken, clientId)
+      verifyAppleIdentityToken(idToken)
         .then(payload => {
           console.log('Verified token payload:', payload);
           console.log('User email:', payload.email);
