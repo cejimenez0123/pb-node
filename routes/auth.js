@@ -626,12 +626,17 @@ let mailOptions = forgotPasswordTemplate(user)
         }
       });
     router.post("/session",async (req,res)=>{
-        const { email, password, uId } = req.body;
+        const { email, password, uId,identityToken} = req.body;
       
        try{
       
         let user = null
-        if(uId){
+        if(identityToken){
+
+        const payload = await verifyAppleIdentityToken(identityToken)
+        user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
+      console.log(payload,user)  
+      }else if(uId){
 
 
           user = await prisma.user.findFirst({where:{
@@ -646,6 +651,8 @@ let mailOptions = forgotPasswordTemplate(user)
             }})
           }
 
+        
+
         }else{
           user = await prisma.user.findFirst({ where: { email:email } });
           if(uId){
@@ -657,14 +664,18 @@ let mailOptions = forgotPasswordTemplate(user)
           isActive:true
             }})
           }
-        
-        }
-
-        if (!user || user.email!=email) {
+          if(identityToken){
+            const payload = await verifyAppleIdentityToken(identityToken)
+        user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
+      console.log("1"+payload,user)
+          }
+         if (!user || (email &user.email!=email)) {
             
                 return res.status(401).json({ message: 'Invalid email or password' });
         }
-
+        }
+         
+        console.log("CDCD",user)
         await prisma.profile.updateMany({where:{
           userId:{
             equals:user.id
@@ -762,16 +773,82 @@ resend.emails.send(template).then(()=>{
             res.status(409).json({error})
           }
     })
+    // router.post("/ios",async (req,res)=>{ 
+
+
+    router.post("/apply/ios",async (req,res)=>{
+      let user = null
+      const {idToken,fullName,igHandle} = req.body
+  const payload = await verifyAppleIdentityToken(idToken)
+     user =await prisma.user.findFirst({where:{
+      email:{equals:payload.email}
+     }})
+  if(!!user){
+    throw new Error("Not Unique")
+  }else{
+    user = await prisma.user.create({data:{
+        email:payload.email,
+        preferredName:fullName,
+        igHandle:igHandle,
+    }})
+ 
+
+      let mailOptions = applyTemplate(user,req.body,false)
+
+     let response  =  await resend.emails.send(mailOptions)
+     if(response.error){
+      throw response.err
+     }else{
+     const params = new URLSearchParams({
+      applicantId:user.id,
+      action:"approve",
+      email,
+    });
+    const parms = `/auth/review?`+params.toString()
+
+     res.status(201).json({path:parms,user,message:'Applied Successfully!'});
+  }
+}
+
+// })
+// .catch(err => {
+//   console.error('Token verification failed:', err);
+// });
+    })
+      
     router.post("/ios",async (req,res)=>{
+      let user = null
       let {idToken} = req.body
-      verifyAppleIdentityToken(idToken, clientId)
-        .then(payload => {
-          console.log('Verified token payload:', payload);
-          console.log('User email:', payload.email);
-        })
-        .catch(err => {
-          console.error('Token verification failed:', err);
-        });
+  const payload = await verifyAppleIdentityToken(idToken)
+    
+          // Verified token payload: {
+
+          //   iss: 'https://appleid.apple.com';,
+          
+          //   aud: 'app.plumbum.com',
+          
+          //   exp: 1755156824,
+          
+          //   iat: 1755070424,
+          
+          //   sub: '000163.6735cabd987f4cfca1b12eeb0609c265.1426',
+          
+          //   nonce: 'nonce',
+          
+          //   c_hash: 'YPjX1Za_S8TrZP4bc_xKUw',
+          
+          //   email: 'cejimenez0123@gmail.com',
+          
+          //   email_verified: true,
+          
+          //   auth_time: 1755070424,
+          
+          //   nonce_supported: true
+          
+          // }
+          // console.log('Verified token payload:', payload);
+          // console.log('User email:', payload.email);
+   
     })
     router.post("/google",async (req,res)=>{
       const {email,googleId, accessToken}=req.body
