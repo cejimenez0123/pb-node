@@ -312,7 +312,7 @@ const mailOptions = recievedReferralTemplate(email,name)
     if(!!user){
         throw new Error("Not Unique")
     }else if(idToken){
-      if(!email){
+     
         const payload = await verifyAppleIdentityToken(idToken)
 
         user =await prisma.user.findFirst({where:{
@@ -323,9 +323,7 @@ const mailOptions = recievedReferralTemplate(email,name)
             preferredName:fullName,
             igHandle:igHandle,
         }})
-      }else{
-        throw new Error("Already Applied")
-      }
+     
           let mailOptions = applyTemplate(user,req.body,false)
           let template = applicationConfirmationTemplate(user)
 
