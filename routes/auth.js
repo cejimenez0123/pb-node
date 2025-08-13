@@ -314,6 +314,7 @@ const mailOptions = recievedReferralTemplate(email,name)
     }else if(idToken){
       if(!email){
         const payload = await verifyAppleIdentityToken(idToken)
+
         user =await prisma.user.findFirst({where:{
          email:{equals:payload.email}}})
         if(!user){
@@ -1015,17 +1016,24 @@ resend.emails.send(template).then(()=>{
     })
     router.post("/register",async (req,res)=>{
     
-        const{token,email,googleId,password,username,
+        const{token,idToken,email,googleId,password,username,
         profilePicture,selfStatement,privacy,frequency
        }=req.body
-     
+       let verifiedToken
+       let user
        try{
+        if(idToken){
+       const payload = await  verifyAppleIdentityToken(idToken)
+       user = await  prisma.user.create({data:{
+            email:payload.email,
+          }})
+          verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+        }else if(token){
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         if ((!username||!googleId)||(!password&&!googleId)) {
             return res.status(400).json({ message: 'Missing required fields' });
           }
-          let verifiedToken
-          let user
+          
      if(password){
       const hashedPassword = await bcrypt.hash(password, 10);
   
@@ -1083,7 +1091,7 @@ resend.emails.send(template).then(()=>{
           }
       })
       res.json({firstTime:true,profile,token:verifiedToken})
-     } 
+     }} 
     }else{
       const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
       res.json({firstTime:true,profile:user.profiles[0],token:verifiedToken})
