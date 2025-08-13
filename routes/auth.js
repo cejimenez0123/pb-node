@@ -304,7 +304,7 @@ const mailOptions = recievedReferralTemplate(email,name)
         } = req.body
         let user 
     try{
-      let mail = email
+      let mail = email??""
       if(idToken){
         let payload = await verifyAppleIdentityToken(idToken)
         mail = payload.email
@@ -314,9 +314,9 @@ const mailOptions = recievedReferralTemplate(email,name)
       }})
         if(!user){
           user = await prisma.user.create({data:{
-            email:payload.email,
-            preferredName:fullName,
-            igHandle:igHandle,
+            email:mail,
+            preferredName:fullName??"",
+            igHandle:igHandle??"",
         }})
      
           let mailOptions = applyTemplate(user,req.body,false)
