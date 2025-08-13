@@ -296,20 +296,54 @@ const mailOptions = recievedReferralTemplate(email,name)
     router.post("/apply",async (req,res)=>{
    
         const {
-        
+            idToken,
+            googleId,
             igHandle,
             fullName,
             email,
         } = req.body
 
     try{
+
     let user =  await prisma.user.findFirst({where:{
         email:{equals:email}
       }})
     
     if(!!user){
         throw new Error("Not Unique")
-    }else{
+    }else if(idToken){
+      if(!email){
+        const payload = await verifyAppleIdentityToken(idToken)
+        user =await prisma.user.findFirst({where:{
+         email:{equals:payload.email}}})
+        if(!user){
+          user = await prisma.user.create({data:{
+            email:payload.email,
+            preferredName:fullName,
+            igHandle:igHandle,
+        }})
+      }else{
+        throw new Error("Already Applied")
+      }
+          let mailOptions = applyTemplate(user,req.body,false)
+          let template = applicationConfirmationTemplate(user)
+
+         await resend.emails.send(template)
+       let response  =  await resend.emails.send(mailOptions)
+                const params = new URLSearchParams({
+          applicantId:user.id,
+          action:"approve",
+          email,
+        });
+        const parms = `/auth/review?`+params.toString()
+
+         res.status(201).json({path:parms,user,message:'Applied Successfully!'});
+    
+       
+    }
+  
+  }else if(email){
+    
         user = await prisma.user.create({data:{
             email:email,
             preferredName:fullName,
@@ -886,6 +920,7 @@ resend.emails.send(template).then(()=>{
       let user = null
       const {idToken,fullName,igHandle} = req.body
   const payload = await verifyAppleIdentityToken(idToken)
+  
      user =await prisma.user.findFirst({where:{
       email:{equals:payload.email}
      }})
