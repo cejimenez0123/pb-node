@@ -390,7 +390,7 @@ const mailOptions = recievedReferralTemplate(email,name)
   
             }catch(error){
       
-              
+              console.log(error)
                   res.status(403).json({user,error,message:error.message})
                 
             }
