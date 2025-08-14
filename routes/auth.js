@@ -750,13 +750,13 @@ let mailOptions = forgotPasswordTemplate(user)
           console.log("Authenticated user:", user);
           
           // Update user activity
-          await prisma.user.update({
-            where: { id: user.id },
-            data: {
+          // await prisma.user.update({
+          //   where: { id: user.id },
+          //   data: {
              
-              isActive: true
-            }
-          });
+              
+          //   }
+          // });
           
           // Update profile activity
           await prisma.profile.updateMany({
