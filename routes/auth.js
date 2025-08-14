@@ -1047,6 +1047,13 @@ resend.emails.send(template).then(()=>{
             email:payload.email,
           }})
           verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+        }else if(googleId){
+          user = await  prisma.user.create({data:{
+            email:email,
+          }})
+          verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+        
+
         }else if(token){
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         if ((!username||!googleId)||(!password&&!googleId)) {
