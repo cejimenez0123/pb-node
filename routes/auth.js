@@ -1042,14 +1042,12 @@ resend.emails.send(template).then(()=>{
        let verifiedToken
        let user
        try{
-        if ((!username||!googleId)||(!password&&!googleId)||(!password&&!idToken)) {
+        if ((!username||!googleId)||(!password&&!googleId)||!idToken) {
           return res.status(400).json({ message: 'Missing required fields' });
         }
         if(idToken){
        const payload = await  verifyAppleIdentityToken(idToken)
-      //  user = await  prisma.user.findFirst({where:{
-      //       email:{equals:payload.email}
-      //     }})
+     
           user = await prisma.user.update({
             where:{
               email:payload.email
@@ -1123,27 +1121,10 @@ resend.emails.send(template).then(()=>{
         
         res.json({firstTime:true,profile:profile,token:verifiedToken})
       }
-      // else{
-      //   const profile = await prisma.profile.create({
-      //     data:{
-      //         username:username,
-      //         selfStatement,
-      //         isPrivate:privacy,
-      //         user:{
-      //             connect:{
-      //                 id:user.id
-      //             }
-      //         }
-      //     }
-      // })
-      res.json({firstTime:true,profile,token:verifiedToken})
+ 
+  
      }} 
-    
-    // else{
-    //   const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-    //   res.json({firstTime:true,profile:user.profiles[0],token:verifiedToken})
-    
-    //   }
+
       }catch(error){
         console.log(error)
         if(error.message.includes("Unique")){
