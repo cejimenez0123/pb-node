@@ -1103,26 +1103,28 @@ resend.emails.send(template).then(()=>{
         await createNewProfileCollections(profile)
         
         res.json({firstTime:true,profile:profile,token:verifiedToken})
-      }else{
-        const profile = await prisma.profile.create({
-          data:{
-              username:username,
-              selfStatement,
-              isPrivate:privacy,
-              user:{
-                  connect:{
-                      id:user.id
-                  }
-              }
-          }
-      })
+      }
+      // else{
+      //   const profile = await prisma.profile.create({
+      //     data:{
+      //         username:username,
+      //         selfStatement,
+      //         isPrivate:privacy,
+      //         user:{
+      //             connect:{
+      //                 id:user.id
+      //             }
+      //         }
+      //     }
+      // })
       res.json({firstTime:true,profile,token:verifiedToken})
      }} 
-    }else{
-      const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-      res.json({firstTime:true,profile:user.profiles[0],token:verifiedToken})
     
-      }
+    // else{
+    //   const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+    //   res.json({firstTime:true,profile:user.profiles[0],token:verifiedToken})
+    
+    //   }
       }catch(error){
         console.log(error)
         if(error.message.includes("Unique")){
