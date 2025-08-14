@@ -13,7 +13,8 @@ const applyTemplate = require('../html/applyTemplate');
 const { Resend } = require('resend');
 const forgotPasswordTemplate = require('../html/forgotPasswordTemplate');
 const recievedReferralTemplate = require('../html/recievedReferralTemplate');
-const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken")
+const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken");
+const { google } = require('googleapis');
 const router = express.Router()
 function isHex(num) {
 
@@ -1041,24 +1042,42 @@ resend.emails.send(template).then(()=>{
        let verifiedToken
        let user
        try{
+        if ((!username||!googleId)||(!password&&!googleId)||(!password&&!idToken)) {
+          return res.status(400).json({ message: 'Missing required fields' });
+        }
         if(idToken){
        const payload = await  verifyAppleIdentityToken(idToken)
-       user = await  prisma.user.create({data:{
-            email:payload.email,
-          }})
+      //  user = await  prisma.user.findFirst({where:{
+      //       email:{equals:payload.email}
+      //     }})
+          user = await prisma.user.update({
+            where:{
+              email:payload.email
+            },data:{
+              verified:true,
+              emailFrequency:parseInt(frequency)
+            },include:{
+              profiles:true
+            }
+          })
           verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
         }else if(googleId){
-          user = await  prisma.user.create({data:{
-            email:email,
+      
+          user = await  prisma.user.update({where:{
+            googleId:{
+              equals:googleId
+            }},data:{
+            verified:true,
+            emailFrequency:parseInt(frequency)
+          },include:{
+            profiles:true
           }})
           verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
         
 
         }else if(token){
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if ((!username||!googleId)||(!password&&!googleId)) {
-            return res.status(400).json({ message: 'Missing required fields' });
-          }
+     
           
      if(password){
       const hashedPassword = await bcrypt.hash(password, 10);
