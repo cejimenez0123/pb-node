@@ -1029,7 +1029,7 @@ resend.emails.send(template).then(()=>{
        let verifiedToken
        let user
        try{
-        if ((!username||!googleId)||(!googleId)||!idToken) {
+        if ((!username||!password)||(!(!googleId&&idToken)||(!idToken&&googleId)) {
           return res.status(400).json({ message: 'Missing required fields' });
         }
         if(idToken){
