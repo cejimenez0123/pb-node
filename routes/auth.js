@@ -690,7 +690,7 @@ let mailOptions = forgotPasswordTemplate(user)
         try {
           let user = null;
           
-          // Apple Login Flow
+         
           if (identityToken) {
             const payload = await verifyAppleIdentityToken(identityToken);
             user = await prisma.user.findFirst({
@@ -737,11 +737,7 @@ let mailOptions = forgotPasswordTemplate(user)
               return res.status(401).json({ message: 'Invalid email or password' });
             }
             
-            // Add password verification here
-            // const isValidPassword = await bcrypt.compare(password, user.password);
-            // if (!isValidPassword) {
-            //   return res.status(401).json({ message: 'Invalid email or password' });
-            // }
+        
           }
           else {
             return res.status(400).json({ message: 'Missing required login credentials' });
@@ -749,16 +745,7 @@ let mailOptions = forgotPasswordTemplate(user)
           
           console.log("Authenticated user:", user);
           
-          // Update user activity
-          // await prisma.user.update({
-          //   where: { id: user.id },
-          //   data: {
-             
-              
-          //   }
-          // });
-          
-          // Update profile activity
+         
           await prisma.profile.updateMany({
             where: { userId: { equals: user.id } },
             data: {
@@ -767,7 +754,6 @@ let mailOptions = forgotPasswordTemplate(user)
             }
           });
           
-          // Generate JWT token with user.id
           const token = jwt.sign(
             { 
               userId: user.id,
@@ -780,6 +766,7 @@ let mailOptions = forgotPasswordTemplate(user)
           res.json({ token, user });
           
         } catch (error) {
+          console.log(error)
           console.error("Login error:", error);
           res.status(500).json({ 
             message: 'Internal server error',

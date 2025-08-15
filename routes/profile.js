@@ -421,7 +421,7 @@ try{
     })
     router.get("/protected",authMiddleware,async (req,res)=>{
         try{
-      
+    
         if(req.user){
 
             const profile = await prisma.profile.findFirst({where:{
@@ -480,19 +480,16 @@ try{
                 },
                 following:true
             }})
-          
-             
-                res.status(200).json({profile:profile})
-    
-     
+
+             res.json({profile:profile})
         }else{
-            res.status(404).json({message:"User not found"})
+            throw new Error("User not found")
         }
      
-    }catch(error){
-        console.log({error})
-        res.status(404).json({message:"User not found"})
-    }
+        }catch(error){
+            console.log(error)
+            res.status(401).json(error)
+        }
     })
     router.get("/:id/collection",async (req,res)=>{
 try{

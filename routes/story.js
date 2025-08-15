@@ -379,6 +379,7 @@ module.exports = function ({authMiddleware}){
         res.status(200).json({stories})
 
     }catch(error){
+        console.log(error)
         res.json({error})
     }
     })
