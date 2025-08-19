@@ -480,14 +480,21 @@ try{
                 },
                 following:true
             }})
-
-             res.json({profile:profile})
+            const token = jwt.sign(
+                { 
+                  userId: req.user.id,
+                  email: req.user.email 
+                }, 
+                process.env.JWT_SECRET,
+             
+              );
+             res.json({token,profile:profile})
         }else{
             throw new Error("User not found")
         }
      
         }catch(error){
-            console.log(error)
+           
             res.status(401).json(error)
         }
     })
