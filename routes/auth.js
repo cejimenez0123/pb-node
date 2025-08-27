@@ -743,7 +743,7 @@ let mailOptions = forgotPasswordTemplate(user)
             return res.status(400).json({ message: 'Missing required login credentials' });
           }
           
-          console.log("Authenticated user:", user);
+        
           
          
           await prisma.profile.updateMany({
