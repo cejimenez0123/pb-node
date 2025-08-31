@@ -421,9 +421,6 @@ try{
     })
     router.get("/protected",authMiddleware,async (req,res)=>{
         try{
-      
-        if(req.user){
-
             const profile = await prisma.profile.findFirst({where:{
                 id:{
                    equals: req.user.profiles[0].id
@@ -451,43 +448,29 @@ try{
                                                     }
                                                 }
                                             }
-                                        },
-                                        
-                                    }
-                                },
-                                storyIdList:{
-                                    select:{
-                                        story:{
-                                            include:{
-                                                author:true
-                                            }
                                         }
-                                    }
-                                }
+                                
                             }
-                        }
+                        },storyIdList:true
                     }
-                },
-                likedStories:true,
-                historyStories:true,
-                collections:true,
-                stories:true,
-                location:true,
-                followers:{
-                    include:{
-                        follower:true
-                    }
-                },
-                following:true
-            }})
+                       
+                
+        }}},likedStories:true,
+        historyStories:true,
+        collections:true,
+        stories:true,
+        location:true,
+        followers:{
+            include:{
+                follower:true
+            }
+        },
+        following:true}})
           
              
                 res.status(200).json({profile:profile})
     
      
-        }else{
-            res.status(404).json({message:"User not found"})
-        }
      
     }catch(error){
         console.log({error})
