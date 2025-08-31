@@ -507,8 +507,12 @@ module.exports = function (authMiddleware){
                 include:{
                     profileToCollections:{
                         include:{
-                            collection:true
+                      collection:{
+                        include:{
+                          storyIdList:true
                         }
+                      }
+                  }
                     }
                 }
             }

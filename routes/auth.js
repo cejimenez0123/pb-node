@@ -177,7 +177,11 @@ module.exports = function (authMiddleware){
               collections:true,
               profileToCollections:{
                   include:{
-                      collection:true
+                      collection:{
+                        include:{
+                          storyIdList:true
+                        }
+                      }
                   }
               }
           }
@@ -272,7 +276,7 @@ try{
 
 const user = await prisma.user.create({
   data:{
-    email:email,
+    email:email.toLowerCase(),
     verified:false,
   }
 })
@@ -478,9 +482,13 @@ const mailOptions = recievedReferralTemplate(email,name)
                 stories:true,
                 collections:true,
                 profileToCollections:{
-                    include:{
-                        collection:true
+                  include:{
+                    collection:{
+                      include:{
+                        storyIdList:true
+                      }
                     }
+                }
                 }
             }
         }
@@ -655,7 +663,7 @@ let mailOptions = forgotPasswordTemplate(user)
 
        newUser = await prisma.user.create({
             data: {
-              email,
+              email:email.toLowerCase(),
               password:hashedPassword, // You should hash the password before storing it
               referredById: referral.createdById
             }
@@ -878,7 +886,7 @@ let mailOptions = forgotPasswordTemplate(user)
         
       }=req.body
       const user = await prisma.user.create({data:{
-        email:email,
+        email:email.toLowerCase(),
         subscription: "newsletter",
         preferredName:fullName,
         igHandle:igHandle,    
@@ -936,7 +944,7 @@ resend.emails.send(template).then(()=>{
     throw new Error("Not Unique")
   }else{
     user = await prisma.user.create({data:{
-        email:payload.email,
+        email:payload.email.toLowerCase(),
         preferredName:fullName,
         igHandle:igHandle,
     }})
@@ -1130,7 +1138,7 @@ resend.emails.send(template).then(()=>{
             
         
         let user = await  prisma.user.create({data:{
-            email:email,
+            email:email.toLowerCase(),
             uId:id,
             verified:false
         }

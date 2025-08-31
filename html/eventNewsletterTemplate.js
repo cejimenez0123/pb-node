@@ -18,9 +18,9 @@ const eventNewsletterTemplate=(events,user,days)=>{
         { date: parseEventDate("Sat. June 21st", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
         { date: parseEventDate("Mon. July 14", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home" },
         { date: parseEventDate("Sat. July 19th", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
-        { date: parseEventDate("Sat. August 16th", today.getFullYear()), description: "Open Mic @ Boogie Down Grind",link:"https://partiful.com/e/4xLnLRiDC2QDvs1PUId8" }, 
+        { date: parseEventDate("Sat. August 16th", today.getFullYear()), description: "Open Mic @ Bronxlandia",link:"https://partiful.com/e/4xLnLRiDC2QDvs1PUId8" }, 
         { date: parseEventDate("Mon. August 11th", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home",link:"https://partiful.com/e/hCkUYQlaHLrbg36xMLmH" },
-        { date: parseEventDate("Sat. August 23rd", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
+        // { date: parseEventDate("Sat. August 23rd", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
         { date: parseEventDate("Thurs. August 28th", today.getFullYear()), description: "Mixer @ Andrew Freedman Home" } 
       ];
       
