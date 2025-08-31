@@ -433,7 +433,7 @@ try{
                         
                         collection:{
                             include:{
-
+storyIdList:true,
                                 childCollections:{
                                     include:{
                                         childCollection:{
@@ -451,7 +451,7 @@ try{
                                         }
                                 
                             }
-                        },storyIdList:true
+                        },
                     }
                        
                 

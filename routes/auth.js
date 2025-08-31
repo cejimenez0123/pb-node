@@ -174,7 +174,11 @@ module.exports = function (authMiddleware){
               collections:true,
               profileToCollections:{
                   include:{
-                      collection:true
+                      collection:{
+                        include:{
+                          storyIdList:true
+                        }
+                      }
                   }
               }
           }
@@ -420,9 +424,13 @@ const mailOptions = recievedReferralTemplate(email,name)
                 stories:true,
                 collections:true,
                 profileToCollections:{
-                    include:{
-                        collection:true
+                  include:{
+                    collection:{
+                      include:{
+                        storyIdList:true
+                      }
                     }
+                }
                 }
             }
         }
