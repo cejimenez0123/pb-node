@@ -540,6 +540,15 @@ module.exports = function (authMiddleware){
             },isPrivate:{
                 equals:false
             }},include:{
+                parentCollections:{
+                    include:{
+                        parentCollection:{
+                            select:{
+                                id:true
+                            }
+                        }
+                    }
+                },
                 childCollections:{
                     where:{
                         childCollection:{
