@@ -621,7 +621,17 @@ const recommendations = await getRecommendedCollections(req.params.id)
             not:req.params.id
             },isPrivate:{
                 equals:false
-            }},
+            }},include:{
+                parentCollections:{
+                    include:{
+                        parentCollection:{
+                            select:{
+                                id:true
+                            }
+                        }
+                    }
+                }
+            },
         })
 
         res.json({collections:collections})}
