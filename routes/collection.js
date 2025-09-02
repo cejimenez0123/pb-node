@@ -655,6 +655,15 @@ const recommendations = await getRecommendedCollections(req.params.id)
             {orderBy:{
                 
                     updated:"desc"},where:{isPrivate:{equals:false}},include:{
+                        parentCollections:{
+                            include:{
+                                parentCollection:{
+                                    select:{
+                                        id:true
+                                    }
+                                }
+                            }
+                        },
                         profile:true,
                     childCollections:{
                         include:{
