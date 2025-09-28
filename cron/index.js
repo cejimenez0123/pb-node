@@ -71,16 +71,18 @@ const weeklyEmail=async()=>{
   for (let i = 0; i < users.length; i++) {
     const user = users[i]
     await sleep(1000)
+    if (shouldSendEmail(user.lastEmailed, user.emailFrequency)) {
+    
   sendEventNewsletterEmail(user,events,days).then(res=>{
     if(!res.data.error){
       console.log(i,"Success: "+user.email)
     }else{
       console.log(i,"Error "+user.email)
     }
-    
+  
   }).catch(err=>{
 console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
-  })}}
+  })}}}
 
   function shouldSendEmail(lastEmailTime, frequencyDays) {
     const currentTime = Date.now();
