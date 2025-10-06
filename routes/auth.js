@@ -11,7 +11,8 @@ const applyTemplate = require('../html/applyTemplate');
 const { Resend } = require('resend');
 const forgotPasswordTemplate = require('../html/forgotPasswordTemplate');
 const recievedReferralTemplate = require('../html/recievedReferralTemplate');
-const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken")
+const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken");
+const { google } = require('googleapis');
 const router = express.Router()
 function isHex(num) {
 
@@ -885,12 +886,20 @@ resend.emails.send(template).then(()=>{
         const{token,email,googleId,password,username,
         profilePicture,selfStatement,privacy,frequency
        }=req.body
-     
+     console.log(req.body)
        try{
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if ((!username||!googleId)||(!password&&!googleId)) {
-            return res.status(400).json({ message: 'Missing required fields' });
-          }
+        // if ((!username||!googleId)||(!password&&!googleId)!token) {
+        // if((username&&googleId)||!(token&&password)){
+        //   return res.status(400).json({ message: 'Missing required fields' });
+        // }
+            if((username&&googleId)||!(token&&password)){
+         return res.status(400).json({ message: 'Missing required fields' });
+        }
+
+       if (!token || (!username && !password) || (!username && !googleId)) {
+         return res.status(400).json({ message: 'Missing required fields' });
+       }
           let verifiedToken
           let user
      if(password){
