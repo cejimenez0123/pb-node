@@ -83,13 +83,7 @@ console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
   })}
 }
 
-  function shouldSendEmail(lastEmailTime, frequencyDays) {
-    const currentTime = Date.now();
-    const elapsedTimeMs = currentTime - lastEmailTime;
-    const elapsedTimeDays = elapsedTimeMs / (1000 * 60 * 60 * 24);
-  
-    return elapsedTimeDays >= frequencyDays;
-  }
+
   
 
 module.exports = {weeklyJob,dailyJob}

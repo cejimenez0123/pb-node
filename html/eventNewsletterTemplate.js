@@ -14,10 +14,11 @@ const eventNewsletterTemplate=(events,user,days)=>{
       today.setHours(0, 0, 0, 0);
       
       const allEvents = [
-        { date: parseEventDate("Mon. June 9th", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home" },
-        { date: parseEventDate("Sat. June 21st", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
-        { date: parseEventDate("Mon. July 14", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home" },
-        { date: parseEventDate("Sat. July 19th", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
+        { date: parseEventDate("Sat. October 30th", today.getFullYear()), description: "Sol Feature @ Walnut Bar and Grill" },
+        { date: parseEventDate("Sat. Novemeber 15th", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
+        { date: parseEventDate("Wed. December 3rd", today.getFullYear()), description: "Spark Open Mic @ City College" },
+        // { date: parseEventDate("Sat. Decemeber 20th", today.getFullYear()), description: "@ Andrew Freedman Home" },
+        { date: parseEventDate("Sat. July 19th", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind or Virtuall " },
         { date: parseEventDate("Sat. August 16th", today.getFullYear()), description: "Open Mic @ Bronxlandia",link:"https://partiful.com/e/4xLnLRiDC2QDvs1PUId8" }, 
         { date: parseEventDate("Mon. August 11th", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home",link:"https://partiful.com/e/hCkUYQlaHLrbg36xMLmH" },
         // { date: parseEventDate("Sat. August 23rd", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
@@ -125,6 +126,7 @@ const eventNewsletterTemplate=(events,user,days)=>{
           <p>Hope you’re writing, resting, and thriving. We’ve got a whole summer of creativity coming up — and you’re invited!</p>
       
           <h2>📝 Upcoming Writer Workshops</h2>
+
           <p>Join us for generative writing sessions, constructive feedback, and fresh inspiration:</p>
          ${ 
           htmlList
