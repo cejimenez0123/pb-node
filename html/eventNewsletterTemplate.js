@@ -125,13 +125,12 @@ const eventNewsletterTemplate=(events,user,days)=>{
           <h1>Hey there, Plumbum writer!</h1>
           <p>Hope you’re writing, resting, and thriving. We’ve got a whole summer of creativity coming up — and you’re invited!</p>
       
-          <h2>📝 Upcoming Writer Workshops</h2>
-
+          ${nextTwoEvents.length>0? `<h2>📝 Upcoming Events</h2>
           <p>Join us for generative writing sessions, constructive feedback, and fresh inspiration:</p>
          ${ 
           htmlList
-        }
-          <p>RSVP and full details will be posted in Slack and on the calendar!</p>
+        }`:``}
+        
       
           <h2>🌿 This Week’s Creative Events</h2>
           ${events && events.length ? events.map(area => 
