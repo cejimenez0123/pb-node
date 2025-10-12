@@ -80,7 +80,8 @@ const weeklyEmail=async()=>{
     
   }).catch(err=>{
 console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
-  })}}
+  })}
+}
 
   function shouldSendEmail(lastEmailTime, frequencyDays) {
     const currentTime = Date.now();

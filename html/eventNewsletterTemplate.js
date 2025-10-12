@@ -144,15 +144,9 @@ const eventNewsletterTemplate=(events,user,days)=>{
           ).join('') : `<div class="event"><p>No events scheduled this time. Stay tuned!</p></div>`}
       
        
-          <h2>🎵 We have our acts for the Mixer</h2>
-          <ul>
-          <li><a href="https://www.instagram.com/anevolution_"> Anevolution_ </a></li>
-         <li> <a href="https://www.instagram.com/e.8az6/"> Eric.az</a></li>
-          <li><a href="https://www.instagram.com/sagi_868/"> Sagi</a></li>
-          </ul>
-          <p>Are mixer is coming up on Thursday August 28th. The theme is foward so dress looking ahead to who you want to be with new and old clothes.
-          <h2>👥 Join Our Slack</h2>
-          <p>Our Slack is where it all happens — writing sprints, live edits, meme exchanges, and drop-in hangouts. <a href="https://join.slack.com/t/plumbumwriters/shared_invite/zt-2zvkzyi02-dRlhqb0wvHAaU~~dUgh7hQ">Join here</a>.</p>
+        
+          <h2>👥 Join Our Instagram Channel</h2>
+          <p>Our Slack is where it all happens — writing sprints, prompts, meme exchanges. <a href="https://www.instagram.com/channel/AbaI9yaoN4KfPze_/?igsh=MTJrbzQyaDliaDdscw==">Join here</a>.</p>
       
           <h2>🌐 Post Your Own Weirdness</h2>
           <p>Got something creative brewing? Become a Plumbum user and share your own work on the platform. <a href="${process.env.DOMAIN}/apply/newsletter">Apply here</a>.</p>
