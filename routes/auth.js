@@ -694,7 +694,7 @@ let mailOptions = forgotPasswordTemplate(user)
       });
       router.post("/session", async (req, res) => {
         const { email, password, uId, googleId,identityToken } = req.body;
-  
+  console.log(req.body)
         try {
           let user = null;
           
@@ -737,13 +737,16 @@ let mailOptions = forgotPasswordTemplate(user)
           }
           // Email/Password Login Flow
           else if (email && password) {
-            user = await prisma.user.findFirst({
-              where: { email: email }
-            });
             
-            if (!user) {
-              return res.status(401).json({ message: 'Invalid email or password' });
-            }
+           
+         user = await prisma.user.findFirst({ where: { email:email }});
+    
+        if (!user || !bcrypt.compareSync(password, user.password)) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+      
+            
+         
             
         
           }
@@ -760,7 +763,7 @@ let mailOptions = forgotPasswordTemplate(user)
               lastActive: new Date(),
               isActive: true
             }
-          });
+          })
           
           const token = jwt.sign(
             { 
