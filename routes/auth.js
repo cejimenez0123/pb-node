@@ -693,13 +693,13 @@ let mailOptions = forgotPasswordTemplate(user)
         }
       });
       router.post("/session", async (req, res) => {
-        const { email, password, uId, identityToken } = req.body;
-        
+        const { email, password, uId, googleId,identityToken } = req.body;
+  
         try {
           let user = null;
           
          
-          if (identityToken) {
+          if (identityToken&&!uid) {
             const payload = await verifyAppleIdentityToken(identityToken);
             user = await prisma.user.findFirst({
               where: { email: { equals: payload.email } }
@@ -708,7 +708,7 @@ let mailOptions = forgotPasswordTemplate(user)
             if (!user) {
               return res.status(401).json({ message: 'User not found for Apple login' });
             }
-            console.log("Apple login payload:", payload, user);
+           
           }
           // Google Login Flow
           else if (uId) {
