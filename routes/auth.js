@@ -697,9 +697,30 @@ let mailOptions = forgotPasswordTemplate(user)
   console.log(req.body)
         try {
           let user = null;
-          
-         
-          if (identityToken&&!uid) {
+            // Google Login Flow
+        
+         if (uId) {
+            user = await prisma.user.findFirst({
+              where: { googleId: uId }
+            });
+              if (user) {
+               
+                // Link Google account to existing user
+                user = await prisma.user.update({
+                  where: { id: user.id },
+                  data: { googleId: uId }
+                });
+              }
+                if (!user && email) {
+              return res.status(401).json({ message: 'User not found' });
+           
+            }
+            // If user not found by googleId but email provided, link the account
+
+            if (!user) {
+              return res.status(401).json({ message: 'User not found for Google login' });
+            }
+          }  else  if (identityToken) {
             const payload = await verifyAppleIdentityToken(identityToken);
             user = await prisma.user.findFirst({
               where: { email: { equals: payload.email } }
@@ -709,31 +730,6 @@ let mailOptions = forgotPasswordTemplate(user)
               return res.status(401).json({ message: 'User not found for Apple login' });
             }
            
-          }
-          // Google Login Flow
-          else if (uId) {
-            user = await prisma.user.findFirst({
-              where: { googleId: uId }
-            });
-            
-            // If user not found by googleId but email provided, link the account
-            if (!user && email) {
-              user = await prisma.user.findFirst({
-                where: { email: email }
-              });
-              
-              if (user) {
-                // Link Google account to existing user
-                user = await prisma.user.update({
-                  where: { id: user.id },
-                  data: { googleId: uId }
-                });
-              }
-            }
-            
-            if (!user) {
-              return res.status(401).json({ message: 'User not found for Google login' });
-            }
           }
           // Email/Password Login Flow
           else if (email && password) {
