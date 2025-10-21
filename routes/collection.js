@@ -1103,20 +1103,19 @@ const otherCols = libraries.filter(book=>book.priority<90)
     if (!collection) {
       return res.status(404).json({ error: 'Collection not found' });
     }
-
+    if (!collection.isPrivate) {
+      return res.json({collection});
+    }
     const sightArr = ['reader',  'commneter', 'editor', 'writer'];
 
     // Owner can always see
     if (currentProfile && collection.profileId === currentProfile.id) {
-        console.log("OWNER ACCESS GRANTED TO COLLECTION",collection.id,currentProfile.id)
-      return res.json({collection});
+         return res.json({collection});
     
     }
 
     // Public collection
-    if (!collection.isPrivate) {
-      return res.json({collection});
-    }
+  
 
     // Not logged in + private
     if (!currentProfile && collection.isPrivate) {
