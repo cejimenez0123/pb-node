@@ -61,6 +61,7 @@ model Location {
   longitude Float
   profiles Profile[]
   collections Collection[]
+  created DateTime? @default(now())
 }
 model Referral {
   id         String  @id @default(auto()) @map("_id") @db.ObjectId

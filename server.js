@@ -4,8 +4,6 @@ const bodyParser = require("body-parser")
 const cors = require('cors')
 const http = require("http")
 const prisma = require("./db")
-
-const {dailyJob,weeklyJob} = require("./cron")
 const roleRoutes = require("./routes/role.js")
 const authRoutes = require("./routes/auth")
 const storyRoutes = require("./routes/story")
@@ -45,10 +43,6 @@ if(process.env.NODE_ENV=="dev"){
 }
 console.log("Domain",domain)
 app.use(cors())
-// app.use((req, res, next) => {
-//   res.setHeader("Access-Control-Allow-Origin",  process.env.DOMAIN);
-//   next(); 
-// });
 app.options("*",cors())
 const server = http.createServer(app);
 const io = new Server(server,{    cors: {
@@ -60,7 +54,7 @@ const io = new Server(server,{    cors: {
 
 function authMiddleware(req, res, next) {
   passport.authenticate('bearer', { session: false }, (err, user, info) => {
-  
+
     if (err) return next(err); // Handle errors gracefully
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
   

@@ -379,6 +379,7 @@ module.exports = function ({authMiddleware}){
         res.status(200).json({stories})
 
     }catch(error){
+        console.log(error)
         res.json({error})
     }
     })
@@ -428,115 +429,291 @@ module.exports = function ({authMiddleware}){
         res.json({error})
     }
     })
-    router.get("/:id/protected",authMiddleware,async (req,res)=>{
-try{
-        let story = await prisma.story.findFirst({where: {
-            id:req.params.id},include:{
-                collections:{
-                   include:{
-                    collection:{
-                        select:{
-                            id:true,
-                            title:true,
-                            type:true,
-                            isPrivate:true,
-                            roles:{
-                                include:{
+//     router.get("/:id/protected",authMiddleware,async (req,res)=>{
+// try{
+//         let story = await prisma.story.findFirst({where: {
+//             id:req.params.id},include:{
+//                 collections:{
+//                    include:{
+//                     collection:{
+//                         select:{
+//                             id:true,
+//                             title:true,
+//                             type:true,
+//                             isPrivate:true,
+//                             roles:{
+//                                 include:{
                                     
-                                    profile:{
-                                        select:{
-                                            id:true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                   }
-                },
-                author:true,
-                comments:{include:{profile:true,parent:true}},
-                hashtags:{
-                    include:{
-                        hashtag:true
-                    }
-                },
+//                                     profile:{
+//                                         select:{
+//                                             id:true
+//                                         }
+//                                     }
+//                                 }
+//                             }
+//                         }
+//                     }
+//                    }
+//                 },
+//                 author:true,
+//                 comments:{include:{profile:true,parent:true}},
+//                 hashtags:{
+//                     include:{
+//                         hashtag:true
+//                     }
+//                 },
                 
-                betaReaders:{
-                  include:{
-                    profile:true,
-                    story:true
-                  }
-                }
-            }})
+//                 betaReaders:{
+//                   include:{
+//                     profile:true,
+//                     story:true
+//                   }
+//                 }
+//             }})
     
-res.status(200).json({story})
+// res.status(200).json({story})
 
-    }catch(error){
-        console.log(error)
-        res.status({error})
-    }
-    })
-    router.get("/:id/public",async (req,res)=>{
-       try{
-        let id = req.params.id
-        let story = await prisma.story.findFirst({where:{
-            id:{equals:id}
-        },include:{
-            author:true,
-            hashtags:true,
-            collections:{
-                include:{
-                    collection:{
-                        select:{
-                            id:true,
-                            isPrivate:true,
-                            title:true,
+//     }catch(error){
+//         console.log(error)
+//         res.status({error})
+//     }
+//     })
+//     router.get("/:id/public",async (req,res)=>{
+//        try{
+//         let id = req.params.id
+//         let story = await prisma.story.findFirst({where:{
+//             id:{equals:id}
+//         },include:{
+//             author:true,
+//             hashtags:true,
+//             collections:{
+//                 include:{
+//                     collection:{
+//                         select:{
+//                             id:true,
+//                             isPrivate:true,
+//                             title:true,
                           
-                        }
-                    }
-                }
+//                         }
+//                     }
+//                 }
+//             },
+//             comments:{
+//                 include:{
+//                     profile:true
+//                 }
+//             }
+//         }})
+    
+//             if(story && story.isPrivate==false||story.collections.find(col=>col.collection.isPrivate==false)){    
+//                 res.status(200).json({story})
+    
+//             }else{
+//                 res.json({message:"Story not found"})
+//             }
+            
+//         }catch(error){
+//             console.log(error)
+//             res.json({error})
+//         }
+//     })
+//     router.post("/:id/role",...allMiddlewares,async (req,res)=>{
+//         try{
+//         const {profileId,role} = req.body
+//      let roleToStory = await prisma.roleToStory.create({data:{
+//         story:{
+//             connect:{
+//                 id:req.params.id,
+//             },},
+//         profile:{
+//             connect:{
+//                 id: profileId
+//             }
+//         },
+//         role:role
+//       }})  
+//     res.json({role:roleToCollection})
+//         }catch(error){
+            
+//             res.json({error})
+//         }
+// })
+router.get("/:id/protected", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id; // from auth middleware
+    const storyId = req.params.id;
+
+    const story = await prisma.story.findFirst({
+      where: { id: storyId },
+      include: {
+        author: true,
+        collections: {
+          include: {
+            collection: {
+              select: {
+                id: true,
+                title: true,
+                type: true,
+                isPrivate: true,
+                roles: {
+                  select: {
+                    profileId: true,
+                  },
+                },
+              },
             },
-            comments:{
-                include:{
-                    profile:true
-                }
-            }
-        }})
-    
-            if(story && story.isPrivate==false||story.collections.find(col=>col.collection.isPrivate==false)){    
-                res.status(200).json({story})
-    
-            }else{
-                res.json({message:"Story not found"})
-            }
-            
-        }catch(error){
-            console.log(error)
-            res.json({error})
-        }
-    })
-    router.post("/:id/role",...allMiddlewares,async (req,res)=>{
-        try{
-        const {profileId,role} = req.body
-     let roleToStory = await prisma.roleToStory.create({data:{
-        story:{
-            connect:{
-                id:req.params.id,
-            },},
-        profile:{
-            connect:{
-                id: profileId
-            }
+          },
         },
-        role:role
-      }})  
-    res.json({role:roleToCollection})
-        }catch(error){
-            
-            res.json({error})
-        }
-})
+        hashtags: {
+          include: { hashtag: true },
+        },
+        comments: {
+          include: { profile: true, parent: true },
+        },
+        betaReaders: {
+          select: {
+            profileId: true,
+          },
+        },
+      },
+    });
+
+    if (!story) {
+      return res.status(404).json({ error: "Story not found." });
+    }
+
+    // --- Visibility logic (previously frontend logic) ---
+    let canUserSee = false;
+
+    // 1️⃣ Story is public
+    if (!story.isPrivate){
+         canUserSee = true;
+    }
+
+    // 2️⃣ User is the author
+    if (!canUserSee && story.authorId === userId) canUserSee = true;
+
+    // 3️⃣ Story belongs to a public collection
+    if (!canUserSee && story.collections?.length > 0) {
+      const publicCollection = story.collections.find(
+        (col) => col.collection && !col.collection.isPrivate
+      );
+      if (publicCollection) canUserSee = true;
+    }
+
+    // 4️⃣ User has a role in a private collection
+    if (!canUserSee && story.collections?.length > 0) {
+      const hasRole = story.collections.find((col) =>
+        col.collection.roles.find((role) => role.profileId === userId)
+      );
+      if (hasRole) canUserSee = true;
+    }
+
+    // 5️⃣ User is a beta reader
+    if (!canUserSee && story.betaReaders?.length > 0) {
+      const isBetaReader = story.betaReaders.find(
+        (br) => br.profileId === userId
+      );
+      if (isBetaReader) canUserSee = true;
+    }
+   console.log("STORY ACCESS GRANTED"+story.authorId);
+    console.log("Protected story accessed by user:", userId);
+    // --- Return or throw ---
+    if (!canUserSee) {
+      return res.status(403).json({ error: "Access denied: private story." });
+    }
+ 
+    // Authorized — return full story
+    return res.json({story});
+  } catch (err) {
+    console.error("Error fetching protected story:", err);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+// router.get("/:id/protected", authMiddleware, async (req, res) => {
+//   try {
+//     const userId = req.user.id; // from your auth middleware
+//     const storyId = req.params.id;
+
+//     const story = await prisma.story.findFirst({
+//       where: { id: storyId },
+//       include: {
+//         author: true,
+//         collections: {
+//           include: {
+//             collection: {
+//               select: {
+//                 id: true,
+//                 title: true,
+//                 type: true,
+//                 isPrivate: true,
+//                 roles: {
+//                   select: {
+//                     profileId: true,
+//                   },
+//                 },
+//               },
+//             },
+//           },
+//         },
+//         hashtags: {
+//           include: { hashtag: true },
+//         },
+//         comments: {
+//           include: { profile: true, parent: true },
+//         },
+//         betaReaders: {
+//           select: {
+//             profileId: true,
+//           },
+//         },
+//       },
+//     });
+
+//     if (!story) return res.status(404).json({ error: "Story not found" });
+
+//     // --- Visibility logic (moved from frontend) ---
+//     let canUserSee = false;
+
+//     // 1️⃣ Public story
+//     if (!story.isPrivate) canUserSee = true;
+
+//     // 2️⃣ Author can always view
+//     if (!canUserSee && story.authorId === userId) canUserSee = true;
+
+//     // 3️⃣ Check public collections
+//     if (!canUserSee && story.collections?.length > 0) {
+//       const publicCollection = story.collections.find(
+//         (col) => col.collection && !col.collection.isPrivate
+//       );
+//       if (publicCollection) canUserSee = true;
+//     }
+
+//     // 4️⃣ Check if user has a role in a collection
+//     if (!canUserSee && story.collections?.length > 0) {
+//       const hasRole = story.collections.find((col) =>
+//         col.collection.roles.find((role) => role.profileId === userId)
+//       );
+//       if (hasRole) canUserSee = true;
+//     }
+
+//     // 5️⃣ Beta readers
+//     if (!canUserSee && story.betaReaders?.length > 0) {
+//       const isBetaReader = story.betaReaders.find(
+//         (br) => br.profileId === userId
+//       );
+//       if (isBetaReader) canUserSee = true;
+//     }
+
+//     return res.json({
+//       canUserSee,
+//       story: canUserSee ? story : null, // only return full story if authorized
+//     });
+//   } catch (err) {
+//     console.error("Error fetching protected story:", err);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
     router.put("/:id",...allMiddlewares,async (req,res)=>{
 try{
         const {title,data, description, needsFeedback,isPrivate,commentable,type}= req.body

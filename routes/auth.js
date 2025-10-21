@@ -2,6 +2,8 @@ const express = require('express');
 const prisma = require("../db");
 const bcrypt = require("bcryptjs")
 const jwt = require('jsonwebtoken');
+const newsletterWelcomeTemplate = require("../html/newsletterWelcome")
+const applicationConfirmationTemplate = require("../html/applicationConfirmationTemplate")
 const generateMongoId = require("./generateMongoId");
 const approvalTemplate = require('../html/approvalTemplate');
 const newsletterSurveyTemplate = require('../html/newsletterSurveyTemplate');
@@ -299,29 +301,84 @@ const mailOptions = recievedReferralTemplate(email,name)
     router.post("/apply",async (req,res)=>{
    
         const {
-        
+            idToken,
+            googleId,
             igHandle,
             fullName,
             email,
         } = req.body
-
+        let user 
     try{
-    let user =  await prisma.user.findFirst({where:{
-        email:{equals:email}
+      let mail = email??""
+      if(idToken){
+        let payload = await verifyAppleIdentityToken(idToken)
+        mail = payload.email
+      
+      user = await prisma.user.findFirst({where:{
+        email:{equals:mail}
       }})
+        if(!user||!user.id){
+          user = await prisma.user.create({data:{
+            email:mail,
+            preferredName:fullName??"",
+            igHandle:igHandle??"",
+        }})
+     
+          let mailOptions = applyTemplate(user,req.body,false)
+          let template = applicationConfirmationTemplate(user)
+
+         await resend.emails.send(template)
+       let response  =  await resend.emails.send(mailOptions)
+                const params = new URLSearchParams({
+          applicantId:user.id,
+          action:"approve",
+          email,
+        });
+        const parms = `/auth/review?`+params.toString()
+
+         res.status(201).json({path:parms,user,message:'Applied Successfully!'});
     
-    if(!!user){
+      }else{
         throw new Error("Not Unique")
-    }else{
+      }
+  }else if(googleId){
+
+    user = await prisma.user.findFirst({where:{
+      googleId:{equals:googleId}
+    }})
+    if(!user){
         user = await prisma.user.create({data:{
-            email:email.toLowerCase(),
+          email:payload.email,
+          preferredName:fullName,
+          igHandle:igHandle,
+      }})
+   
+        let mailOptions = applyTemplate(user,req.body,false)
+        let template = applicationConfirmationTemplate(user)
+
+       await resend.emails.send(template)
+     let response  =  await resend.emails.send(mailOptions)
+              const params = new URLSearchParams({
+        applicantId:user.id,
+        action:"approve",
+        email,
+      });
+      const parms = `/auth/review?`+params.toString()
+
+       res.status(201).json({path:parms,user,message:'Applied Successfully!'});
+    }
+  }else if(email){
+    
+        user = await prisma.user.create({data:{
+            email:email,
             preferredName:fullName,
             igHandle:igHandle,
         }})
      
 
           let mailOptions = applyTemplate(user,req.body,false)
-
+            let template = applicationConfirmationTemplate(user)
+           await resend.emails.send(template)
          let response  =  await resend.emails.send(mailOptions)
          if(response.error){
           throw response.err
@@ -334,12 +391,12 @@ const mailOptions = recievedReferralTemplate(email,name)
         const parms = `/auth/review?`+params.toString()
 
          res.status(201).json({path:parms,user,message:'Applied Successfully!'});
-      }
-    }
+      }}
+  
             }catch(error){
       
-                  console.log(error)
-                  res.status(403).json({error,message:error.message})
+              console.log(error)
+                  res.status(403).json({user,error,message:error.message})
                 
             }
 
@@ -473,7 +530,8 @@ const mailOptions = recievedReferralTemplate(email,name)
       
           let mailOptions = applyTemplate(user,req.body,false)
           let response =  await resend.emails.send(mailOptions)
-      
+          let applyWelcome = newsletterWelcomeTemplate(user)
+          let welcomeRes =  await resend.emails.send(applyWelcome)
           if(response.data){
           const params = new URLSearchParams({
             applicantId:user.id,
@@ -782,13 +840,14 @@ resend.emails.send(template).then(()=>{
             res.status(409).json({error})
           }
     })
-    // router.post("/ios",async (req,res)=>{ 
+    
 
 
     router.post("/apply/ios",async (req,res)=>{
       let user = null
       const {idToken,fullName,igHandle} = req.body
   const payload = await verifyAppleIdentityToken(idToken)
+  
      user =await prisma.user.findFirst({where:{
       email:{equals:payload.email}
      }})
@@ -818,47 +877,8 @@ resend.emails.send(template).then(()=>{
      res.status(201).json({path:parms,user,message:'Applied Successfully!'});
   }
 }
-
-// })
-// .catch(err => {
-//   console.error('Token verification failed:', err);
-// });
     })
-      
-    router.post("/ios",async (req,res)=>{
-      let user = null
-      let {idToken} = req.body
-  const payload = await verifyAppleIdentityToken(idToken)
-    
-          // Verified token payload: {
 
-          //   iss: 'https://appleid.apple.com';,
-          
-          //   aud: 'app.plumbum.com',
-          
-          //   exp: 1755156824,
-          
-          //   iat: 1755070424,
-          
-          //   sub: '000163.6735cabd987f4cfca1b12eeb0609c265.1426',
-          
-          //   nonce: 'nonce',
-          
-          //   c_hash: 'YPjX1Za_S8TrZP4bc_xKUw',
-          
-          //   email: 'cejimenez0123@gmail.com',
-          
-          //   email_verified: true,
-          
-          //   auth_time: 1755070424,
-          
-          //   nonce_supported: true
-          
-          // }
-          // console.log('Verified token payload:', payload);
-          // console.log('User email:', payload.email);
-   
-    })
     router.post("/google",async (req,res)=>{
       const {email,googleId, accessToken}=req.body
       let user = await prisma.user.findFirst({where:{
@@ -883,7 +903,7 @@ resend.emails.send(template).then(()=>{
     })
     router.post("/register",async (req,res)=>{
     
-        const{token,email,googleId,password,username,
+        const{token,idToken,email,googleId,password,username,
         profilePicture,selfStatement,privacy,frequency
        }=req.body
      console.log(req.body)
@@ -945,27 +965,10 @@ resend.emails.send(template).then(()=>{
         await createNewProfileCollections(profile)
         
         res.json({firstTime:true,profile:profile,token:verifiedToken})
-      }else{
-        const profile = await prisma.profile.create({
-          data:{
-              username:username,
-              selfStatement,
-              isPrivate:privacy,
-              user:{
-                  connect:{
-                      id:user.id
-                  }
-              }
-          }
-      })
-      res.json({firstTime:true,profile,token:verifiedToken})
-     } 
-    }else{
-      const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-      res.json({firstTime:true,profile:user.profiles[0],token:verifiedToken})
-    
       }
-      }catch(error){
+ 
+  
+     }} catch(error){
         console.log(error)
         if(error.message.includes("Unique")){
           res.status(409).json("USERNAME IS NOT UNIQUE")

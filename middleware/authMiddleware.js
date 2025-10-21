@@ -30,6 +30,7 @@ function setUpPassportLocal(passport) {
   );
 
   passport.serializeUser((user, done) => {
+
     done(null, user.id); // Store only user ID in session
   });
 
@@ -39,9 +40,10 @@ function setUpPassportLocal(passport) {
       const user = await prisma.user.findUnique({ where: { id },include:{
         profiles:true
       }});
-      console.log("pop",user)
+console.log("passport user",user)
       done(null, user);
     } catch (error) {
+      console.log("passport err",err)
       done(error);
     }
   });

@@ -540,6 +540,15 @@ module.exports = function (authMiddleware){
             },isPrivate:{
                 equals:false
             }},include:{
+                parentCollections:{
+                    include:{
+                        parentCollection:{
+                            select:{
+                                id:true
+                            }
+                        }
+                    }
+                },
                 childCollections:{
                     where:{
                         childCollection:{
@@ -612,7 +621,17 @@ const recommendations = await getRecommendedCollections(req.params.id)
             not:req.params.id
             },isPrivate:{
                 equals:false
-            }},
+            }},include:{
+                parentCollections:{
+                    include:{
+                        parentCollection:{
+                            select:{
+                                id:true
+                            }
+                        }
+                    }
+                }
+            },
         })
 
         res.json({collections:collections})}
@@ -646,6 +665,15 @@ const recommendations = await getRecommendedCollections(req.params.id)
             {orderBy:{
                 
                     updated:"desc"},where:{isPrivate:{equals:false}},include:{
+                        parentCollections:{
+                            include:{
+                                parentCollection:{
+                                    select:{
+                                        id:true
+                                    }
+                                }
+                            }
+                        },
                         profile:true,
                     childCollections:{
                         include:{
@@ -1009,63 +1037,135 @@ const otherCols = libraries.filter(book=>book.priority<90)
         res.json({error})
     }
     })
-    router.get("/:id/protected",authMiddleware,async (req,res)=>{
-        try{
-        const collection = await prisma.collection.findFirst({where:{
-            id: req.params.id
-        },include:{
-            storyIdList:{
-              include:{
-                story:{include:{author:true}}}  
-            },
+    // router.get("/:id/protected",authMiddleware,async (req,res)=>{
+    //     try{
+    //     const collection = await prisma.collection.findFirst({where:{
+    //         id: req.params.id
+    //     },include:{
+    //         storyIdList:{
+    //           include:{
+    //             story:{include:{author:true}}}  
+    //         },
             
-            parentCollections:{
-                include:{
+    //         parentCollections:{
+    //             include:{
                 
-                    parentCollection:{
-                        select:{
-                            id:true,
-                            roles:true
-                        }
-                    }
-                }
-            },
+    //                 parentCollection:{
+    //                     select:{
+    //                         id:true,
+    //                         roles:true
+    //                     }
+    //                 }
+    //             }
+    //         },
         
-            childCollections:{
-                include:{
-                    parentCollection:true,
-                    childCollection:{
+    //         childCollections:{
+    //             include:{
+    //                 parentCollection:true,
+    //                 childCollection:{
 
-                        include:{
-                            storyIdList:{
-                                include:{
-                                    story:{
-                                        include:{
-                                            author:true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-           roles:{
-                include:{
-                    profile:true,
-                }
-            },
+    //                     include:{
+    //                         storyIdList:{
+    //                             include:{
+    //                                 story:{
+    //                                     include:{
+    //                                         author:true
+    //                                     }
+    //                                 }
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         },
+    //        roles:{
+    //             include:{
+    //                 profile:true,
+    //             }
+    //         },
         
-            profile:true
+    //         profile:true
             
-        }})
+    //     }})
   
-        res.status(200).json({collection:collection})
-    }catch(error){
-        console.log({error})
-        res.json({error})
+    //     res.status(200).json({collection:collection})
+    // }catch(error){
+    //     console.log({error})
+    //     res.json({error})
+    // }
+    // })
+    router.get('/:id/protected',authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentProfile = req.user.profiles[0] || req.body.currentProfile; // depends on auth setup
+    const collection = await getCollectionById(id); // your DB fetch logic
+
+    if (!collection) {
+      return res.status(404).json({ error: 'Collection not found' });
     }
-    })
+
+    const sightArr = ['reader',  'commneter', 'editor', 'writer'];
+
+    // Owner can always see
+    if (currentProfile && collection.profileId === currentProfile.id) {
+        console.log("OWNER ACCESS GRANTED TO COLLECTION",collection.id,currentProfile.id)
+      return res.json({collection});
+    
+    }
+
+    // Public collection
+    if (!collection.isPrivate) {
+      return res.json({collection});
+    }
+
+    // Not logged in + private
+    if (!currentProfile && collection.isPrivate) {
+      return res.status(403).json({ error: 'Access denied: private collection' });
+    }
+
+    // Check user roles
+    if (currentProfile && collection.roles) {
+      const found = collection.roles.find(r => r?.profileId === currentProfile.id);
+      if (found && sightArr.includes(found.role)) {
+        return res.json({collection});
+      }
+    }
+
+    // Check parent collections
+    if (collection.parentCollections?.length > 0) {
+      for (const cTc of collection.parentCollections) {
+        const parent = cTc.parentCollection;
+        if (!parent) continue;
+
+        // Public parent allows view
+        if (!parent.isPrivate) {
+          return res.json({collection});
+        }
+
+        // Role inheritance
+        if (currentProfile && parent.roles) {
+          const found = parent.roles.find(r => r?.profileId === currentProfile.id);
+          if (found && sightArr.includes(found.role)) {
+            return res.json({collection});
+          }
+        }
+
+        // Parent ownership
+        if (parent.profileId === currentProfile?.id) {
+          return res.json({collection});
+        }
+      }
+    }
+
+    // ❌ No permission
+    return res.status(403).json({ error: 'Access denied: user cannot view this collection' });
+
+  } catch (error) {
+    console.error('Error fetching collection:', error);
+    res.status(500).json({ error: 'Failed to fetch collection' });
+  }
+});
+
 router.get("/:id/collection/protected",authMiddleware,async (req,res)=>{
     const {id}=req.params
 try{
@@ -1807,4 +1907,54 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
 
     return router
 
+}
+async function getCollectionById(id) {
+  return prisma.collection.findFirst({where:{
+            id: id
+        },include:{
+            storyIdList:{
+              include:{
+                story:{include:{author:true}}}  
+            },
+            
+            parentCollections:{
+                include:{
+                
+                    parentCollection:{
+                        select:{
+                            id:true,
+                            roles:true
+                        }
+                    }
+                }
+            },
+        
+            childCollections:{
+                include:{
+                    parentCollection:true,
+                    childCollection:{
+
+                        include:{
+                            storyIdList:{
+                                include:{
+                                    story:{
+                                        include:{
+                                            author:true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+           roles:{
+                include:{
+                    profile:true,
+                }
+            },
+        
+            profile:true
+            
+        }})
 }

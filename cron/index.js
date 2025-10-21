@@ -8,11 +8,6 @@ const sendEmail = require("../newsletter/sendEmail")
 const fetchAlerts = require("../newsletter/fetchAlerts")
 
 const dailyJob = cron.schedule('0 9 * * *', async () => {
-  try{
-//  await dailyTask()
-  }catch(err){
-    console.log(err)
-  }
 })
 const dailyTask=async ()=>{
   const users = await prisma.user.findMany({include:{
@@ -50,7 +45,7 @@ if(comments.length>0||roles.length>0||following.length>0||followers.length>0||co
 }
 const weeklyJob = cron.schedule('0 9 * * 0', async () => {
   try{
-  weeklyEmail()
+
 }catch(err){
   console.err("WEEKLY JOB ERROR"+err.message)
     
@@ -71,18 +66,16 @@ const weeklyEmail=async()=>{
   for (let i = 0; i < users.length; i++) {
     const user = users[i]
     await sleep(1000)
-    if (shouldSendEmail(user.lastEmailed, user.emailFrequency)) {
-    
   sendEventNewsletterEmail(user,events,days).then(res=>{
     if(!res.data.error){
       console.log(i,"Success: "+user.email)
     }else{
       console.log(i,"Error "+user.email)
     }
-  
+    
   }).catch(err=>{
 console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
-  })}}}
+  })}}
 
   function shouldSendEmail(lastEmailTime, frequencyDays) {
     const currentTime = Date.now();
