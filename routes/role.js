@@ -97,7 +97,8 @@ try{
                 },
                 profile:true
             }})
-        res.json({collection,roles:newRoles.filter(role=>!!role)})
+         let col =await getCollectionById(roles[0].item.id)
+        res.json({collection:col,roles:newRoles.filter(role=>!!role)})
 
             }catch(error){
                 console.log(error)
@@ -226,7 +227,8 @@ try{
              childCollections:true,
              storyIdList:true
          }})
-        res.json({role,collection})
+           const col = await getCollectionById(collectionId)
+        res.json({role,collection:col})
     }else{
         let collection = await prisma.collection.findFirst({where:{
             id:collectionId
@@ -235,7 +237,8 @@ try{
              childCollections:true,
              storyIdList:true
          }})
-        res.json({role,collection})
+        const col = await getCollectionById(collectionId)
+        res.json({role,collection:col})
     } 
         
     }catch(error){
@@ -283,7 +286,8 @@ try{
                     childCollections:true,
                     
                 }})
-                res.json({collection})
+                let col = await getCollectionById(req.params.id)
+                res.json({collection:col})
         
         }catch(err){
             res.status(409).json({error:err})
@@ -304,4 +308,58 @@ try{
                     })
     return router
 
+}
+async function getCollectionById(id) {
+  // Fetch the collection with all relations
+  const collection = await prisma.collection.findFirst({
+    where: { id },
+    include: {
+      storyIdList: {
+        include: {
+          story: { include: { author: true } },
+        },
+      },
+      parentCollections: {
+        include: {
+          parentCollection: {
+            select: { id: true, roles: true },
+          },
+        },
+      },
+      childCollections: {
+        include: {
+          parentCollection: true,
+          childCollection: {
+            include: {
+              storyIdList: {
+                include: {
+                  story: { include: { author: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+      roles: {
+        include: { profile: true },
+      },
+      profile: true,
+    },
+  });
+
+  if (!collection) return null;
+
+  // ✅ Filter out entries with missing story
+  const orphanedEntries = collection.storyIdList.filter((s) => !s.story);
+
+  // ✅ Delete them from the database
+  if (orphanedEntries.length > 0) {
+    const orphanIds = orphanedEntries.map((entry) => entry.id);
+   await prisma.story.deleteMany({where:{id:{in:orphanIds}}})
+   
+    // Remove them from the local object as well
+    collection.storyIdList = collection.storyIdList.filter((s) => s.story);
+  }
+
+  return collection;
 }

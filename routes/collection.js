@@ -1037,63 +1037,7 @@ const otherCols = libraries.filter(book=>book.priority<90)
         res.json({error})
     }
     })
-    // router.get("/:id/protected",authMiddleware,async (req,res)=>{
-    //     try{
-    //     const collection = await prisma.collection.findFirst({where:{
-    //         id: req.params.id
-    //     },include:{
-    //         storyIdList:{
-    //           include:{
-    //             story:{include:{author:true}}}  
-    //         },
-            
-    //         parentCollections:{
-    //             include:{
-                
-    //                 parentCollection:{
-    //                     select:{
-    //                         id:true,
-    //                         roles:true
-    //                     }
-    //                 }
-    //             }
-    //         },
-        
-    //         childCollections:{
-    //             include:{
-    //                 parentCollection:true,
-    //                 childCollection:{
-
-    //                     include:{
-    //                         storyIdList:{
-    //                             include:{
-    //                                 story:{
-    //                                     include:{
-    //                                         author:true
-    //                                     }
-    //                                 }
-    //                             }
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         },
-    //        roles:{
-    //             include:{
-    //                 profile:true,
-    //             }
-    //         },
-        
-    //         profile:true
-            
-    //     }})
-  
-    //     res.status(200).json({collection:collection})
-    // }catch(error){
-    //     console.log({error})
-    //     res.json({error})
-    // }
-    // })
+ 
     router.get('/:id/protected',authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
