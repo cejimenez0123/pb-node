@@ -429,115 +429,7 @@ module.exports = function ({authMiddleware}){
         res.json({error})
     }
     })
-//     router.get("/:id/protected",authMiddleware,async (req,res)=>{
-// try{
-//         let story = await prisma.story.findFirst({where: {
-//             id:req.params.id},include:{
-//                 collections:{
-//                    include:{
-//                     collection:{
-//                         select:{
-//                             id:true,
-//                             title:true,
-//                             type:true,
-//                             isPrivate:true,
-//                             roles:{
-//                                 include:{
-                                    
-//                                     profile:{
-//                                         select:{
-//                                             id:true
-//                                         }
-//                                     }
-//                                 }
-//                             }
-//                         }
-//                     }
-//                    }
-//                 },
-//                 author:true,
-//                 comments:{include:{profile:true,parent:true}},
-//                 hashtags:{
-//                     include:{
-//                         hashtag:true
-//                     }
-//                 },
-                
-//                 betaReaders:{
-//                   include:{
-//                     profile:true,
-//                     story:true
-//                   }
-//                 }
-//             }})
-    
-// res.status(200).json({story})
 
-//     }catch(error){
-//         console.log(error)
-//         res.status({error})
-//     }
-//     })
-//     router.get("/:id/public",async (req,res)=>{
-//        try{
-//         let id = req.params.id
-//         let story = await prisma.story.findFirst({where:{
-//             id:{equals:id}
-//         },include:{
-//             author:true,
-//             hashtags:true,
-//             collections:{
-//                 include:{
-//                     collection:{
-//                         select:{
-//                             id:true,
-//                             isPrivate:true,
-//                             title:true,
-                          
-//                         }
-//                     }
-//                 }
-//             },
-//             comments:{
-//                 include:{
-//                     profile:true
-//                 }
-//             }
-//         }})
-    
-//             if(story && story.isPrivate==false||story.collections.find(col=>col.collection.isPrivate==false)){    
-//                 res.status(200).json({story})
-    
-//             }else{
-//                 res.json({message:"Story not found"})
-//             }
-            
-//         }catch(error){
-//             console.log(error)
-//             res.json({error})
-//         }
-//     })
-//     router.post("/:id/role",...allMiddlewares,async (req,res)=>{
-//         try{
-//         const {profileId,role} = req.body
-//      let roleToStory = await prisma.roleToStory.create({data:{
-//         story:{
-//             connect:{
-//                 id:req.params.id,
-//             },},
-//         profile:{
-//             connect:{
-//                 id: profileId
-//             }
-//         },
-//         role:role
-//       }})  
-//     res.json({role:roleToCollection})
-//         }catch(error){
-            
-//             res.json({error})
-//         }
-// })
 router.get("/:id/protected", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.profiles[0].id; // from auth middleware
@@ -616,13 +508,12 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
       );
       if (isBetaReader) canUserSee = true;
     }
-   console.log("STORY ACCESS GRANTED"+story.authorId);
-    console.log("Protected story accessed by user:", userId);
+
     // --- Return or throw ---
     if (!canUserSee) {
       return res.status(403).json({ error: "Access denied: private story." });
     }
- 
+
     // Authorized — return full story
     return res.json({story});
   } catch (err) {

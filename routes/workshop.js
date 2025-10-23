@@ -53,6 +53,7 @@ async function createOrJoinGroupCollection({ group, profile, story }) {
       type: "feedback",
       profileId: profile.id,
       isOpenCollaboration: true,
+      followersAre: "writer",
       locationId: profile.locationId,
     },
   });
@@ -107,6 +108,7 @@ async function createSoloCollection({ profile, story }) {
       title: generate({ min: 3, max: 6,join:" " }),
       type: "feedback",
       profileId: profile.id,
+      followersAre: "writer",
       locationId: profile.locationId,
       isOpenCollaboration: false,
     },
@@ -517,13 +519,13 @@ module.exports = function (authMiddleware) {
         },data:{
           needsFeedback:true
         }})
-            res.json({ profile:prof,story:stor,profiles});
+          return  res.json({ profile:prof,story:stor,profiles});
       }else{
-        res.json({ profile:prof,story:null,profiles});
+        return res.json({ profile:prof,story:null,profiles});
       }
     
       } catch (error) {
-        res.status(500).json({ error: error});
+      return  res.status(500).json({ error: error});
       }
     });
   
@@ -566,8 +568,8 @@ module.exports = function (authMiddleware) {
         } else {
           collection = await createSoloCollection({ profile: prof, story });
         }
-    
-        res.json({ collection });
+      console.log("WORKSHOP COLLECTION 1",collection)
+       return res.json({ collection });
     
       } catch (error) {
         console.error(error);
@@ -604,214 +606,388 @@ router.post('/groups', authMiddleware, async (req, res) => {
   }
 });
 
-        router.post('/groups/global', authMiddleware,async (req, res) => {
-          try {
+//         router.post('/groups/global', authMiddleware,async (req, res) => {
+//           try {
    
-            const {story,profile}=req.body
-            let workshopCollection = null
-            const prof = await prisma.profile.findFirst({where:{
-              id:{
-                equals:profile.id
-              }
-            }})
+//             const {story,profile}=req.body
+//             let workshopCollection = null
+//             const prof = await prisma.profile.findFirst({where:{
+//               id:{
+//                 equals:profile.id
+//               }
+//             }})
     
       
-            const collections = await prisma.collection.findMany({
-                where: {
-                  AND:[{
-                    type:{
-                      equals:"feedback",
-                    }
-                  },{
-                    profile:{
-                      id: {
-                        notIn:[profile.id,process.env.PLUMBUM_PROFILE_ID]
-                      }
-                    }
-                  },
-                 {storyIdList:{
-                  some:{
-                    story:{
-                      authorId:{
-                        notIn:[profile.id,process.env.PLUMBUM_PROFILE_ID]
-                      }
-                    }
-                  }
-                 }},{roles:{
-                        some:{
-                          profileId:{
-                            notIn:[profile.id,process.env.PLUMBUM_PROFILE_ID]
-                          }
-                        }
-                      }}]
-                  ,
-                  OR:[{location:{
-                    is:null
-                  }},{isOpenCollaboration:{equals:true}}]
-                },
-                include: {
-                    roles: {
-                      include:{profile:true}
-                    },
-                    storyIdList:{
-                      include:{
-                      story:{include:{author:true}}
-                      }
-                    }
-                }
-              });
-            let stories= await prisma.story.findMany({where:{
-                AND:[{author:{
-                  AND:[{
-                    id:{
-                    not:prof.id
+//             const collections = await prisma.collection.findMany({
+//                 where: {
+//                   AND:[{
+//                     type:{
+//                       equals:"feedback",
+//                     }
+//                   },{
+//                     profile:{
+//                       id: {
+//                         notIn:[profile.id,process.env.PLUMBUM_PROFILE_ID]
+//                       }
+//                     }
+//                   },
+//                  {storyIdList:{
+//                   some:{
+//                     story:{
+//                       authorId:{
+//                         notIn:[profile.id,process.env.PLUMBUM_PROFILE_ID]
+//                       }
+//                     }
+//                   }
+//                  }},{roles:{
+//                         some:{
+//                           profileId:{
+//                             notIn:[profile.id,process.env.PLUMBUM_PROFILE_ID]
+//                           }
+//                         }
+//                       }}]
+//                   ,
+//                   OR:[{location:{
+//                     is:null
+//                   }},{isOpenCollaboration:{equals:true}}]
+//                 },
+//                 include: {
+//                     roles: {
+//                       include:{profile:true}
+//                     },
+//                     storyIdList:{
+//                       include:{
+//                       story:{include:{author:true}}
+//                       }
+//                     }
+//                 }
+//               });
+//             let stories= await prisma.story.findMany({where:{
+//                 AND:[{author:{
+//                   AND:[{
+//                     id:{
+//                     not:prof.id
                     
-                  }},{isActive:{
-                    equals:true
-                  }}]
-                }},{
-                needsFeedback:{
-                  equals:true
-                }}]
-              },include:{
-                author:{
-                  include:{
-                    location:true
-                  }
-                }
-              }})
-          let cols =  collections.filter(col=>{
-            return col.roles.length<6
-          })
+//                   }},{isActive:{
+//                     equals:true
+//                   }}]
+//                 }},{
+//                 needsFeedback:{
+//                   equals:true
+//                 }}]
+//               },include:{
+//                 author:{
+//                   include:{
+//                     location:true
+//                   }
+//                 }
+//               }})
+//           let cols =  collections.filter(col=>{
+//             return col.roles.length<6
+//           })
         
-          const groups = groupItemsByCount({items:stories,groupSize:6}) 
+//           const groups = groupItemsByCount({items:stories,groupSize:6}) 
 
-             if(cols[0]){
-              const col = cols[0]
-              if(story){
-                let stc = await createStoryToCollection({storyId:story.id,collectionId:col.id,profileId:prof.id})
+//              if(cols[0]){
+//               const col = cols[0]
+//               if(story){
+//                 let stc = await createStoryToCollection({storyId:story.id,collectionId:col.id,profileId:prof.id})
                
-                try{  
+//                 try{  
                   
-                  await prisma.story.update({where:{
-                  id:story.id,
-                },data:{
-                  needsFeedback:false
-                }})
+//                   await prisma.story.update({where:{
+//                   id:story.id,
+//                 },data:{
+//                   needsFeedback:false
+//                 }})
 
 
-              }catch(err){
-                console.err(err)
-              }
-              }
+//               }catch(err){
+//                 console.err(err)
+//               }
+//               }
 
-              if(col.storyIdList.length<5){
-                let current = col.storyIdList.length
-                if(story){
-                  current+=1
-                }
-                for(let i=0;current+i<6,i++;){
-                 let page = stories.pop()
-                 if(page&&page.id){
-                 await createStoryToCollection({storyId:page.id,collectionId:col.id,})
-                 }
-                }
-                 workshopCollection = await prisma.collection.findFirst({where:{
-                  id:col.id,
+//               if(col.storyIdList.length<5){
+//                 let current = col.storyIdList.length
+//                 if(story){
+//                   current+=1
+//                 }
+//                 for(let i=0;current+i<6,i++;){
+//                  let page = stories.pop()
+//                  if(page&&page.id){
+//                  await createStoryToCollection({storyId:page.id,collectionId:col.id,})
+//                  }
+//                 }
+//                  workshopCollection = await prisma.collection.findFirst({where:{
+//                   id:col.id,
                  
-                },include:{
-                  roles:{
-                    include:{
-                      profile:true
-                    }
-                  },
-                  storyIdList:{
-                    include:{
-                      story:{
-                        include:{
-                          author:true
-                        }
-                      }
-                    }
-                  }
-                }})
-                res.json({collection:workshopCollection})
-              }else{
-             workshopCollection =await   prisma.collection.findFirst({where:{
-                  id:{
-                    equals:col.id
-                  }
-                },include:{
-                  roles:{
-                    include:{
-                      profile:true
-                    }
-                  },
-                  storyIdList:{
-                    include:{
-                      story:{
-                        include:{
-                          author:true
-                        }
-                      }
-                    }
-                  }
-                }})
-                res.json({collection:workshopCollection})
-              }
-             }else{
-              workshopCollection =  await createNewWorkshopCollection({profile:prof})
-              if(story&&story.id &&workshopCol.id){
-             await createStoryToCollection({storyId:story.id,collectionId:workshopCol.id,})
+//                 },include:{
+//                   roles:{
+//                     include:{
+//                       profile:true
+//                     }
+//                   },
+//                   storyIdList:{
+//                     include:{
+//                       story:{
+//                         include:{
+//                           author:true
+//                         }
+//                       }
+//                     }
+//                   }
+//                 }})
+//               return res.json({collection:workshopCollection})
+//               }else{
+//              workshopCollection =await   prisma.collection.findFirst({where:{
+//                   id:{
+//                     equals:col.id
+//                   }
+//                 },include:{
+//                   roles:{
+//                     include:{
+//                       profile:true
+//                     }
+//                   },
+//                   storyIdList:{
+//                     include:{
+//                       story:{
+//                         include:{
+//                           author:true
+//                         }
+//                       }
+//                     }
+//                   }
+//                 }})
+//                return res.json({collection:workshopCollection})
+//               }
+//              }else{
+//               workshopCollection =  await createNewWorkshopCollection({profile:prof})
+//               if(story&&story.id &&workshopCol.id){
+//              await createStoryToCollection({storyId:story.id,collectionId:workshopCol.id,})
                
-               let current = 1
-               let i = 0
-               while(current<6||groups.length>0){
-                const group =  groups[i]
-                for(current;current<=6;current+=1){
-                  page = group.pop()
-                  await createStoryToCollection({storyId:story.id,collectionId:workshopCol.id})
-                  if(current==6){
-                    break
-                  }
-                }
+//                let current = 1
+//                let i = 0
+//                while(current<6||groups.length>0){
+//                 const group =  groups[i]
+//                 for(current;current<=6;current+=1){
+//                   page = group.pop()
+//                   await createStoryToCollection({storyId:story.id,collectionId:workshopCol.id})
+//                   if(current==6){
+//                     break
+//                   }
+//                 }
                 
-               }
+//                }
             
-              workshopCollection = await prisma.collection.findFirst({where:{
-                id:workshopCollection.id,
+//               workshopCollection = await prisma.collection.findFirst({where:{
+//                 id:workshopCollection.id,
                
-              },include:{
-                roles:{
-                  include:{
-                    profile:true
-                  }
-                },
-                storyIdList:{
-                  include:{
-                    story:{
-                      include:{
-                        author:true
-                      }
-                    }
-                  }
-                }
-              }})
-            }}
-           
-              res.json({collection:workshopCollection})
+//               },include:{
+//                 roles:{
+//                   include:{
+//                     profile:true
+//                   }
+//                 },
+//                 storyIdList:{
+//                   include:{
+//                     story:{
+//                       include:{
+//                         author:true
+//                       }
+//                     }
+//                   }
+//                 }
+//               }})
+//             }}
+//            console.log("WORKSHOP COLLECTION",workshopCollection)
+//            return res.json({collection:workshopCollection})
              
    
 
 
-            } catch (error) {
-              console.log({error})
-            res.status(500).json({ error: error });
-              }
+//             } catch (error) {
+//               console.log("ERROR works",error)
+//             return res.status(500).json({ error: error });
+//               }
                 
             
-})
-  
+// })
+  router.post('/groups/global', authMiddleware, async (req, res) => {
+  try {
+    const { story, profile } = req.body;
+
+    const prof = await prisma.profile.findFirst({
+      where: { id: profile.id },
+    });
+
+    if (!prof) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    // Find all eligible collections
+    const collections = await prisma.collection.findMany({
+      where: {
+        AND: [
+          { type: { equals: "feedback" } },
+          {
+            profile: {
+              id: { notIn: [profile.id, process.env.PLUMBUM_PROFILE_ID] }
+            }
+          },
+          {
+            storyIdList: {
+              some: {
+                story: {
+                  authorId: { notIn: [profile.id, process.env.PLUMBUM_PROFILE_ID] }
+                }
+              }
+            }
+          },
+          {
+            roles: {
+              some: {
+                profileId: { notIn: [profile.id, process.env.PLUMBUM_PROFILE_ID] }
+              }
+            }
+          }
+        ],
+        OR: [
+          { location: { is: null } },
+          { isOpenCollaboration: { equals: true } }
+        ]
+      },
+      include: {
+        roles: { include: { profile: true } },
+        storyIdList: { include: { story: { include: { author: true } } } }
+      }
+    });
+
+    // Find all stories that need feedback
+    const stories = await prisma.story.findMany({
+      where: {
+        AND: [
+          { author: { id: { not: prof.id }, isActive: true } },
+          { needsFeedback: true }
+        ]
+      },
+      include: {
+        author: { include: { location: true } }
+      }
+    });
+
+    let availableCollections = collections.filter(col => col.roles.length < 6);
+    const groups = groupItemsByCount({ items: stories, groupSize: 6 });
+
+    let workshopCollection = null;
+
+    // 🟢 CASE 1: Add user to existing eligible collection
+    if (availableCollections[0]) {
+      const col = availableCollections[0];
+
+      // Ensure the user has a role in this collection
+      const existingRole = await prisma.roleToCollection.findFirst({
+        where: {
+          profileId: prof.id,
+          collectionId: col.id,
+        },
+      });
+
+      if (!existingRole) {
+        await prisma.roleToCollection.create({
+          data: {
+            profileId: prof.id,
+            collectionId: col.id,
+            role: "writer",
+          },
+        });
+      }
+
+      // If a story is passed, link it to this collection
+      if (story) {
+        await createStoryToCollection({
+          storyId: story.id,
+          collectionId: col.id,
+          profileId: prof.id
+        });
+
+        await prisma.story.update({
+          where: { id: story.id },
+          data: { needsFeedback: false }
+        });
+      }
+
+      workshopCollection = await prisma.collection.findFirst({
+        where: { id: col.id },
+        include: {
+          roles: { include: { profile: true } },
+          storyIdList: { include: { story: { include: { author: true } } } }
+        }
+      });
+
+      return res.json({ collection: workshopCollection });
+    }
+
+    // 🟢 CASE 2: Create a new workshop collection and assign user + stories
+    const newCollection = await createNewWorkshopCollection({ profile: prof });
+
+    if (!newCollection) {
+      return res.status(500).json({ error: "Failed to create workshop collection" });
+    }
+
+    // Assign the creating user a role
+    await prisma.role.create({
+      data: {
+        profileId: prof.id,
+        collectionId: newCollection.id,
+        role: "owner",
+      },
+    });
+
+    // Add the user's story if provided
+    if (story?.id) {
+      await createStoryToCollection({
+        storyId: story.id,
+        collectionId: newCollection.id,
+        profileId: prof.id
+      });
+
+      await prisma.story.update({
+        where: { id: story.id },
+        data: { needsFeedback: false }
+      });
+    }
+
+    // Fill up the new collection with stories needing feedback
+    let addedCount = story ? 1 : 0;
+    for (let i = 0; i < groups.length && addedCount < 6; i++) {
+      const group = groups[i];
+      for (const page of group) {
+        if (addedCount >= 6) break;
+        await createStoryToCollection({
+          storyId: page.id,
+          collectionId: newCollection.id
+        });
+        addedCount++;
+      }
+    }
+
+    workshopCollection = await prisma.collection.findFirst({
+      where: { id: newCollection.id },
+      include: {
+        roles: { include: { profile: true } },
+        storyIdList: { include: { story: { include: { author: true } } } }
+      }
+    });
+
+    return res.json({ collection: workshopCollection });
+
+  } catch (error) {
+    console.error("ERROR /groups/global", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
     return router;}
     async function getNearbyProfiles({ profileId, radius }) {
       return prisma.profile.findMany({
