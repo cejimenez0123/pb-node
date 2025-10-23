@@ -540,9 +540,9 @@ module.exports = function ({authMiddleware}){
 // })
 router.get("/:id/protected", authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.id; // from auth middleware
+    const userId = req.user.profiles[0].id; // from auth middleware
     const storyId = req.params.id;
-
+    let canUserSee = false;
     const story = await prisma.story.findFirst({
       where: { id: storyId },
       include: {
@@ -583,7 +583,7 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
     }
 
     // --- Visibility logic (previously frontend logic) ---
-    let canUserSee = false;
+    
 
     // 1️⃣ Story is public
     if (!story.isPrivate){
