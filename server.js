@@ -153,26 +153,6 @@ app.get("/image", async (req, res) => {
     res.status(500).send("Error fetching image");
   }
 });
-// // Serve any image dynamically
-// app.get("/image", async (req, res) => {
-//   try {
-//     const { path } = req.query;
-//     if (!path) return res.status(400).send("Missing path");
-
-//     const fileRef = ref(storage, path);
-//     const url = await getDownloadURL(fileRef);
-
-//     // Fetch the image as a stream from Firebase
-//     const response = await fetch(url);
-
-//     // Pass the image content directly
-//     res.set("Content-Type", response.headers.get("content-type"));
-//     response.body.pipe(res);
-//   } catch (err) {
-//     console.error("Image fetch error:", err);
-//     res.status(500).send("Error fetching image");
-//   }
-// });
 
 
 
