@@ -3,6 +3,7 @@ let session = require('cookie-session');
 const bodyParser = require("body-parser")
 const cors = require('cors')
 const http = require("http")
+const axios = require("axios")
 const prisma = require("./db")
 const roleRoutes = require("./routes/role.js")
 const authRoutes = require("./routes/auth")
@@ -22,7 +23,8 @@ const activeUsers = new Map()
 const docs = require("./utils/docs.js")
 const app = express();
 const PORT = process.env.PORT
-
+const { initializeApp } = require("firebase/app");
+const { getStorage,getDownloadURL,ref } = require("firebase/storage")
 app.use(bodyParser.urlencoded({ extended: false }))
 
 const logger = (req, _res, next) => {
@@ -41,7 +43,7 @@ let domain = process.env.DOMAIN
 if(process.env.NODE_ENV=="dev"){
   domain =process.env.DEV_DOMAIN
 }
-console.log("Domain",domain)
+
 app.use(cors())
 app.options("*",cors())
 const server = http.createServer(app);
@@ -50,7 +52,18 @@ const io = new Server(server,{    cors: {
     methods: ["GET", "POST", "PATCH","PUT", "DELETE", "OPTIONS"],
 },});
 
+const config = { apiKey:process.env.VITE_FIREBASE_API_KEY,
+  authDomain:process.env.VITE_AUTH_DOMAIN,
+  databaseURL: process.env.VITE_DATABASE_URL,
+  projectId: process.env.VITE_PROJECT_ID,
+  storageBucket: process.env.VITE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_APP_ID,
+  measurementId: process.env.VITE_MEASUREMENT_ID}
+const firebaseConfig = config
+const firebase = initializeApp(firebaseConfig);
 
+const storage = getStorage(firebase)
 
 function authMiddleware(req, res, next) {
   passport.authenticate('bearer', { session: false }, (err, user, info) => {
@@ -63,6 +76,55 @@ function authMiddleware(req, res, next) {
   })(req, res, next);
 }
 setUpPassportLocal(passport);
+
+app.use(cors({ origin: "*" }));
+
+app.get("/image", async (req, res) => {
+  try {
+    const { path } = req.query;
+    if (!path) return res.status(400).send("Missing path");
+
+    // 1️⃣ Get Firebase download URL for the file
+    const fileRef = ref(storage, path);
+    const downloadUrl = await getDownloadURL(fileRef);
+    // 2️⃣ Fetch the image as a stream using Axios
+    const response = await axios.get(downloadUrl, {
+      responseType: "stream", // important!
+    });
+
+    // 3️⃣ Set the content-type header (so IonImg knows what it is)
+    res.set("Content-Type", response.headers["content-type"] || "image/jpeg");
+
+    // 4️⃣ Pipe the response stream directly to the client
+    response.data.pipe(res);
+  } catch (error) {
+    console.error("Error fetching image:", error);
+    res.status(500).send("Error fetching image");
+  }
+});
+// // Serve any image dynamically
+// app.get("/image", async (req, res) => {
+//   try {
+//     const { path } = req.query;
+//     if (!path) return res.status(400).send("Missing path");
+
+//     const fileRef = ref(storage, path);
+//     const url = await getDownloadURL(fileRef);
+
+//     // Fetch the image as a stream from Firebase
+//     const response = await fetch(url);
+
+//     // Pass the image content directly
+//     res.set("Content-Type", response.headers.get("content-type"));
+//     response.body.pipe(res);
+//   } catch (err) {
+//     console.error("Image fetch error:", err);
+//     res.status(500).send("Error fetching image");
+//   }
+// });
+
+
+
 app.use("/history",historyRoutes(authMiddleware))
 app.use("/like",likeRoutes(authMiddleware))
 app.use("/hashtag",hashtagRoutes(authMiddleware))
@@ -126,7 +188,7 @@ try{
             location:true
         }
       });
-      console.log(`User ${updatedProfile.id}:${updatedProfile.username} connected`);
+      
      
       activeUsers.set(socket.id, updatedProfile);
     }catch(error){
