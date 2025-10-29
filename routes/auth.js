@@ -909,46 +909,60 @@ resend.emails.send(template).then(()=>{
      console.log(req.body)
        try{
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        // if ((!username||!googleId)||(!password&&!googleId)!token) {
-        // if((username&&googleId)||!(token&&password)){
-        //   return res.status(400).json({ message: 'Missing required fields' });
-        // }
-            if((username&&googleId)||!(token&&password)){
+     
+      if(!token || (!username || !password)){
          return res.status(400).json({ message: 'Missing required fields' });
         }
-
-       if (!token || (!username && !password) || (!username && !googleId)) {
-         return res.status(400).json({ message: 'Missing required fields' });
-       }
-          let verifiedToken
-          let user
-     if(password){
       const hashedPassword = await bcrypt.hash(password, 10);
-  
-      user = await prisma.user.update({where:{
-            id:decoded.applicantId
-        },data:{
-          googleId:googleId,
-            password:hashedPassword,
-            verified:true,
-            emailFrequency:parseInt(frequency)
-        },include:{profiles:true}})
-      }else{
-        user = await prisma.user.update({where:{
+      const user =  await prisma.user.update({where:{
           id:decoded.applicantId
       },data:{
-        googleId:googleId,
-    
-          verified:true,
-          emailFrequency:parseInt(frequency)
-      },include:{profiles:true}})
-    }
-     verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-      
-        // const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-       if(user.profiles.length==0){
-        if(profilePicture){
-        const profile = await prisma.profile.create({
+        password:hashedPassword,
+    verified:true,
+    emailFrequency:parseInt(frequency)
+      },include:{
+        profiles:true
+      }})
+       const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+       let profile 
+if(user.profiles.length>=1){
+    profile = await prisma.profile.update({
+    where:{
+      id:user.profiles[0].id
+    },
+            data:{
+                // username:username,
+                profilePic:profilePicture,
+                selfStatement,
+                isPrivate:privacy,
+                user:{
+                    connect:{
+                        id:user.id
+                    }
+                }
+            }
+        })
+   return res.json({ message: 'User has profile',profile:user.profiles[0],idToken:verifiedToken });
+}else if(user.profiles.length==1){
+
+  profile = await prisma.profile.update({
+    where:{
+      id:user.id
+    },
+            data:{
+                // username:username,
+                profilePic:profilePicture,
+                selfStatement,
+                isPrivate:privacy,
+                user:{
+                    connect:{
+                        id:user.id
+                    }
+                }
+            }
+        })
+}else{
+     profile = await prisma.profile.create({
             data:{
                 username:username,
                 profilePic:profilePicture,
@@ -961,14 +975,16 @@ resend.emails.send(template).then(()=>{
                 }
             }
         })
+}
 
+      
+    console.log(profile)
         await createNewProfileCollections(profile)
-        
+    
         res.json({firstTime:true,profile:profile,token:verifiedToken})
-      }
- 
-  
-     }} catch(error){
+    
+    
+    } catch(error){
         console.log(error)
         if(error.message.includes("Unique")){
           res.status(409).json("USERNAME IS NOT UNIQUE")
@@ -990,21 +1006,24 @@ resend.emails.send(template).then(()=>{
             uId:id,
             verified:false
         }
-        })
-       let prof = await prisma.profile.create({
-            data:{
+        ,include:{
+          profiles:true
+        }})
+        
+      //  let prof = await prisma.profile.create({
+      //       data:{
                
-                profilePic:profile.profilePicture,
-                username:profile.username,
+      //           profilePic:profile.profilePicture,
+      //           username:profile.username,
                 
-                selfStatement:profile.selfStatement,
-                user:{
-                    connect:{
-                    id:user.id
-                }},
-                isPrivate:profile.privacy  
-            }
-        })
+      //           selfStatement:profile.selfStatement,
+      //           user:{
+      //               connect:{
+      //               id:user.id
+      //           }},
+      //           isPrivate:profile.privacy  
+      //       }
+      //   })
         let collection = await prisma.collection.create({data:{
             title:"Saved",
             profile:{
