@@ -421,6 +421,7 @@ try{
     })
     router.get("/protected",authMiddleware,async (req,res)=>{
         try{
+            console.log(req.user)
             const profile = await prisma.profile.findFirst({where:{
                 id:{
                    equals: req.user.profiles[0].id

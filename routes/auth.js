@@ -693,178 +693,331 @@ let mailOptions = forgotPasswordTemplate(user)
           res.status(400).json({ message: 'Error processing referral' });
         }
       });
-    router.post("/session",async (req,res)=>{
-        const { email, password, uId,identityToken} = req.body;
-      
-       try{
-      
-        let user = null
-        if(identityToken){
+      router.post("/session", async (req, res) => {
+  const { email, password, uId, identityToken } = req.body;
 
-        const payload = await verifyAppleIdentityToken(identityToken)
-        user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
+  try {
+    let user = null;
+
+    // --- Apple OAuth login ---
+    if (identityToken) {
+      const payload = await verifyAppleIdentityToken(identityToken);
+      user = await prisma.user.findFirst({
+        where: { email: payload.email },
+        include: {
+          profiles: {
+            include: {
+              stories: true,
+              profileToCollections: {
+                include: {
+                  collection: {
+                    include: {
+                      storyIdList: {
+                        include: {
+                          story: { include: { author: true } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    // --- Google OAuth login ---
+    else if (uId) {
+      user = await prisma.user.findFirst({
+        where: { googleId: uId },
+        include: {
+          profiles: {
+            include: {
+              stories: true,
+              profileToCollections: {
+                include: {
+                  collection: {
+                    include: {
+                      storyIdList: {
+                        include: {
+                          story: { include: { author: true } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // If user not found by googleId, link account by email
+      if (!user && email) {
+        user = await prisma.user.update({
+          where: { email },
+          data: { googleId: uId },
+          include: {
+            profiles: {
+              include: {
+                stories: true,
+                profileToCollections: {
+                  include: {
+                    collection: {
+                      include: {
+                        storyIdList: {
+                          include: {
+                            story: { include: { author: true } }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+    // --- Email/password login ---
+    else if (email) {
+      user = await prisma.user.findFirst({
+        where: { email },
+        include: {
+          profiles: {
+            include: {
+              stories: true,
+              profileToCollections: { include: { collection: true } }
+            }
+          }
+        }
+      });
+
+      // Check password only for email login
+      if (!user || !user.password || !bcrypt.compareSync(password, user.password)) {
+        return res.status(409).json({ message: "Invalid email or password" });
+      }
+    }
+
+    // If user still not found
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update profile activity
+    await prisma.profile.updateMany({
+      where: { userId: user.id },
+      data: { lastActive: new Date(), isActive: true }
+    });
+
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+
+    res.json({ token, user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+//     router.post("/session",async (req,res)=>{
+//         const { email, password, uId,identityToken} = req.body;
+      
+//        try{
+      
+//         let user = null
+//         if(identityToken){
+
+//         const payload = await verifyAppleIdentityToken(identityToken)
+//         user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
        
-      }else if(uId){
+//       }else if(uId){
 
 
-          user = await prisma.user.findFirst({where:{
-              googleId:uId
-            },include:{
-              profiles:{
-            include:{
-              stories:true,
-              profileToCollections:{
-                include:{
-                  collection:{
-                    include:{
-                      storyIdList:{
-                        include:{
-                          story:{
-                            include:{
-                              author:true
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-            }})
-          if(!user){
-           user = await prisma.user.update({where:{
-              email:email,
+//           user = await prisma.user.findFirst({where:{
+//               googleId:uId
+//             },include:{
+//               profiles:{
+//             include:{
+//               stories:true,
+//               profileToCollections:{
+//                 include:{
+//                   collection:{
+//                     include:{
+//                       storyIdList:{
+//                         include:{
+//                           story:{
+//                             include:{
+//                               author:true
+//                             }
+//                           }
+//                         }
+//                       }
+//                     }
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//             }})
+//           if(!user){
+//            user = await prisma.user.update({where:{
+//               email:email,
               
-            },data:{
-              googleId:uId
-            },include:{
-              profiles:{
-            include:{
-              stories:true,
+//             },data:{
+//               googleId:uId
+//             },include:{
+//               profiles:{
+//             include:{
+//               stories:true,
               
-              profileToCollections:{
-                include:{
-                  collection:{
-                    include:{
-                      storyIdList:{
-                        include:{
-                          story:{
-                            include:{
-                              author:true
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-              }
-            }})
-          }
+//               profileToCollections:{
+//                 include:{
+//                   collection:{
+//                     include:{
+//                       storyIdList:{
+//                         include:{
+//                           story:{
+//                             include:{
+//                               author:true
+//                             }
+//                           }
+//                         }
+//                       }
+//                     }
+//                   }
+//                 }
+//               }
+//             }
+//               }
+//             }})
+//           }
 
         
 
-        }else{
-          user = await prisma.user.findFirst({ where: { email:email },include:{profiles:{
-            include:{
-              stories:true,
-              profileToCollections:{
-                include:{
-                  collection:true
-                }
-              }
-            }
-          }}});
-          if(uId){
-          user = await prisma.user.update({where:{
-              email:email
-            },data:{
-              googleId:uId,
-              lastActive: new Date(),
-          isActive:true
-            },include:{
-              profiles:{
-            include:{
-              stories:true,
-              profileToCollections:{
-                include:{
-                  collection:{
-                    include:{
-                      storyIdList:{
-                        include:{
-                          story:{
-                            include:{
-                              author:true
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-            }})
-          }
-          if(identityToken){
-            const payload = await verifyAppleIdentityToken(identityToken)
-        user = await prisma.user.findFirst({where:{email:{equals:payload.email}},include:{
-          profiles:{
-            include:{
-              stories:true,
-              profileToCollections:{
-                include:{
-                  collection:{
-                    include:{
-                      storyIdList:{
-                        include:{
-                          story:{
-                            include:{
-                              author:true
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }})
+//         }else{
+//           user = await prisma.user.findFirst({ where: { email:email },include:{profiles:{
+//             include:{
+//               stories:true,
+//               profileToCollections:{
+//                 include:{
+//                   collection:true
+//                 }
+//               }
+//             }
+//           }}});
+//           if(uId){
+//           user = await prisma.user.update({where:{
+//               email:email
+//             },data:{
+//               googleId:uId,
+//               lastActive: new Date(),
+//           isActive:true
+//             },include:{
+//               profiles:{
+//             include:{
+//               stories:true,
+//               profileToCollections:{
+//                 include:{
+//                   collection:{
+//                     include:{
+//                       storyIdList:{
+//                         include:{
+//                           story:{
+//                             include:{
+//                               author:true
+//                             }
+//                           }
+//                         }
+//                       }
+//                     }
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//             }})
+//           }
+//           if(identityToken){
+//             const payload = await verifyAppleIdentityToken(identityToken)
+//         user = await prisma.user.findFirst({where:{email:{equals:payload.email}},include:{
+//           profiles:{
+//             include:{
+//               stories:true,
+//               profileToCollections:{
+//                 include:{
+//                   collection:{
+//                     include:{
+//                       storyIdList:{
+//                         include:{
+//                           story:{
+//                             include:{
+//                               author:true
+//                             }
+//                           }
+//                         }
+//                       }
+//                     }
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//         }})
      
-          }
-         if (email &user.email!=email&&!bcrypt.compareSync(password, user.password) ) {
+//           }
+//           if(!user){
+//                  user = await prisma.user.findFirst({where:{email:{equals:email}},include:{
+//           profiles:{
+//             include:{
+//               stories:true,
+//               profileToCollections:{
+//                 include:{
+//                   collection:{
+//                     include:{
+//                       storyIdList:{
+//                         include:{
+//                           story:{
+//                             include:{
+//                               author:true
+//                             }
+//                           }
+//                         }
+//                       }
+//                     }
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//         }})
+//           }
+//          if (!bcrypt.compareSync(password, user.password) ) {
             
-                return res.status(401).json({ message: 'Invalid email or password' });
-        }
-        }
+//                 return res.status(409).json({ message: 'Invalid email or password' });
+//             }
+//         }
          
       
-        await prisma.profile.updateMany({where:{
-          userId:{
-            equals:user.id
-          }
-        },data:{
-          lastActive: new Date(),
-          isActive:true
-       }})
+//         await prisma.profile.updateMany({where:{
+//           userId:{
+//             equals:user.id
+//           }
+//         },data:{
+//           lastActive: new Date(),
+//           isActive:true
+//        }})
 
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-        res.json({ token,user});
+//         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+//         res.json({ token,user});
    
        
-}catch(error){
+// }catch(error){
+// console.log(error)
+//   res.status(404).json({error})
+// }
 
-  res.status(409).json({error})
-}
-
-})
+// })
     router.post("/newsletter",async (req,res)=>{
       try{
       const{
