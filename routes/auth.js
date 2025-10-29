@@ -710,7 +710,28 @@ let mailOptions = forgotPasswordTemplate(user)
           user = await prisma.user.findFirst({where:{
               googleId:uId
             },include:{
-              profiles:true
+              profiles:{
+            include:{
+              stories:true,
+              profileToCollections:{
+                include:{
+                  collection:{
+                    include:{
+                      storyIdList:{
+                        include:{
+                          story:{
+                            include:{
+                              author:true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
             }})
           if(!user){
            user = await prisma.user.update({where:{
@@ -719,14 +740,45 @@ let mailOptions = forgotPasswordTemplate(user)
             },data:{
               googleId:uId
             },include:{
-              profiles:true
+              profiles:{
+            include:{
+              stories:true,
+              
+              profileToCollections:{
+                include:{
+                  collection:{
+                    include:{
+                      storyIdList:{
+                        include:{
+                          story:{
+                            include:{
+                              author:true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+              }
             }})
           }
 
         
 
         }else{
-          user = await prisma.user.findFirst({ where: { email:email },include:{profiles:true}});
+          user = await prisma.user.findFirst({ where: { email:email },include:{profiles:{
+            include:{
+              stories:true,
+              profileToCollections:{
+                include:{
+                  collection:true
+                }
+              }
+            }
+          }}});
           if(uId){
           user = await prisma.user.update({where:{
               email:email
@@ -735,13 +787,55 @@ let mailOptions = forgotPasswordTemplate(user)
               lastActive: new Date(),
           isActive:true
             },include:{
-              profiles:true
+              profiles:{
+            include:{
+              stories:true,
+              profileToCollections:{
+                include:{
+                  collection:{
+                    include:{
+                      storyIdList:{
+                        include:{
+                          story:{
+                            include:{
+                              author:true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
             }})
           }
           if(identityToken){
             const payload = await verifyAppleIdentityToken(identityToken)
         user = await prisma.user.findFirst({where:{email:{equals:payload.email}},include:{
-          profiles:true
+          profiles:{
+            include:{
+              stories:true,
+              profileToCollections:{
+                include:{
+                  collection:{
+                    include:{
+                      storyIdList:{
+                        include:{
+                          story:{
+                            include:{
+                              author:true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }})
      
           }
@@ -762,7 +856,6 @@ let mailOptions = forgotPasswordTemplate(user)
        }})
 
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-      console.log(user)
         res.json({ token,user});
    
        
@@ -772,26 +865,6 @@ let mailOptions = forgotPasswordTemplate(user)
 }
 
 })
- // const user = await prisma.user.findFirst({ where: { email:{equals:email} }});
-    
-        // if (!user || !bcrypt.compareSync(password, user.password)) {
-        //     return res.status(401).json({ message: 'Invalid email or password' });
-        // }
-      
-        // await prisma.profile.updateMany({where:{
-        //   userId:{
-        //     equals:user.id
-        //   }
-        // },data:{
-        //   lastActive: new Date(),
-        //   isActive:true
-        // }})
-        // const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '2d' });
-
-        // res.json({ token,user });
-      
-
-
     router.post("/newsletter",async (req,res)=>{
       try{
       const{
@@ -915,7 +988,7 @@ resend.emails.send(template).then(()=>{
         const{token,idToken,email,googleId,password,username,
         profilePicture,selfStatement,privacy,frequency
        }=req.body
-     console.log(req.body)
+     
        try{
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
      
