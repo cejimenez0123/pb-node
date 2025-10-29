@@ -1,4 +1,5 @@
 const express = require('express');
+const router = express.Router()
 const prisma = require("../db");
 const bcrypt = require("bcryptjs")
 const jwt = require('jsonwebtoken');
@@ -15,7 +16,7 @@ const forgotPasswordTemplate = require('../html/forgotPasswordTemplate');
 const recievedReferralTemplate = require('../html/recievedReferralTemplate');
 const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken");
 const { google } = require('googleapis');
-const router = express.Router()
+
 function isHex(num) {
 
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
@@ -702,12 +703,14 @@ let mailOptions = forgotPasswordTemplate(user)
 
         const payload = await verifyAppleIdentityToken(identityToken)
         user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
-      console.log(payload,user)  
+       
       }else if(uId){
 
 
           user = await prisma.user.findFirst({where:{
               googleId:uId
+            },include:{
+              profiles:true
             }})
           if(!user){
            user = await prisma.user.update({where:{
@@ -715,13 +718,15 @@ let mailOptions = forgotPasswordTemplate(user)
               
             },data:{
               googleId:uId
+            },include:{
+              profiles:true
             }})
           }
 
         
 
         }else{
-          user = await prisma.user.findFirst({ where: { email:email } });
+          user = await prisma.user.findFirst({ where: { email:email },include:{profiles:true}});
           if(uId){
           user = await prisma.user.update({where:{
               email:email
@@ -729,20 +734,24 @@ let mailOptions = forgotPasswordTemplate(user)
               googleId:uId,
               lastActive: new Date(),
           isActive:true
+            },include:{
+              profiles:true
             }})
           }
           if(identityToken){
             const payload = await verifyAppleIdentityToken(identityToken)
-        user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
-      console.log("1"+payload,user)
+        user = await prisma.user.findFirst({where:{email:{equals:payload.email}},include:{
+          profiles:true
+        }})
+     
           }
-         if (!user || (email &user.email!=email)) {
+         if (email &user.email!=email&&!bcrypt.compareSync(password, user.password) ) {
             
                 return res.status(401).json({ message: 'Invalid email or password' });
         }
         }
          
-        console.log("CDCD",user)
+      
         await prisma.profile.updateMany({where:{
           userId:{
             equals:user.id
@@ -750,11 +759,11 @@ let mailOptions = forgotPasswordTemplate(user)
         },data:{
           lastActive: new Date(),
           isActive:true
-        }})
+       }})
 
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-      
-        res.json({ token,user });
+      console.log(user)
+        res.json({ token,user});
    
        
 }catch(error){
@@ -925,44 +934,10 @@ resend.emails.send(template).then(()=>{
       }})
        const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
        let profile 
-if(user.profiles.length>=1){
-    profile = await prisma.profile.update({
-    where:{
-      id:user.profiles[0].id
-    },
-            data:{
-                // username:username,
-                profilePic:profilePicture,
-                selfStatement,
-                isPrivate:privacy,
-                user:{
-                    connect:{
-                        id:user.id
-                    }
-                }
-            }
-        })
-   return res.json({ message: 'User has profile',profile:user.profiles[0],idToken:verifiedToken });
-}else if(user.profiles.length==1){
 
-  profile = await prisma.profile.update({
-    where:{
-      id:user.id
-    },
-            data:{
-                // username:username,
-                profilePic:profilePicture,
-                selfStatement,
-                isPrivate:privacy,
-                user:{
-                    connect:{
-                        id:user.id
-                    }
-                }
-            }
-        })
-}else{
-     profile = await prisma.profile.create({
+        if(user.profiles.length<1){
+            
+              profile = await prisma.profile.create({
             data:{
                 username:username,
                 profilePic:profilePicture,
@@ -974,16 +949,16 @@ if(user.profiles.length>=1){
                     }
                 }
             }
+         
         })
+         await createNewProfileCollections(profile)
+        res.json({firstTime:true,profile:profile,token:verifiedToken})
+      }else{
+return res.json({ message: 'User has profile',profile:user.profiles[0],idToken:verifiedToken });
+   
 }
 
-      
-    console.log(profile)
-        await createNewProfileCollections(profile)
-    
-        res.json({firstTime:true,profile:profile,token:verifiedToken})
-    
-    
+        
     } catch(error){
         console.log(error)
         if(error.message.includes("Unique")){

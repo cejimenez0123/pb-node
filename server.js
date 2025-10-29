@@ -14,6 +14,7 @@ const profileRoutes = require("./routes/profile")
 const likeRoutes = require("./routes/like.js")
 const historyRoutes = require("./routes/history.js")
 const commentRoutes = require("./routes/comment.js")
+const algoliaRoutes = require("./routes/algolia.js")
 const workshopRoutes = require("./routes/workshop.js")
 const followRoutes = require("./routes/follow.js")
 const passport = require("passport")
@@ -72,49 +73,7 @@ app.use(cors({ origin: "*" }));
 
 const imageCache = new NodeCache({ stdTTL: 60 * 60 }); // 1 hour = 3600 seconds
 
-// app.get("/image", async (req, res) => {
-//   try {
-//     const { path } = req.query;
-//     if (!path) return res.status(400).send("Missing path");
-    
-//     // 1️⃣ Get Firebase download URL for the file
-//     const fileRef = ref(storage, path);
-//     const downloadUrl = await getDownloadURL(fileRef);
-//     // 2️⃣ Fetch the image as a stream using Axios
-//     const response = await axios.get(downloadUrl, {
-//       responseType: "stream", // important!
-//     });
-//  // 💾 Cache the image data safely as a Buffer
-// const bufferData = Buffer.from(response.data);
 
-// imageCache.set(path, {
-//   buffer: bufferData,
-//   contentType: response.headers["content-type"] || "image/jpeg",
-// });
-
-//   // imageCache.set(path, {
-//   //     buffer: response.data,
-//   //     contentType: response.headers["content-type"] || "image/jpeg",
-//   //   });
-//     // 3️⃣ Set the content-type header (so IonImg knows what it is)
-//   // imageCache.set(path, {
-//   //     buffer: response.data,
-//   //     contentType: response.headers["content-type"] || "image/jpeg",
-//   //   });
-
-//     // 📤 Send image response
-// res.set("Content-Type", response.headers["content-type"] || "image/jpeg");
-// res.send(bufferData);
-
-//     // res.set("Content-Type", response.headers["content-type"]);
-//     // res.send(response.data);
-//     // 4️⃣ Pipe the response stream directly to the client
-//     response.data.pipe(res);
-//   } catch (error) {
-//     console.error("Error fetching image:", error);
-//     res.status(500).send("Error fetching image");
-//   }
-// });
 
 app.get("/image", async (req, res) => {
   try {
@@ -155,7 +114,7 @@ app.get("/image", async (req, res) => {
 });
 
 
-
+app.use("/api/algolia",algoliaRoutes(authMiddleware))
 app.use("/history",historyRoutes(authMiddleware))
 app.use("/like",likeRoutes(authMiddleware))
 app.use("/hashtag",hashtagRoutes(authMiddleware))
