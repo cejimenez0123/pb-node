@@ -474,48 +474,46 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "Story not found." });
     }
 
-    // --- Visibility logic (previously frontend logic) ---
-    
+
+  if ( story.authorId === userId)return res.json({story});
 
     // 1️⃣ Story is public
-    if (!story.isPrivate){
-         canUserSee = true;
-    }
+    if (!story.isPrivate)return res.json({story});
 
     // 2️⃣ User is the author
-    if (!canUserSee && story.authorId === userId) canUserSee = true;
+  
 
     // 3️⃣ Story belongs to a public collection
     if (!canUserSee && story.collections?.length > 0) {
       const publicCollection = story.collections.find(
         (col) => col.collection && !col.collection.isPrivate
       );
-      if (publicCollection) canUserSee = true;
+      if (publicCollection) return res.json({story});
     }
 
     // 4️⃣ User has a role in a private collection
-    if (!canUserSee && story.collections?.length > 0) {
+    if (story.collections?.length > 0) {
       const hasRole = story.collections.find((col) =>
         col.collection.roles.find((role) => role.profileId === userId)
       );
-      if (hasRole) canUserSee = true;
+      if (hasRole) return res.json({story});
     }
 
     // 5️⃣ User is a beta reader
-    if (!canUserSee && story.betaReaders?.length > 0) {
+    if ((story.betaReaders?.length > 0)) {
       const isBetaReader = story.betaReaders.find(
         (br) => br.profileId === userId
       );
-      if (isBetaReader) canUserSee = true;
+      if (isBetaReader) return res.json({story});
     }
 
     // --- Return or throw ---
-    if (!canUserSee) {
+    // if (!canUserSee) {
       return res.status(403).json({ error: "Access denied: private story." });
-    }
+    // }
 
     // Authorized — return full story
-    return res.json({story});
+    // return res.json({story});
   } catch (err) {
     console.error("Error fetching protected story:", err);
     return res.status(500).json({ error: "Internal server error." });
