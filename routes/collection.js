@@ -1038,10 +1038,11 @@ const otherCols = libraries.filter(book=>book.priority<90)
     }
     })
  
-    router.get('/:id/protected',authMiddleware, async (req, res) => {
+    router.get('/col/:id/protected',authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const currentProfile = req.user.profiles[0] || req.body.currentProfile; // depends on auth setup
+    console.log(id)
     const collection = await getCollectionById(id); // your DB fetch logic
 
     if (!collection) {
@@ -1645,27 +1646,14 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
         await Promise.all(deleteStoryromises)
        await Promise.all(storyPromises)
        await Promise.all(colPromises)
-       let updatedCol = await prisma.collection.findFirst({where:{
-        id:col.id
-        },include:{
-            storyIdList:{
-                include:{story:{include:{author:true}}}  
-              },
-            childCollections:true,
-            roles:{
-                include:{
-                    profile:true,
-                    }
-                },
-                profile:true
-        }})
+       let updatedCol = getCollectionById(col.id)
             res.json({collection:updatedCol})
         }catch(error){
             console.log(error)
             res.json({error})
         }
     })
-    router.get("/profile/private",authMiddleware,async (req,res)=>{
+    router.get("/profile/protected",authMiddleware,async (req,res)=>{
   
         try{
         const profile = await prisma.profile.findFirst({where:{
@@ -1675,6 +1663,7 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
         },include:{likedStories:true,
             historyStories:true,
             collectionHistory:true,location:true}})
+
         let cols = await prisma.collection.findMany({where:{
           profileId:{equals:profile.id}
         },include:{
@@ -1849,56 +1838,6 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
     return router
 
 }
-// async function getCollectionById(id) {
-//   return prisma.collection.findFirst({where:{
-//             id: id
-//         },include:{
-//             storyIdList:{
-//               include:{
-//                 story:{include:{author:true}}}  
-//             },
-            
-//             parentCollections:{
-//                 include:{
-                
-//                     parentCollection:{
-//                         select:{
-//                             id:true,
-//                             roles:true
-//                         }
-//                     }
-//                 }
-//             },
-        
-//             childCollections:{
-//                 include:{
-//                     parentCollection:true,
-//                     childCollection:{
-
-//                         include:{
-//                             storyIdList:{
-//                                 include:{
-//                                     story:{
-//                                         include:{
-//                                             author:true
-//                                         }
-//                                     }
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 }
-//             },
-//            roles:{
-//                 include:{
-//                     profile:true,
-//                 }
-//             },
-        
-//             profile:true
-            
-//         }})
-// }
 async function getCollectionById(id) {
   // Fetch the collection with all relations
   const collection = await prisma.collection.findFirst({
