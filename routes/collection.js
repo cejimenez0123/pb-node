@@ -1041,9 +1041,8 @@ const otherCols = libraries.filter(book=>book.priority<90)
     router.get('/col/:id/protected',authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const currentProfile = req.user.profiles[0] || req.body.currentProfile; // depends on auth setup
-    console.log(id)
-    const collection = await getCollectionById(id); // your DB fetch logic
+    const currentProfile = req.user.profiles[0]
+    const collection = await getCollectionById(id); 
 
     if (!collection) {
       return res.status(404).json({ error: 'Collection not found' });
@@ -1053,7 +1052,6 @@ const otherCols = libraries.filter(book=>book.priority<90)
   
     // Owner can always see
     if (currentProfile && collection.profileId === currentProfile.id) {
-      
          return res.json({collection});
     
     }
@@ -1065,7 +1063,6 @@ const otherCols = libraries.filter(book=>book.priority<90)
       return res.status(403).json({ error: 'Access denied: private collection' });
     }
 
-    // Check user roles
     if (currentProfile && collection.roles) {
       const found = collection.roles.find(r => r?.profileId === currentProfile.id);
       if (found && sightArr.includes(found.role)) {
