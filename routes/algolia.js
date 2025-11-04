@@ -72,33 +72,6 @@ router.get("/search", async (req, res) => {
   }
 });
 
-// router.get("/search", async (req, res) => {
-//   const query = req.query.q 
-
-//   if (!query) {
-//     return res.status(400).json({ error: "Query parameter 'q' is required" });
-//   }
-
-//   const indexes = ["profile", "story", "collection", "hashtag"];
-//   const queries = indexes.map((indexName) => ({
-//     indexName,
-//     query,
-//   }));
-
-//   try {
-//     const { results } = await client.multipleQueries(queries);
-
-//     // Flatten results and attach type
-//     const flattenedResults = results.flatMap((result) =>
-//       result.hits.map((hit) => ({ ...hit, type: result.index }))
-//     );
-// console.log(flattenedResults)
-//     res.json({ results: flattenedResults });
-//   } catch (error) {
-//     console.error("Algolia search error:", error);
-//     res.status(500).json({ error: "Search failed" });
-//   }
-// });
 
 router.patch("/update", async (req, res) => {
   try {
@@ -107,7 +80,7 @@ router.patch("/update", async (req, res) => {
       return res.status(400).json({ message: "Missing objectID or fields." });
     }
 
-    const result = await index.partialUpdateObject({
+    const result = await client.partialUpdateObject({
       objectID,
       ...fields,
     });

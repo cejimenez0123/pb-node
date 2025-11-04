@@ -26,13 +26,10 @@ const docs = require("./utils/docs.js")
 const app = express();
 const PORT = process.env.PORT
 const {storage} = require("./utils/storage.js")
-// Import with `import * as Sentry from "@sentry/node"` if you are using ESM
 const Sentry = require("@sentry/node");
 try{
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
-  // Setting this option to true will send default PII data to Sentry.
-  // For example, automatic IP address collection on events
   sendDefaultPii: true,
 });
 }catch(err){

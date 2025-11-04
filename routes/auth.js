@@ -667,16 +667,15 @@ let mailOptions = forgotPasswordTemplate(user)
               email:email.toLowerCase(),
               password:hashedPassword, // You should hash the password before storing it
               referredById: referral.createdById
+            },include:{
+              profiles:true
             }
           });
         }
-        if(!newUser.password){
-          res.json({ message:"User already exists. Go to forgot password at login"});
-        
-        }else{
+    
         if(newUser&&newUser.profiles && newUser.profiles.length==0){
     const profile =  await createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId:newUser.id})
-          
+          console.log(profile)
           await prisma.referral.update({
             where: {id:referralId },
             data: { usageCount: { increment: 1 } }
@@ -687,15 +686,15 @@ let mailOptions = forgotPasswordTemplate(user)
         }else{
          
           res.json({ message:"User already exists. Go to forgot password at login"});
-        }}}}
+        }}}
         } catch (error) {
-          console.error(error);
+          console.log(error);
           res.status(400).json({ message: 'Error processing referral' });
         }
       });
       router.post("/session", async (req, res) => {
   const { email, password, uId, identityToken } = req.body;
-
+console.log(req.body)
   try {
     let user = null;
 
@@ -729,7 +728,7 @@ let mailOptions = forgotPasswordTemplate(user)
     // --- Google OAuth login ---
     else if (uId) {
       user = await prisma.user.findFirst({
-        where: { googleId: uId },
+        where: { uId:uId },
         include: {
           profiles: {
             include: {
