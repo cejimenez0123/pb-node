@@ -427,7 +427,11 @@ try{
                    equals: req.user.profiles[0].id
                 }
             },include:{
-              
+                rolesToCollection:{
+                    include:{
+                        collection:true
+                    }
+                },
                 profileToCollections:{
                 
                     include:{
