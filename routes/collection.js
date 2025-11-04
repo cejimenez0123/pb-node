@@ -662,7 +662,7 @@ const recommendations = await getRecommendedCollections(req.params.id)
         let {type} =req.query
         //GET ALL PUBLIC COLLECTIONS
         try{
-               let collection = await prisma.collection.findMany(
+               let collections = await prisma.collection.findMany(
             {orderBy:{
                 
                     updated:"desc"},where:{isPrivate:{equals:false}},include:{
@@ -693,12 +693,12 @@ const recommendations = await getRecommendedCollections(req.params.id)
                 }
             }})
             if(type=="feedback"){
-            collection = await prisma.collection.findMany(
+            collections = await prisma.collection.findMany(
             {orderBy:{
                 
                     updated:"desc"},where:{AND:[{isPrivate:{
                         equals:true
-                    }},{type:"feedback"}]},include:{
+                    }},{type:"feedback"},{roles:{}}]},include:{
                         parentCollections:{
                             include:{
                                 parentCollection:{
@@ -725,10 +725,13 @@ const recommendations = await getRecommendedCollections(req.params.id)
                     }
                 }
             }})
+             collections = collections.filter(c => c.roles.length <= 5);
             }
+      if (type === "feedback") {
      
+    }
 
-        res.status(200).json({data:collection})
+        res.status(200).json({data:collections})
         }catch(error){
             res.json({error})
         }
