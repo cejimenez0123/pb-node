@@ -659,9 +659,10 @@ const recommendations = await getRecommendedCollections(req.params.id)
      }
     })
     router.get("/",async (req,res)=>{
+        let {type} =req.query
         //GET ALL PUBLIC COLLECTIONS
         try{
-        const collection = await prisma.collection.findMany(
+               const collection = await prisma.collection.findMany(
             {orderBy:{
                 
                     updated:"desc"},where:{isPrivate:{equals:false}},include:{
@@ -691,6 +692,41 @@ const recommendations = await getRecommendedCollections(req.params.id)
                     }
                 }
             }})
+            if(type=="feedback"){
+   const collection = await prisma.collection.findMany(
+            {orderBy:{
+                
+                    updated:"desc"},where:{AND:[{isPrivate:{
+                        equals:true
+                    }},{type:"feedback"}]},include:{
+                        parentCollections:{
+                            include:{
+                                parentCollection:{
+                                    select:{
+                                        id:true
+                                    }
+                                }
+                            }
+                        },
+                        profile:true,
+                    childCollections:{
+                        include:{
+                            childCollection:true
+                        }
+                    },
+                storyIdList:{
+                    include:{
+                        story:true
+                    }
+                },
+                roles:{
+                    include:{
+                        profile:true
+                    }
+                }
+            }})
+            }
+     
 
         res.status(200).json({data:collection})
         }catch(error){
