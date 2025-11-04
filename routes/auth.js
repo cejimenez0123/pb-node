@@ -706,6 +706,7 @@ console.log(req.body)
         include: {
           profiles: {
             include: {
+              collections:true,
               stories: true,
               profileToCollections: {
                 include: {
@@ -732,6 +733,7 @@ console.log(req.body)
         include: {
           profiles: {
             include: {
+              collections:true,
               stories: true,
               profileToCollections: {
                 include: {
@@ -759,6 +761,7 @@ console.log(req.body)
           include: {
             profiles: {
               include: {
+                collections:true,
                 stories: true,
                 profileToCollections: {
                   include: {
@@ -787,6 +790,7 @@ console.log(req.body)
           profiles: {
             include: {
               stories: true,
+              collections:true,
               profileToCollections: { include: { collection: true } }
             }
           }
@@ -819,204 +823,6 @@ console.log(req.body)
   }
 });
 
-//     router.post("/session",async (req,res)=>{
-//         const { email, password, uId,identityToken} = req.body;
-      
-//        try{
-      
-//         let user = null
-//         if(identityToken){
-
-//         const payload = await verifyAppleIdentityToken(identityToken)
-//         user = await prisma.user.findFirst({where:{email:{equals:payload.email}}})
-       
-//       }else if(uId){
-
-
-//           user = await prisma.user.findFirst({where:{
-//               googleId:uId
-//             },include:{
-//               profiles:{
-//             include:{
-//               stories:true,
-//               profileToCollections:{
-//                 include:{
-//                   collection:{
-//                     include:{
-//                       storyIdList:{
-//                         include:{
-//                           story:{
-//                             include:{
-//                               author:true
-//                             }
-//                           }
-//                         }
-//                       }
-//                     }
-//                   }
-//                 }
-//               }
-//             }
-//           }
-//             }})
-//           if(!user){
-//            user = await prisma.user.update({where:{
-//               email:email,
-              
-//             },data:{
-//               googleId:uId
-//             },include:{
-//               profiles:{
-//             include:{
-//               stories:true,
-              
-//               profileToCollections:{
-//                 include:{
-//                   collection:{
-//                     include:{
-//                       storyIdList:{
-//                         include:{
-//                           story:{
-//                             include:{
-//                               author:true
-//                             }
-//                           }
-//                         }
-//                       }
-//                     }
-//                   }
-//                 }
-//               }
-//             }
-//               }
-//             }})
-//           }
-
-        
-
-//         }else{
-//           user = await prisma.user.findFirst({ where: { email:email },include:{profiles:{
-//             include:{
-//               stories:true,
-//               profileToCollections:{
-//                 include:{
-//                   collection:true
-//                 }
-//               }
-//             }
-//           }}});
-//           if(uId){
-//           user = await prisma.user.update({where:{
-//               email:email
-//             },data:{
-//               googleId:uId,
-//               lastActive: new Date(),
-//           isActive:true
-//             },include:{
-//               profiles:{
-//             include:{
-//               stories:true,
-//               profileToCollections:{
-//                 include:{
-//                   collection:{
-//                     include:{
-//                       storyIdList:{
-//                         include:{
-//                           story:{
-//                             include:{
-//                               author:true
-//                             }
-//                           }
-//                         }
-//                       }
-//                     }
-//                   }
-//                 }
-//               }
-//             }
-//           }
-//             }})
-//           }
-//           if(identityToken){
-//             const payload = await verifyAppleIdentityToken(identityToken)
-//         user = await prisma.user.findFirst({where:{email:{equals:payload.email}},include:{
-//           profiles:{
-//             include:{
-//               stories:true,
-//               profileToCollections:{
-//                 include:{
-//                   collection:{
-//                     include:{
-//                       storyIdList:{
-//                         include:{
-//                           story:{
-//                             include:{
-//                               author:true
-//                             }
-//                           }
-//                         }
-//                       }
-//                     }
-//                   }
-//                 }
-//               }
-//             }
-//           }
-//         }})
-     
-//           }
-//           if(!user){
-//                  user = await prisma.user.findFirst({where:{email:{equals:email}},include:{
-//           profiles:{
-//             include:{
-//               stories:true,
-//               profileToCollections:{
-//                 include:{
-//                   collection:{
-//                     include:{
-//                       storyIdList:{
-//                         include:{
-//                           story:{
-//                             include:{
-//                               author:true
-//                             }
-//                           }
-//                         }
-//                       }
-//                     }
-//                   }
-//                 }
-//               }
-//             }
-//           }
-//         }})
-//           }
-//          if (!bcrypt.compareSync(password, user.password) ) {
-            
-//                 return res.status(409).json({ message: 'Invalid email or password' });
-//             }
-//         }
-         
-      
-//         await prisma.profile.updateMany({where:{
-//           userId:{
-//             equals:user.id
-//           }
-//         },data:{
-//           lastActive: new Date(),
-//           isActive:true
-//        }})
-
-//         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-//         res.json({ token,user});
-   
-       
-// }catch(error){
-// console.log(error)
-//   res.status(404).json({error})
-// }
-
-// })
     router.post("/newsletter",async (req,res)=>{
       try{
       const{
