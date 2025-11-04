@@ -662,7 +662,7 @@ const recommendations = await getRecommendedCollections(req.params.id)
         let {type} =req.query
         //GET ALL PUBLIC COLLECTIONS
         try{
-               const collection = await prisma.collection.findMany(
+               let collection = await prisma.collection.findMany(
             {orderBy:{
                 
                     updated:"desc"},where:{isPrivate:{equals:false}},include:{
@@ -693,7 +693,7 @@ const recommendations = await getRecommendedCollections(req.params.id)
                 }
             }})
             if(type=="feedback"){
-   const collection = await prisma.collection.findMany(
+            collection = await prisma.collection.findMany(
             {orderBy:{
                 
                     updated:"desc"},where:{AND:[{isPrivate:{
