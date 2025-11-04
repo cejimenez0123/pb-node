@@ -708,6 +708,12 @@ console.log(req.body)
             include: {
               collections:true,
               stories: true,
+              rolesToCollection:{
+                include:{
+                  // profile:true,
+                  collection:true
+                }
+              },
               profileToCollections: {
                 include: {
                   collection: {
@@ -735,6 +741,43 @@ console.log(req.body)
             include: {
               collections:true,
               stories: true,
+              rolesToCollection:{
+                include:{
+                  // profile:true,
+                  collection:true
+                }
+              },
+              profileToCollections: {
+                include: {
+                  collection: {
+                    include: {
+                      storyIdList: {
+                        include: {
+                          story: { include: { author: true } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }}}}
+      });
+
+      // If user not found by googleId, link account by email
+      if (!user && email) {
+        user = await prisma.user.update({
+          where: { email },
+          data: { googleId: uId },
+          include: {
+            profiles: {
+            include: {
+              collections:true,
+              stories: true,
+              rolesToCollection:{
+                include:{
+                  // profile:true,
+                  collection:true
+                }
+              },
               profileToCollections: {
                 include: {
                   collection: {
@@ -750,34 +793,6 @@ console.log(req.body)
               }
             }
           }
-        }
-      });
-
-      // If user not found by googleId, link account by email
-      if (!user && email) {
-        user = await prisma.user.update({
-          where: { email },
-          data: { googleId: uId },
-          include: {
-            profiles: {
-              include: {
-                collections:true,
-                stories: true,
-                profileToCollections: {
-                  include: {
-                    collection: {
-                      include: {
-                        storyIdList: {
-                          include: {
-                            story: { include: { author: true } }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
           }
         });
       }
@@ -787,11 +802,29 @@ console.log(req.body)
       user = await prisma.user.findFirst({
         where: { email },
         include: {
-          profiles: {
+         profiles: {
             include: {
-              stories: true,
               collections:true,
-              profileToCollections: { include: { collection: true } }
+              stories: true,
+              rolesToCollection:{
+                include:{
+                  // profile:true,
+                  collection:true
+                }
+              },
+              profileToCollections: {
+                include: {
+                  collection: {
+                    include: {
+                      storyIdList: {
+                        include: {
+                          story: { include: { author: true } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
