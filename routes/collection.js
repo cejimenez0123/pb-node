@@ -1876,6 +1876,7 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
 }
 async function getCollectionById(id) {
   // Fetch the collection with all relations
+  console.log("getCollectionById",id)
   const collection = await prisma.collection.findFirst({
     where: { id },
     include: {

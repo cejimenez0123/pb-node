@@ -562,7 +562,7 @@ const mailOptions = recievedReferralTemplate(email,name)
         const {email}=req.body
 
         try{
-        let user =  await prisma.user.findFirstOrThrow({where:{email:{equalsemail
+        let user =  await prisma.user.findFirstOrThrow({where:{email:{equals:email
           }},include:{
             profiles:true
           }})
@@ -570,13 +570,13 @@ const mailOptions = recievedReferralTemplate(email,name)
 let mailOptions = forgotPasswordTemplate(user)
 
                 resend.emails.send(mailOptions).then(res=>{
-                  res.status(201).json({path:parms,user,message:'Applied Successfully!'});
+                  res.json({user,message:'Applied Successfully!'});
           
                 }).catch(err=>{throw err})
                 
                 res.status(200).json({message:"If there is an account you will recieve an email"})
                 }catch(err){
-   
+   console.log(err)
                   res.status(409).json({err,message:"If there is an account you will recieve an email"})
                 }
     })

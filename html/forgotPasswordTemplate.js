@@ -1,4 +1,4 @@
-
+const jwt = require('jsonwebtoken');
 module.exports =function forgotPasswordTemplate(user){
     const token = jwt.sign({ id:user.id }, process.env.JWT_SECRET);
     const forgetPasswordLink = process.env.DOMAIN+`/reset-password?token=${token}`
