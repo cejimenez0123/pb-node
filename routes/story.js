@@ -429,7 +429,54 @@ module.exports = function ({authMiddleware}){
         res.json({error})
     }
     })
+router.get("/:id/public", async (req, res) => {
+  try {
 
+    const storyId = req.params.id;
+    const story = await prisma.story.findFirst({
+      where: { id: storyId },
+      include: {
+        author: true,
+        collections: {
+          include: {
+            collection: {
+              select: {
+                id: true,
+                title: true,
+                type: true,
+                isPrivate: true,
+                roles: {
+                  select: {
+                    profileId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        hashtags: {
+          include: { hashtag: true },
+        },
+        comments: {
+          include: { profile: true, parent: true },
+        },
+        betaReaders: {
+          select: {
+            profileId: true,
+          },
+        },
+      },
+    });
+
+    if (!story.isPrivate) {
+      return res.status(403).json({ error: "Story not found." });
+    }
+    res.json({story})
+  } catch (err) {
+    console.error("Error fetching public story:", err);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
 router.get("/:id/protected", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.profiles[0].id; // from auth middleware
@@ -519,90 +566,7 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
     return res.status(500).json({ error: "Internal server error." });
   }
 });
-// router.get("/:id/protected", authMiddleware, async (req, res) => {
-//   try {
-//     const userId = req.user.id; // from your auth middleware
-//     const storyId = req.params.id;
 
-//     const story = await prisma.story.findFirst({
-//       where: { id: storyId },
-//       include: {
-//         author: true,
-//         collections: {
-//           include: {
-//             collection: {
-//               select: {
-//                 id: true,
-//                 title: true,
-//                 type: true,
-//                 isPrivate: true,
-//                 roles: {
-//                   select: {
-//                     profileId: true,
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         },
-//         hashtags: {
-//           include: { hashtag: true },
-//         },
-//         comments: {
-//           include: { profile: true, parent: true },
-//         },
-//         betaReaders: {
-//           select: {
-//             profileId: true,
-//           },
-//         },
-//       },
-//     });
-
-//     if (!story) return res.status(404).json({ error: "Story not found" });
-
-//     // --- Visibility logic (moved from frontend) ---
-//     let canUserSee = false;
-
-//     // 1️⃣ Public story
-//     if (!story.isPrivate) canUserSee = true;
-
-//     // 2️⃣ Author can always view
-//     if (!canUserSee && story.authorId === userId) canUserSee = true;
-
-//     // 3️⃣ Check public collections
-//     if (!canUserSee && story.collections?.length > 0) {
-//       const publicCollection = story.collections.find(
-//         (col) => col.collection && !col.collection.isPrivate
-//       );
-//       if (publicCollection) canUserSee = true;
-//     }
-
-//     // 4️⃣ Check if user has a role in a collection
-//     if (!canUserSee && story.collections?.length > 0) {
-//       const hasRole = story.collections.find((col) =>
-//         col.collection.roles.find((role) => role.profileId === userId)
-//       );
-//       if (hasRole) canUserSee = true;
-//     }
-
-//     // 5️⃣ Beta readers
-//     if (!canUserSee && story.betaReaders?.length > 0) {
-//       const isBetaReader = story.betaReaders.find(
-//         (br) => br.profileId === userId
-//       );
-//       if (isBetaReader) canUserSee = true;
-//     }
-
-//     return res.json({
-//       canUserSee,
-//       story: canUserSee ? story : null, // only return full story if authorized
-//     });
-//   } catch (err) {
-//     console.error("Error fetching protected story:", err);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// });
     router.put("/:id",...allMiddlewares,async (req,res)=>{
 try{
         const {title,data, description, needsFeedback,isPrivate,commentable,type}= req.body
