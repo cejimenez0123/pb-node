@@ -468,7 +468,7 @@ router.get("/:id/public", async (req, res) => {
       },
     });
 
-    if (!story.isPrivate) {
+    if (story.isPrivate) {
       return res.status(403).json({ error: "Story not found." });
     }
     res.json({story})
