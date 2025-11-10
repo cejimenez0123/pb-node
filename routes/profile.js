@@ -432,6 +432,11 @@ try{
                         collection:true
                     }
                 },
+                rolesToStory:{
+                    include:{
+                        story:true
+                    }
+                },
                 profileToCollections:{
                 
                     include:{
