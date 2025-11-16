@@ -82,8 +82,6 @@ app.use(cors({ origin: "*" }));
 
 const imageCache = new NodeCache({ stdTTL: 60 * 60 }); // 1 hour = 3600 seconds
 
-
-
 app.get("/image", async (req, res) => {
   try {
     const { path } = req.query;

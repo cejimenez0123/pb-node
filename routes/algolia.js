@@ -75,14 +75,18 @@ router.get("/search", async (req, res) => {
 
 router.patch("/update", async (req, res) => {
   try {
-    const { objectID, fields } = req.body;
+    const { objectID, indexName,fields } = req.body;
     if (!objectID || !fields || typeof fields !== "object") {
       return res.status(400).json({ message: "Missing objectID or fields." });
     }
 
     const result = await client.partialUpdateObject({
+      indexName,
       objectID,
-      ...fields,
+      attributesToUpdate:{
+    ...fields
+      }
+  
     });
 
     res.json({ success: true, result });

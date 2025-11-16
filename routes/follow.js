@@ -35,7 +35,7 @@ try{
 }
 
         })
-        router.delete("/:id",authMiddleware,async(req,res)=>{
+router.delete("/:id",authMiddleware,async(req,res)=>{
 
             const id = req.params.id
 
