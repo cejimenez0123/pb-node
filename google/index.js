@@ -8,6 +8,7 @@ const bucket = storage.bucket(BUCKET_NAME);
 
 export const generateSignedUploadUrl = https.onCall(async (data, context) => {
     // 1. Security Check: Only authenticated users can request a signed URL
+    console.log("Function invoked successfully by user:", context.auth.uid); // <-- TEMP LOG
     if (!context.auth) {
         throw new https.HttpsError('unauthenticated', 'Authentication required.');
     }
