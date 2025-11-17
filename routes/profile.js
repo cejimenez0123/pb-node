@@ -191,7 +191,7 @@ module.exports = function (authMiddleware){
     router.put("/:id",authMiddleware,async (req,res)=>{
         const {username,profilePicture,selfStatement,privacy} = req.body
       try{
-        console.log("Updating profile",profilePicture)
+        
         const profile = await prisma.profile.update({where:{
             id: req.params.id
         },data:{
