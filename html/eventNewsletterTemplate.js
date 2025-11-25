@@ -14,16 +14,10 @@ const eventNewsletterTemplate=(events,user,days)=>{
       today.setHours(0, 0, 0, 0);
       
       const allEvents = [
-        { date: parseEventDate("Sat. October 30th", today.getFullYear()), description: "Sol Feature @ Walnut Bar and Grill" },
-        { date: parseEventDate("Sat. Novemeber 15th", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
-        { date: parseEventDate("Wed. December 3rd", today.getFullYear()), description: "Spark Open Mic @ City College" },
-        // { date: parseEventDate("Sat. Decemeber 20th", today.getFullYear()), description: "@ Andrew Freedman Home" },
-        { date: parseEventDate("Sat. July 19th", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind or Virtuall " },
-        { date: parseEventDate("Sat. August 16th", today.getFullYear()), description: "Open Mic @ Bronxlandia",link:"https://partiful.com/e/4xLnLRiDC2QDvs1PUId8" }, 
-        { date: parseEventDate("Mon. August 11th", today.getFullYear()), description: "Writers Workshop @ Andrew Freedman Home",link:"https://partiful.com/e/hCkUYQlaHLrbg36xMLmH" },
-        // { date: parseEventDate("Sat. August 23rd", today.getFullYear()), description: "Writers Workshop @ Boogie Down Grind" },
-        { date: parseEventDate("Thurs. August 28th", today.getFullYear()), description: "Mixer @ Andrew Freedman Home" } 
-      ];
+        { date: parseEventDate("Wed. Dec 3rd", today.getFullYear()), description: "Spark Open Mic @ CCNY" },
+        { date: parseEventDate("Sat. Dec 6", today.getFullYear()), description: "CAFETATO: AN UPTOWN COFFEE RAVE" },
+        { date: parseEventDate("Sat. December 20", today.getFullYear()), description: "Writers Workshop: Jamaica Kincaid" },
+     ];
       
       // 1. Filter out events before today (optional, if you only want upcoming)
       const upcomingEvents = allEvents.filter(event => event.date >= today);
