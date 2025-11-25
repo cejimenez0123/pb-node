@@ -8,6 +8,7 @@ const sendEmail = require("../newsletter/sendEmail")
 const fetchAlerts = require("../newsletter/fetchAlerts")
 
 const dailyJob = cron.schedule('0 9 * * *', async () => {
+
 })
 const dailyTask=async ()=>{
   const users = await prisma.user.findMany({include:{
@@ -45,7 +46,7 @@ if(comments.length>0||roles.length>0||following.length>0||followers.length>0||co
 }
 const weeklyJob = cron.schedule('0 9 * * 0', async () => {
   try{
-
+weeklyEmail()
 }catch(err){
   console.err("WEEKLY JOB ERROR"+err.message)
     
