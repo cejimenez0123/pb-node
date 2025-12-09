@@ -14,10 +14,13 @@ const eventNewsletterTemplate=(events,user,days)=>{
       today.setHours(0, 0, 0, 0);
       
       const allEvents = [
-        { date: parseEventDate("Wed. Dec 3rd", today.getFullYear()), description: "Spark Open Mic @ CCNY" },
-        { date: parseEventDate("Sat. Dec 6", today.getFullYear()), description: "CAFETATO: AN UPTOWN COFFEE RAVE" },
-        { date: parseEventDate("Sat. December 20", today.getFullYear()), description: "Writers Workshop: Jamaica Kincaid" },
-     ];
+        ,
+           { date: parseEventDate("Sat. December 20", today.getFullYear()), description: "Writers Workshop: Jamaica Kincaid" },
+    ,
+        // { date: parseEventDate("Sat. Dec 6", today.getFullYear()), description: "CAFETATO: AN UPTOWN COFFEE RAVE" },
+        { date: parseEventDate("Wed. Jan 3rd", today.getFullYear()), description: "CAFETATO: AN UPTOWN COFFEE RAVE"  },
+
+      ];
       
       // 1. Filter out events before today (optional, if you only want upcoming)
       const upcomingEvents = allEvents.filter(event => event.date >= today);

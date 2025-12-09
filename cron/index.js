@@ -7,9 +7,13 @@ const sleep = require("../utils/sleep")
 const sendEmail = require("../newsletter/sendEmail")
 const fetchAlerts = require("../newsletter/fetchAlerts")
 
-const dailyJob = cron.schedule('0 9 * * *', async () => {
 
-})
+
+const dailyJob = cron.schedule("0 9 * * 0,1", async () => {
+  console.log("Running Sunday/Monday email task");
+  await dailyTask();
+});
+
 const dailyTask=async ()=>{
   const users = await prisma.user.findMany({include:{
     profiles:true
@@ -78,13 +82,18 @@ const weeklyEmail=async()=>{
 console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
   })}}
 
-  function shouldSendEmail(lastEmailTime, frequencyDays) {
-    const currentTime = Date.now();
-    const elapsedTimeMs = currentTime - lastEmailTime;
-    const elapsedTimeDays = elapsedTimeMs / (1000 * 60 * 60 * 24);
-  
-    return elapsedTimeDays >= frequencyDays;
-  }
-  
+function shouldSendEmail(lastEmailTime, frequencyDays) {
+  if (!lastEmailTime) return true; // allow first-time emails
+
+  const currentTime = Date.now();
+  const previousTime = new Date(lastEmailTime).getTime();
+  const elapsedMs = currentTime - previousTime;
+  const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+
+  return elapsedDays >= frequencyDays;
+}
+
+
+
 
 module.exports = {weeklyJob,dailyJob}
