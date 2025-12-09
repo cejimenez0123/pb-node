@@ -9,9 +9,9 @@ const fetchAlerts = require("../newsletter/fetchAlerts")
 
 
 
-const dailyJob = cron.schedule("0 9 * * 0,1", async () => {
-  console.log("Running Sunday/Monday email task");
-  await dailyTask();
+const dailyJob = cron.schedule("0 9 * * *", async () => {
+
+  // await dailyTask();
 });
 
 const dailyTask=async ()=>{
@@ -48,13 +48,13 @@ if(comments.length>0||roles.length>0||following.length>0||followers.length>0||co
 }
   }
 }
-const weeklyJob = cron.schedule('0 9 * * 0', async () => {
-  try{
+const weeklyJob = cron.schedule('0 9 * * 0,1', async () => {
+  // try{
 weeklyEmail()
-}catch(err){
-  console.err("WEEKLY JOB ERROR"+err.message)
+// }catch(err){
+//   console.err("WEEKLY JOB ERROR"+err.message)
     
-  }
+//   }
 
 })
 const weeklyEmail=async()=>{
@@ -94,6 +94,6 @@ function shouldSendEmail(lastEmailTime, frequencyDays) {
 }
 
 
-
+// weeklyEmail().then()
 
 module.exports = {weeklyJob,dailyJob}

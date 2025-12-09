@@ -4,6 +4,7 @@ const bodyParser = require("body-parser")
 const cors = require('cors')
 const http = require("http")
 const axios = require("axios")
+const cron = require("./cron")
 const prisma = require("./db")
 const NodeCache = require("node-cache");
 const roleRoutes = require("./routes/role.js")
