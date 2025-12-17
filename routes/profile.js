@@ -422,7 +422,7 @@ try{
     })
     router.get("/protected",authMiddleware,async (req,res)=>{
         try{
-         
+            
             const profile = await prisma.profile.findFirst({where:{
                 id:{
                    equals: req.user.profiles[0].id
@@ -477,9 +477,17 @@ storyIdList:true,
             }
         },
         following:true}})
-          
-             
-                res.status(200).json({profile:profile})
+        let collections = await prisma.collection.findMany({where:{
+           AND:[{type:{equals:"feedback"}},{OR: [{profileId:{equals:profile.id}},{roles:{
+            some:{
+                profileId:{equals:profile.id}
+            
+           }}}]
+           }]
+        }})
+       
+        
+                res.status(200).json({profile: {...profile,collections:[...profile.collections,...collections]}})
     
      
      

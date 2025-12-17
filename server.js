@@ -65,7 +65,7 @@ const io = new Server(server,{    cors: {
     methods: ["GET", "POST", "PATCH","PUT", "DELETE", "OPTIONS"],
 },});
 
-
+  
 
 function authMiddleware(req, res, next) {
   passport.authenticate('bearer', { session: false }, (err, user, info) => {

@@ -20,6 +20,7 @@ const params = new URLSearchParams({
     email,
     newsletter
   });
+
   let parms = `/auth/review?`+params.toString()
   let path = process.env.BASEPATH+parms
     return {
