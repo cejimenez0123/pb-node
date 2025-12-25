@@ -516,7 +516,7 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
         },
       },
     });
-
+console.log({story})
     if (!story) {
       return res.status(404).json({ error: "Story not found." });
     }
