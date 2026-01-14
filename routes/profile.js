@@ -468,8 +468,16 @@ storyIdList:true,
                 
         }}},likedStories:true,
         historyStories:true,
-        collections:true,
-        stories:true,
+        collections:{
+            include:{
+                profile:true
+            }
+        },
+        stories:{
+            include:{
+                author:true
+            }
+        },
         location:true,
         followers:{
             include:{
@@ -486,7 +494,6 @@ storyIdList:true,
            }]
         }})
        
-        
                 res.status(200).json({profile: {...profile,collections:[...profile.collections,...collections]}})
     
      

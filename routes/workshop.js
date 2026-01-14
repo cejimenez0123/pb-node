@@ -529,53 +529,7 @@ module.exports = function (authMiddleware) {
       }
     });
   
-//     router.post('/groups', authMiddleware, async (req, res) => {
-//       try {
-//         const { story, profile } = req.body;
-//         if (!profile || !profile.id) {
-//           return res.status(400).json({ error: "Profile ID is required" });
-//         }
-    
-//         const prof = await prisma.profile.findFirst({
-//           where: { id: profile.id },
-//           include: { location: true }
-//         });
-    
-//         if (!prof || !prof.location) {
-//           return res.status(400).json({ error: "Valid profile with location required" });
-//         }
-    
-//         const radius = parseFloat(req.query.radius) || 50;
-    
-//         const activeProfiles = await prisma.profile.findMany({
-//           where: {
-//             isActive: true,
-//             id: { not: profile.id },
-//             location: { isNot: null }
-//           },
-//           include: { location: true }
-//         });
-    
-//         // Group users by proximity
-//         const groups = groupUsersByProximity({ profile: prof, items: activeProfiles, radius });
-    
-//         // Pick a group of users nearby with more than 1 user else create solo group
-//         const nearbyGroup = groups.find(g => g.length > 0);
-    
-//         let collection;
-//         if (nearbyGroup) {
-//           collection = await createOrJoinGroupCollection({ group: nearbyGroup, profile: prof, story });
-//         } else {
-//           collection = await createSoloCollection({ profile: prof, story });
-//         }
-      
-//        return res.json({ collection });
-    
-//       } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ error: error.message });
-//       }
-//     });
+
 router.post('/groups', authMiddleware, async (req, res) => {
   try {
     const { story, profile } = req.body;
