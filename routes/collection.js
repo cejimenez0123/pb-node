@@ -1200,6 +1200,7 @@ try{
                 childCollection:{
             
                     include:{
+                    
                         storyIdList:{
                             include:{
                                 story:{include:{
@@ -1236,41 +1237,7 @@ try{
     if(collection.isPrivate==false){
 
   
-    // let collections = await prisma.collectionToCollection.findMany(
-    //     {where:
-    //         {AND:
-    //             [{parentCollectionId:{equals:id}}
-               
 
-    //         ]}
-    //     ,include:{
-            
-    //         childCollection:{
-    //             include:{
-    //                 storyIdList:{
-    //                     include:{story:{include:{author:true}}}  
-    //                   },
-    //                   parentCollections:{
-    //                     include:{
-    //                         parentCollection:{
-    //                             include:{
-    //                                 roles:true                                }
-    //                         }
-    //                     }
-    //                   },
-    //                     childCollections:true,
-    //                     roles:{
-    //                         include:{
-    //                             profile:true,
-    //                         }
-    //                     },
-    //                     profile:true
-                    
-    //             }
-    //         },
-    //         parentCollection:true,
-    //         profile:true
-    //     }})
     res.json({list:collection.childCollections})
     }else{
         throw new Error("Private")

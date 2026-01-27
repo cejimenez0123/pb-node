@@ -15,10 +15,10 @@ const eventNewsletterTemplate=(events,user,days)=>{
       
       const allEvents = [
         ,
-           { date: parseEventDate("Sat. Jan. 24th", today.getFullYear()), description: "Writers Workshop: Let's get you published" },
+           { date: parseEventDate("Sat. Jan. 21st", today.getFullYear()), description: "Writers Workshop:Etheridge Knight:for Malcolm" },
     ,
         // { date: parseEventDate("Sat. Dec 6", today.getFullYear()), description: "CAFETATO: AN UPTOWN COFFEE RAVE" },
-        { date: parseEventDate("Sat. Jan. 24th", today.getFullYear()), description: "CAFETATO: AN UPTOWN COFFEE RAVE"  },
+        // { date: parseEventDate("Sat. Jan. 24th", today.getFullYear()), description: "CAFETATO: AN UPTOWN COFFEE RAVE"  },
 
       ];
       
