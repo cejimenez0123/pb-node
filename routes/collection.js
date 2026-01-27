@@ -1080,6 +1080,7 @@ const otherCols = libraries.filter(book=>book.priority<90)
     router.get('/col/:id/protected',authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    
     const currentProfile = req.user.profiles[0]
     const collection = await getCollectionById(id); 
 

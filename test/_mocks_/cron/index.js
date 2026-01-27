@@ -38,7 +38,7 @@ const threeDayJob = cron.schedule('0 10 */3 * *', async () => {
   for (const user of users) {
     try {
       await sendEventNewsletterEmail(user, events);
-      console.log(user.email);
+      
     } catch (err) {
       console.error('Failed 3-day email task:', err.message);
     }
@@ -54,7 +54,7 @@ const monthlyJob = cron.schedule('0 10 * * 0', async () => {
     await sleep(1100);
     try {
       await sendEventNewsletterEmail(user, events);
-      console.log(user.email);
+ 
     } catch (err) {
       console.error(err);
     }
