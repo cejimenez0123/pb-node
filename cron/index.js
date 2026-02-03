@@ -49,12 +49,12 @@ if(comments.length>0||roles.length>0||following.length>0||followers.length>0||co
   }
 }
 const weeklyJob = cron.schedule('0 9 * * 0,1', async () => {
-  // try{
+  try{
 weeklyEmail()
-// }catch(err){
-//   console.err("WEEKLY JOB ERROR"+err.message)
+}catch(err){
+  console.err("WEEKLY JOB ERROR"+err.message)
     
-//   }
+  }
 
 })
 const weeklyEmail=async()=>{
@@ -93,7 +93,7 @@ function shouldSendEmail(lastEmailTime, frequencyDays) {
   return elapsedDays >= frequencyDays;
 }
 
-
-// weeklyEmail().then()
-
+prisma.user.findMany().then(users=>{
+  users.forEach(user=>console.log(user.email))
+})
 module.exports = {weeklyJob,dailyJob}
