@@ -915,36 +915,8 @@ router.post("/api/email-webhook", async (req, res) => {
 
 
 
-//     router.post("/feedback",async (req,res)=>{
-//       try{
-//       const{
-//           preferredName,
-//           email,
-//           subject,
-//           purpose,
-//           message
-//       }=req.body
-    
-// let template = feedbackTemplate({email,name:preferredName,subject,message,purpose})
-
-// resend.emails.send(template).then(()=>{
-//   res.status(201).json({message:'Success'});
-// }).catch(err=>{
-//   throw err
-// })
-//           }catch(error){
-//             console.log(error)
-
-//             res.status(409).json({error})
-//           }
-//     })
     const RESEND_WEBHOOK_SECRET = process.env.RESEND_SECRET;
 
-
-
-
-
-// ---- Verify webhook signature ----
 function verifySignature(req) {
   const signature = req.headers["resend-signature"];
   const body = JSON.stringify(req.body);
