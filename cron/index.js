@@ -142,7 +142,5 @@ function shouldSendEmail(lastEmailTime, frequencyDays) {
   return elapsedDays >= frequencyDays;
 }
 
-prisma.user.findMany().then(users=>{
-  users.forEach(user=>console.log(user.email))
-})
+
 module.exports = {weeklyJob,dailyJob}

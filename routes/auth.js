@@ -15,8 +15,8 @@ const { Resend } = require('resend');
 const forgotPasswordTemplate = require('../html/forgotPasswordTemplate');
 const recievedReferralTemplate = require('../html/recievedReferralTemplate');
 const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken");
-const { google } = require('googleapis');
-
+// const feedbackTemplate = require("../feedbackTemplate");
+const crypto = require("crypto");
 function isHex(num) {
 
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
@@ -890,30 +890,116 @@ console.log(req.body)
             res.status(409).json({error})
           }
     })
-    router.post("/feedback",async (req,res)=>{
-      try{
-      const{
-          preferredName,
-          email,
-          subject,
-          purpose,
-          message
-      }=req.body
-    
-let template = feedbackTemplate({email,name:preferredName,subject,message,purpose})
+   
 
-resend.emails.send(template).then(()=>{
-  res.status(201).json({message:'Success'});
-}).catch(err=>{
-  throw err
-})
-          }catch(error){
-            console.log(error)
+router.post("/api/email-webhook", async (req, res) => {
+  const email = req.body;
 
-            res.status(409).json({error})
-          }
-    })
+  console.log("Incoming Email:", email);
+
+  const {
+    from,
+    to,
+    subject,
+    text,
+    html
+  } = email;
+
+  // Save to DB
+  // Trigger notification
+  // Convert into feedback entry
+  // etc.
+
+  res.status(200).send("OK");
+});
+
+
+
+//     router.post("/feedback",async (req,res)=>{
+//       try{
+//       const{
+//           preferredName,
+//           email,
+//           subject,
+//           purpose,
+//           message
+//       }=req.body
     
+// let template = feedbackTemplate({email,name:preferredName,subject,message,purpose})
+
+// resend.emails.send(template).then(()=>{
+//   res.status(201).json({message:'Success'});
+// }).catch(err=>{
+//   throw err
+// })
+//           }catch(error){
+//             console.log(error)
+
+//             res.status(409).json({error})
+//           }
+//     })
+    const RESEND_WEBHOOK_SECRET = process.env.RESEND_SECRET;
+
+
+
+
+
+// ---- Verify webhook signature ----
+function verifySignature(req) {
+  const signature = req.headers["resend-signature"];
+  const body = JSON.stringify(req.body);
+  const expected = crypto
+    .createHmac("sha256", RESEND_WEBHOOK_SECRET)
+    .update(body)
+    .digest("hex");
+
+  return signature === expected;
+}
+
+// ---- Feedback form submission (send email) ----
+router.post("/feedback", async (req, res) => {
+  try {
+    const { preferredName, email, subject, purpose, message } = req.body;
+
+    const template = feedbackTemplate({
+      name: preferredName,
+      email,
+      subject,
+      purpose,
+      message,
+    });
+
+    await resend.emails.send(template);
+
+    return res.status(201).json({ message: "Success" });
+  } catch (err) {
+    console.error("Feedback error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Webhook for receiving email replies ----
+router.post("/email-webhook", express.json(), (req, res) => {
+  if (!verifySignature(req)) {
+    return res.status(401).json({ error: "Invalid signature" });
+  }
+
+  const email = req.body;
+
+  console.log("Received Email:", {
+    from: email.from,
+    to: email.to,
+    subject: email.subject,
+    text: email.text,
+    html: email.html,
+    attachments: email.attachments,
+  });
+
+
+  return res.status(200).json({ received: true });
+});
+
+
 
 
     router.post("/apply/ios",async (req,res)=>{
