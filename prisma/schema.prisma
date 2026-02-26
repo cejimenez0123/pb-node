@@ -19,6 +19,7 @@ model User{
   email String @unique
   preferredName String @default("")
   googleId String?
+  userGroups UserGroup[]
   uId String?
   subscription SubscriptionLevel @default(basic)
   password String?
@@ -342,4 +343,65 @@ enum SubscriptionLevel{
   newsletter
   basic
   premium
+}
+
+
+
+
+
+
+model Group {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String   @unique
+  description String?
+  
+  // Directus system fields
+  status      String?  @default("published")
+  createdAt   DateTime @default(now()) @map("date_created")
+  updatedAt   DateTime @updatedAt @map("date_updated")
+  
+  // Relations
+  userGroups  UserGroup[]
+  campaigns   Campaign[]
+
+  @@map("groups")
+}
+
+model UserGroup {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // Foreign keys
+  userId    String @db.ObjectId
+  groupId   String @db.ObjectId
+  
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  // Optional: metadata
+  joinedAt  DateTime @default(now())
+  
+  @@unique([userId, groupId]) // Prevent duplicates
+  @@map("user_groups")
+}
+
+model Campaign {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // Core campaign fields
+  groupId   String   @db.ObjectId
+  subject   String
+  htmlBody  String
+  status    String   @default("draft") // draft|scheduled|sending|sent|failed
+  sendAt    DateTime?
+  sentAt    DateTime?
+  
+ 
+  createdAt DateTime @default(now()) @map("date_created")
+  updatedAt DateTime @updatedAt @map("date_updated")
+  
+  // Relations
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Restrict)
+
+  @@map("campaigns")
 }
