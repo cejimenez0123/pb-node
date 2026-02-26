@@ -339,15 +339,21 @@ enum ProfileToCollectionType {
   archive
   portfolio
 }
+
+
 enum SubscriptionLevel{
   newsletter
   basic
   premium
 }
 
-
-
-
+enum CampaignStatus {
+  draft
+  scheduled
+  sending
+  sent
+  failed
+}
 
 
 model Group {
@@ -365,7 +371,7 @@ model Group {
   userGroups  UserGroup[]
   campaigns   Campaign[]
 
-  @@map("groups")
+
 }
 
 model UserGroup {
@@ -382,7 +388,7 @@ model UserGroup {
   joinedAt  DateTime @default(now())
   
   @@unique([userId, groupId]) // Prevent duplicates
-  @@map("user_groups")
+
 }
 
 model Campaign {
@@ -392,7 +398,7 @@ model Campaign {
   groupId   String   @db.ObjectId
   subject   String
   htmlBody  String
-  status    String   @default("draft") // draft|scheduled|sending|sent|failed
+  status    CampaignStatus  @default(draft)
   sendAt    DateTime?
   sentAt    DateTime?
   
@@ -403,5 +409,5 @@ model Campaign {
   // Relations
   group     Group @relation(fields: [groupId], references: [id], onDelete: Restrict)
 
-  @@map("campaigns")
+
 }

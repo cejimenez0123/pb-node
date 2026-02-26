@@ -184,6 +184,4 @@ function shouldSendEmail(lastEmailTime, frequencyDays) {
 
 
 
-
-
 module.exports = {weeklyJob,dailyJob}
