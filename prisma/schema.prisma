@@ -1,3 +1,9 @@
+/// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,210 +13,395 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model AccessRequest {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-}
 
-model Chat {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-}
+model User{
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  email String @unique
+  preferredName String @default("")
+  googleId String?
+  userGroups UserGroup[]
+  uId String?
+  subscription SubscriptionLevel @default(basic)
+  password String?
+  igHandle String?
+  referredBy Referral?   @relation(name:"ReferredByUser",fields: [referredById], references: [id],onDelete: NoAction, onUpdate: NoAction) 
+  referredById String? @db.ObjectId
+  emailFrequency Int? @default(7)
+  referrals Referral[]  @relation(name: "UserReferrals") 
+  lastEmailed   DateTime?  @default(now())
+  profiles Profile[]
+  verified Boolean @default(false)
+  created DateTime? @default(now())
 
-model Collection {
-  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
-  created             DateTime @db.Date
-  followersAre        String?
-  isOpenCollaboration Boolean
-  isPrivate           Boolean
-  locationId          String?  @db.ObjectId
-  priority            BigInt?
-  profileId           String?  @db.ObjectId
-  purpose             String
-  title               String
-  type                String?
-  updated             DateTime @db.Date
 }
-
-model CollectionToCollection {
-  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
-  childCollectionId  String   @db.ObjectId
-  created            DateTime @db.Date
-  index              BigInt?
-  parentCollectionId String   @db.ObjectId
-  profileId          String   @db.ObjectId
+model Story{
+    id    String @id @default(auto()) @map("_id") @db.ObjectId
+    title String
+    data String @default("")
+    description String @default("")
+    isPrivate Boolean @default(true)
+    authorId String? @db.ObjectId
+    author Profile? @relation(fields: [authorId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+    needsFeedback Boolean? @default(false)
+    commentable Boolean
+    priority Int? @default(0)
+    approvalScore Int @default(0)
+    storyLikes UserStoryLike[]
+    storyHistory UserStoryHistory[]
+    betaReaders RoleToStory[]
+    comments Comment[]
+    hashtags HashtagStory[]
+    type StoryType @default(html)
+    collections StoryToCollection[]
+    updated DateTime? @default(now())
+    created DateTime? @default(now())
 }
-
-model Comment {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  content   String
-  created   DateTime @db.Date
-  parentId  String?  @db.ObjectId
-  profileId String   @db.ObjectId
-  storyId   String   @db.ObjectId
-  updated   DateTime @db.Date
-}
-
-model Follow {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  approved    Boolean?
-  created     DateTime @db.Date
-  followerId  String   @db.ObjectId
-  followingId String   @db.ObjectId
-}
-
-model Hashtag {
-  id   String @id @default(auto()) @map("_id") @db.ObjectId
-  name String @unique
-}
-
-model HashtagCollection {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  collectionId String   @db.ObjectId
-  created      DateTime @db.Date
-  hashtagId    String   @db.ObjectId
-  profileId    String   @db.ObjectId
-}
-
-model HashtagComment {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  commentId String   @db.ObjectId
-  created   DateTime @db.Date
-  hashtagId String   @db.ObjectId
-  profileId String   @db.ObjectId
-}
-
-model HashtagFollower {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-}
-
-model HashtagStory {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  created   DateTime @db.Date
-  hashtagId String   @db.ObjectId
-  profileId String   @db.ObjectId
-  storyId   String   @db.ObjectId
-}
-
 model Location {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  created   DateTime? @db.Date
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
   latitude  Float
   longitude Float
+  profiles Profile[]
+  collections Collection[]
+  created DateTime? @default(now())
 }
-
-model Message {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-}
-
-model Profile {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  created       DateTime  @db.Date
-  isActive      Boolean
-  isPrivate     Boolean
-  lastActive    DateTime? @db.Date
-  lastNotified  DateTime? @db.Date
-  locationId    String?   @db.ObjectId
-  profilePic    String
-  selfStatement String
-  userId        String?   @db.ObjectId
-  username      String    @unique
-  writerLevel   BigInt
-}
-
-model ProfileToCollection {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  collectionId String   @db.ObjectId
-  created      DateTime @db.Date
-  profileId    String   @db.ObjectId
-  type         String
-}
-
 model Referral {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  createdAt   DateTime @db.Date
-  createdById String   @db.ObjectId
-  maxUses     BigInt
-  updatedAt   DateTime @db.Date
-  usageCount  BigInt
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  createdBy  User  @relation(name:"UserReferrals",fields: [createdById], references: [id]) 
+  createdById String @db.ObjectId 
+  users User[] @relation(name:"ReferredByUser")
+  usageCount Int      @default(0)
+  maxUses    Int      @default(5) 
+  createdAt  DateTime @default(now()) 
+  updatedAt  DateTime @updatedAt
 }
 
-model RoleToCollection {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  approved     Boolean?
-  collectionId String   @db.ObjectId
-  created      DateTime @db.Date
-  profileId    String   @db.ObjectId
-  role         String
-  updated      DateTime @db.Date
+
+model Profile{
+    id    String @id @default(auto()) @map("_id") @db.ObjectId
+    profilePic String?
+    username String? @unique
+    profileToCollections ProfileToCollection[]
+    selfStatement String @default("")
+    userId String? @db.ObjectId
+    user User? @relation(fields: [userId], references: [id])
+    isActive Boolean? @default(false) 
+    lastActive  DateTime? @default(now())
+    lastNotified  DateTime? @default(now())
+    writerLevel Int? @default(1)
+    locationId String? @db.ObjectId
+    location Location?  @relation(fields: [locationId], references: [id])
+    hashtag HashtagComment[]
+    isPrivate Boolean?
+    messages Message[]
+    followedHashtags HashtagFollower[]
+    hashtags HashtagStory[]
+    hashtagCollections HashtagCollection[]
+    stories Story[]
+    likedStories UserStoryLike[]
+    historyStories UserStoryHistory[]
+    storyToCollections StoryToCollection[]
+    collectionToCollections CollectionToCollection[]
+    collections Collection[] 
+    rolesToStory RoleToStory[]
+    collectionHistory UserCollectionHistory[]
+    rolesToCollection RoleToCollection[]
+    comments Comment[] 
+    
+    followers             Follow[]    @relation(name: "Followers")
+    following             Follow[]   @relation(name: "Following")
+    created DateTime? @default(now())
+}
+model Follow{
+    id String  @id @default(auto()) @map("_id") @db.ObjectId
+    followerId String @db.ObjectId
+    follower       Profile  @relation(name: "Following", fields: [followerId], references: [id])
+    approved Boolean @default(true)
+    followingId String @db.ObjectId
+    following      Profile  @relation(name: "Followers", fields: [followingId], references: [id])
+    created DateTime? @default(now())
+}
+model HashtagCollection{
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+ hashtagId String @db.ObjectId
+ hashtag Hashtag  @relation(fields: [hashtagId], references: [id])
+ collectionId String @db.ObjectId
+ profileId String @db.ObjectId
+ profile Profile @relation(fields: [profileId], references: [id])
+ collection Collection @relation(fields: [collectionId], references: [id])
+ created DateTime? @default(now())
+}
+model HashtagStory{
+ id        String  @id @default(auto()) @map("_id") @db.ObjectId
+ hashtagId String @db.ObjectId
+ hashtag Hashtag  @relation(fields: [hashtagId], references: [id])
+ storyId String @db.ObjectId
+ profileId String @db.ObjectId
+ profile Profile @relation(fields: [profileId], references: [id])
+ story Story @relation(fields: [storyId], references: [id])
+ created DateTime? @default(now())
+}
+model Hashtag {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  comments HashtagComment[]
+  stories   HashtagStory[]  
+  collections HashtagCollection[]
+  followers HashtagFollower[]
+}
+model HashtagFollower{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+   hashtagId String @db.ObjectId
+ hashtag Hashtag  @relation(fields: [hashtagId], references: [id])
+  followerId String @db.ObjectId
+  follower Profile @relation(fields: [followerId], references: [id])
+}
+model UserCollectionHistory{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  collection Collection? @relation( fields: [collectionId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+  collectionId String? @db.ObjectId
+  profileId String @db.ObjectId
+  profile Profile?@relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+  created DateTime? @default(now())
+}
+model ProfileToCollection{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  collection Collection? @relation( fields: [collectionId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+  collectionId String? @db.ObjectId
+  profileId String @db.ObjectId
+  type ProfileToCollectionType @default(home)
+  profile Profile?@relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+  created DateTime? @default(now())
 }
 
-model RoleToStory {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  approved  Boolean
-  created   DateTime @db.Date
-  profileId String   @db.ObjectId
-  role      String
-  storyId   String   @db.ObjectId
-  updated   DateTime @db.Date
+model StoryToCollection{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  storyId String? @db.ObjectId
+  story Story? @relation(fields: [storyId], references: [id])
+  index Int?
+  collection Collection @relation(fields: [collectionId], references: [id])
+  collectionId String @db.ObjectId
+  profileId String? @db.ObjectId
+  profile Profile? @relation( fields: [profileId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+    
+  created DateTime? @default(now())
+}
+model RoleToCollection{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  profileId String  @db.ObjectId
+  profile Profile @relation(fields: [profileId], references: [id])
+  collectionId String? @db.ObjectId
+  approved Boolean @default(true)
+  collection Collection? @relation(fields: [collectionId], references: [id])
+  role Role @default(reader)
+  updated DateTime? @default(now())
+  created DateTime? @default(now())
+}
+model Chat {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String?
+  isGlobal    Boolean   @default(false)
+  messages    Message[]
+  created  DateTime  @default(now())
+  collections Collection[]
+  
+}
+model Message {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  chat      Chat    @relation(fields: [chatId], references: [id])
+  chatId    String @db.ObjectId
+  sender    Profile?    @relation(fields: [senderId], references: [id])
+  senderId  String? @db.ObjectId
+  content   String
+  created DateTime @default(now())
+}
+model RoleToStory{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  profileId String  @db.ObjectId
+  profile Profile @relation(fields: [profileId], references: [id])
+  storyId String @db.ObjectId
+  story Story @relation(fields: [storyId], references: [id])
+  role Role @default(reader)
+  approved Boolean @default(true)
+  updated DateTime? @default(now())
+  created DateTime? @default(now())
 }
 
-model Story {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  approvalScore BigInt
-  authorId      String   @db.ObjectId
-  commentable   Boolean
-  created       DateTime @db.Date
-  data          String
-  description   String?
-  isPrivate     Boolean
-  needsFeedback Boolean?
-  priority      BigInt?
-  title         String
-  type          String
-  updated       DateTime @db.Date
+enum Role {
+  reader
+  editor
+  commenter
+  writer
+}
+enum Content{
+  profile
+  collection
+  story
+}
+model Comment {
+     id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  profileId String? @db.ObjectId
+  profile Profile? @relation(fields: [profileId], references: [id])
+  storyId String    @db.ObjectId
+  story   Story      @relation(fields: [storyId], references: [id])
+  parentId String?  @db.ObjectId
+  parent Comment? @relation(name: "ChildToParent", fields: [parentId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+  hashtags HashtagComment[]
+  updated DateTime? @default(now())
+  created DateTime? @default(now())
+  children Comment[] @relation(name: "ChildToParent")
 }
 
-model StoryToCollection {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  collectionId String   @db.ObjectId
-  created      DateTime @db.Date
-  index        BigInt?
-  profileId    String?  @db.ObjectId
-  storyId      String?  @db.ObjectId
-}
 
-model User {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  created        DateTime @db.Date
-  email          String   @unique
-  emailFrequency BigInt?
-  firstLogin     Boolean?
-  googleId       String?
-  igHandle       String?
-  lastEmailed    DateTime @db.Date
-  password       String?
-  preferredName  String
-  referredById   String?  @db.ObjectId
-  subscription   String
-  verified       Boolean
-}
+ 
 
-model UserCollectionHistory {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  collectionId String   @db.ObjectId
-  created      DateTime @db.Date
-  profileId    String   @db.ObjectId
-}
 
-model UserStoryHistory {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  created   DateTime @db.Date
-  profileId String   @db.ObjectId
-  storyId   String   @db.ObjectId
+model Collection {
+    id    String @id @default(auto()) @map("_id") @db.ObjectId
+    title String @default("Untitled")
+    purpose String @default("")
+    isPrivate Boolean? @default(true)
+    profileId String? @db.ObjectId
+    profile Profile? @relation(fields: [profileId], references: [id])
+    childCollections CollectionToCollection[] @relation(name: "ChildToParent")
+    parentCollections CollectionToCollection[] @relation(name: "ParentToChild")
+    storyIdList StoryToCollection[]
+    favedBy ProfileToCollection[]
+    roles RoleToCollection[]
+    priority Int @default(0)
+    hashtags HashtagCollection[]
+    chat Chat?  @relation(fields: [chatId], references: [id])
+    chatId String? @db.ObjectId
+    type CollectionType? @default(book)
+    followersAre Role? @default(commenter)
+    isOpenCollaboration Boolean @default(false)
+    locationId String? @db.ObjectId
+    location      Location? @relation(fields: [locationId], references: [id])
+    startTime     DateTime? 
+    endTime       DateTime?
+  
+    updated DateTime? @default(now())
+    created DateTime? @default(now())
+    userHistory UserCollectionHistory[]
 }
-
+model HashtagComment{
+    id String @id @default(auto()) @map("_id") @db.ObjectId
+    hashtagId String @db.ObjectId
+    hashtag Hashtag @relation(fields: [hashtagId], references: [id])
+    commentId String @db.ObjectId
+    comment Comment @relation(fields: [commentId], references: [id])
+    profileId String? @db.ObjectId
+    profile Profile? @relation(fields: [profileId], references: [id])
+  created DateTime? @default(now())
+}
+model CollectionToCollection{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  index Int?
+  parentCollection Collection @relation(name: "ChildToParent", fields: [parentCollectionId], references: [id])
+  parentCollectionId String @db.ObjectId
+  childCollectionId  String  @db.ObjectId
+  childCollection Collection @relation(name: "ParentToChild",fields: [childCollectionId], references: [id])
+  profileId String? @db.ObjectId
+  profile Profile? @relation(fields: [profileId], references: [id])
+  created DateTime? @default(now())
+}
 model UserStoryLike {
+    id    String @id @default(auto()) @map("_id") @db.ObjectId
+    storyId String @db.ObjectId
+   story Story @relation(fields: [storyId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+   profile Profile? @relation(fields: [profileId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+   profileId String? @db.ObjectId
+   created DateTime? @default(now())
+}
+model UserStoryHistory{
+    id    String @id @default(auto()) @map("_id") @db.ObjectId
+    storyId String @db.ObjectId
+    story Story @relation(fields: [storyId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+    profile Profile @relation(fields: [profileId], references: [id],onDelete:Cascade,onUpdate:Cascade)
+    profileId String @db.ObjectId
+    created DateTime? @default(now())
+}
+
+
+enum CollectionType{
+  feedback
+  book
+  library
+}
+enum StoryType {
+  html
+  image
+  video
+  link
+}
+enum ProfileToCollectionType {
+  home
+  archive
+  portfolio
+}
+enum SubscriptionLevel{
+  newsletter
+  basic
+  premium
+}
+
+
+
+
+
+
+model Group {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String   @unique
+  description String?
+  
+  // Directus system fields
+  status      String?  @default("published")
+  createdAt   DateTime @default(now()) @map("date_created")
+  updatedAt   DateTime @updatedAt @map("date_updated")
+  
+  // Relations
+  userGroups  UserGroup[]
+  campaigns   Campaign[]
+
+  @@map("groups")
+}
+
+model UserGroup {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  created   DateTime @db.Date
-  profileId String   @db.ObjectId
-  storyId   String   @db.ObjectId
+  
+  // Foreign keys
+  userId    String @db.ObjectId
+  groupId   String @db.ObjectId
+  
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  // Optional: metadata
+  joinedAt  DateTime @default(now())
+  
+  @@unique([userId, groupId]) // Prevent duplicates
+  @@map("user_groups")
+}
+
+model Campaign {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // Core campaign fields
+  groupId   String   @db.ObjectId
+  subject   String
+  htmlBody  String
+  status    String   @default("draft") // draft|scheduled|sending|sent|failed
+  sendAt    DateTime?
+  sentAt    DateTime?
+  
+ 
+  createdAt DateTime @default(now()) @map("date_created")
+  updatedAt DateTime @updatedAt @map("date_updated")
+  
+  // Relations
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Restrict)
+
+  @@map("campaigns")
 }
