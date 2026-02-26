@@ -15,8 +15,8 @@ const eventNewsletterTemplate=(events,user,days)=>{
       
       const allEvents = [
         ,
-           { date: parseEventDate("Sat. Feb. 21st", today.getFullYear()), description: "Writers Workshop:Etheridge Knight:for Malcolm" },
-    ,{ date: parseEventDate("Sat. Feb. 21st", today.getFullYear()), description: "CaFeTaTo:An Uptown Coffee Rave" },
+           { date: parseEventDate("Sat. Mar. 21st", today.getFullYear()), description: "Writers Workshop:Sonia Sanchez-Loved and Free" },
+    ,{ date: parseEventDate("Sat. Mar. 21st", today.getFullYear()), description: "CaFeTaTo:An Uptown Coffee Rave" },
    
         // { date: parseEventDate("Sat. Dec 6", today.getFullYear()), description: "CAFETATO: AN UPTOWN COFFEE RAVE" },
         // { date: parseEventDate("Sat. Jan. 24th", today.getFullYear()), description: "CAFETATO: AN UPTOWN COFFEE RAVE"  },

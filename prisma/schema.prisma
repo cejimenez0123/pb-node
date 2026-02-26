@@ -213,6 +213,26 @@ model Message {
   content   String
   created DateTime @default(now())
 }
+model Groups {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  name String
+
+}
+model UserGroups{
+id        String  @id @default(auto()) @map("_id") @db.ObjectId
+userId String? @db.ObjectId
+groupId String? @db.ObjectId
+}
+model Campaigns{
+  id  String  @id @default(auto()) @map("_id") @db.ObjectId
+  groupId String? @db.ObjectId
+  subject String
+  htmlBody String
+  status Boolean
+  sendAt DateTime 
+  sentAt DateTime 
+
+}
 model RoleToStory{
   id String @id @default(auto()) @map("_id") @db.ObjectId
   profileId String  @db.ObjectId
