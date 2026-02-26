@@ -11,10 +11,6 @@ model AccessRequest {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 }
 
-model Campaigns {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-}
-
 model Chat {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 }
@@ -59,10 +55,6 @@ model Follow {
   created     DateTime @db.Date
   followerId  String   @db.ObjectId
   followingId String   @db.ObjectId
-}
-
-model Groups {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
 }
 
 model Hashtag {
@@ -198,8 +190,7 @@ model User {
   password       String?
   preferredName  String
   referredById   String?  @db.ObjectId
-  subscription   Stringx
-  uId            Json?
+  subscription   String
   verified       Boolean
 }
 
@@ -208,10 +199,6 @@ model UserCollectionHistory {
   collectionId String   @db.ObjectId
   created      DateTime @db.Date
   profileId    String   @db.ObjectId
-}
-
-model UserGroups {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
 }
 
 model UserStoryHistory {

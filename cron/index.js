@@ -6,7 +6,8 @@ const prisma = require("../db")
 const sleep = require("../utils/sleep")
 const sendEmail = require("../newsletter/sendEmail")
 const fetchAlerts = require("../newsletter/fetchAlerts")
-
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 
 const dailyJob = cron.schedule("0 9 * * *", async () => {
@@ -141,6 +142,48 @@ function shouldSendEmail(lastEmailTime, frequencyDays) {
 
   return elapsedDays >= frequencyDays;
 }
+
+
+
+// async function processScheduledCampaigns() {
+//   const now = new Date();
+
+//   const campaigns = await prisma.campaign.findMany({
+//     where: {
+//       status: 'scheduled',
+//       sendAt: { lte: now },
+//     },
+//     include: { group: true },
+//   });
+
+//   for (const campaign of campaigns) {
+//     const users = await prisma.user.findMany({
+//       where: {
+//         groups: { some: { groupId: campaign.groupId } }, // assuming relation
+//       },
+//     });
+
+//     const payload = users.map((u) => ({
+//       from: 'Your App <no-reply@yourapp.com>',
+//       to: [u.email],
+//       subject: campaign.subject,
+//       html: campaign.htmlBody,
+//     }));
+
+//     // Option A: batch send
+//     await resend.batch.send(payload);
+
+//     // Option B: loop and resend.emails.send(...) per user
+
+//     await prisma.campaign.update({
+//       where: { id: campaign.id },
+//       data: { status: 'sent', sentAt: new Date() },
+//     });
+//   }
+// }
+
+
+
 
 
 module.exports = {weeklyJob,dailyJob}
