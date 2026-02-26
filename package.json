@@ -16,6 +16,7 @@
     "typescript": "^5.5.4"
   },
   "dependencies": {
+    "@directus/sdk": "^21.1.0",
     "@faker-js/faker": "^9.3.0",
     "@google-cloud/local-auth": "^2.1.0",
     "@googleapis/calendar": "^9.8.0",

@@ -7,8 +7,22 @@ const sleep = require("../utils/sleep")
 const sendEmail = require("../newsletter/sendEmail")
 const fetchAlerts = require("../newsletter/fetchAlerts")
 const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
-
+const { readItems } = require('@directus/sdk');
+const {directus} = require("../utils/directus")
+async function TEST(){
+const allPosts = await directus.request(readItems('posts'));
+console.log("ALL POSTS:", allPosts);
+const somePosts = await directus.request(
+  readItems('posts', {
+    filter: { status: { _eq: 'published' } },
+    sort: ['-date_created'],
+    fields: ['id', 'title', 'date_created'],
+    limit: 3
+  })
+)
+console.log("SOME POSTS:", somePosts)
+}
+TEST()
 
 const dailyJob = cron.schedule("0 9 * * *", async () => {
 
@@ -107,30 +121,7 @@ const weeklyEmail = async (batchIndex = 0) => {
   }
 };
 
-// const weeklyEmail=async()=>{
-//   const days = 7
-//   let users = await prisma.user.findMany({
-//     where: {
-//       emailFrequency: {
-//        not:0
-//       }
-//     }
-//   })
 
-//   const events = await fetchEvents()
-//   for (let i = 0; i < users.length; i++) {
-//     const user = users[i]
-//     await sleep(1000)
-//   sendEventNewsletterEmail(user,events,days).then(res=>{
-//     if(!res.data.error){
-//       console.log(i,"Success: "+user.email)
-//     }else{
-//       console.log(i,"Error "+user.email)
-//     }
-    
-//   }).catch(err=>{
-// console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
-//   })}}
 
 function shouldSendEmail(lastEmailTime, frequencyDays) {
   if (!lastEmailTime) return true; // allow first-time emails
@@ -164,23 +155,19 @@ function shouldSendEmail(lastEmailTime, frequencyDays) {
 //     });
 
 //     const payload = users.map((u) => ({
-//       from: 'Your App <no-reply@yourapp.com>',
-//       to: [u.email],
-//       subject: campaign.subject,
-//       html: campaign.htmlBody,
+// //       from: 'Your App <no-reply@yourapp.com>',
+// //       to: [u.email],
+// //       subject: campaign.subject,
+// //       html: campaign.htmlBody,
 //     }));
 
-//     // Option A: batch send
-//     await resend.batch.send(payload);
-
-//     // Option B: loop and resend.emails.send(...) per user
 
 //     await prisma.campaign.update({
 //       where: { id: campaign.id },
 //       data: { status: 'sent', sentAt: new Date() },
 //     });
-//   }
-// }
+// //   }
+// // }
 
 
 
