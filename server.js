@@ -22,6 +22,7 @@ const passport = require("passport")
 const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const { Server } = require('socket.io');
+require('dotenv').config();
 const activeUsers = new Map()
 const docs = require("./utils/docs.js")
 const app = express();
@@ -148,67 +149,58 @@ app.use(
 
 io.on('connection', (socket) => {
 
+socket.on("register", async ({ profileId, location }) => {
+  try {
+    console.log(location)
+const locale = await prisma.location.upsert({
+  where: {
+    location_coords: {
+      latitude: location.latitude,
+      longitude: location.longitude
+    }
+  },
+  update: {},
+  create: {
+    latitude: location.latitude,
+    longitude: location.longitude
+  }
+
+});
+    const updateData = {
+      isActive: true
+    };
+
+  //   // Attach location relation only if we have one
+    if (locale) {
+      updateData.location = {
+        connect: { id: locale.id }
+      };
+    }
+
+  //   // Update profile
+    const updatedProfile = await prisma.profile.update({
+      where: { id: profileId },
+      data:{location:{connect:{
+        id:locale.id
+      }}},
+      include: {
+        location: true
+      }
+    });
+
+  //   // Track active socket user
+    activeUsers.set(socket.id, updatedProfile);
+
+    console.log(
+      `User ${updatedProfile.id}:${updatedProfile.username} connected`
+    );
+
+  } catch (error) {
+    console.error("Socket register error:", error);
+  }
+});
 
 
-  // Register user
-  socket.on('register', async ({ profileId, location }) => {
-    try {
-      let locale= null
-    if(location){
-        locale = await  prisma.location.findFirst({where:{
-        latitude:{
-            equals:location.latitude
-        },
-        longitude:{
-            equals:location.longitude
-        }
-      }})
-      if(!locale){
-        locale = await prisma.location.create({data:{
-              latitude:location.latitude,
-              longitude:location.longitude
-           }})
-        }else{
-            locale = await prisma.location.findFirst()
-           
-         }
-try{
-      const updatedProfile = await prisma.profile.update({
-        where: { id: profileId },
-        data: {
-          isActive: true,
-          location:{
-            connect:{
-                id:locale.id
-            }
-          }
-        },include:{
-            location:true
-        }
-      });
-      
-     
-      activeUsers.set(socket.id, updatedProfile);
-    }catch(error){
-        console.error( error); 
-    }}else{
-      const updatedProfile = await prisma.profile.update({
-        where: { id: profileId },
-        data: {
-          isActive: true,
-        },include:{
-            location:true
-        }
-      });
-
-      console.log(`User ${updatedProfile.id}:${updatedProfile.username} connected`);
-     
-      activeUsers.set(socket.id, updatedProfile);
-    }}catch(error){
-        console.log("Socket registration",error.message)
-    }})
-
-  // Handle user disconnection
   socket.on('disconnect', async () => {
     const profile = activeUsers.get(socket.id); // Lookup profileId
    if(profile){

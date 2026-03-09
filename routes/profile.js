@@ -189,17 +189,39 @@ module.exports = function (authMiddleware){
     })
 
     router.put("/:id",authMiddleware,async (req,res)=>{
-        const {username,profilePicture,selfStatement,privacy} = req.body
+        const {username,profilePicture,selfStatement,privacy,location} = req.body
+        console.log(location)
       try{
-        
-        const profile = await prisma.profile.update({where:{
+      
+       let  locale = location && location.latitude?await prisma.location.upsert({
+  where: {
+    location_coords: {
+      latitude: location.latitude,
+      longitude: location.longitude
+    }
+  },
+  update: {},
+  create: {
+    latitude: location.latitude,
+    longitude: location.longitude
+  }
+}):null
+let profile = null
+       if(locale && locale.latitude && locale.longitude){
+        profile = await prisma.profile.update({where:{
             id: req.params.id
         },data:{
             username: username,
             profilePic:profilePicture,
             selfStatement:selfStatement,
-            isPrivate:privacy
+            isPrivate:privacy,
+            location:{
+                connect:{
+                    id:locale.id
+                }
+            }
         },include:{
+            location:true,
             likedStories:true,
             historyStories:true,
             collectionHistory:true,
@@ -207,9 +229,29 @@ module.exports = function (authMiddleware){
             stories:true,
             followers:true
         }})
-        res.json({profile})
-
+    }else{profile =prisma.profile.update({where:{
+            id: req.params.id
+        },data:{
+            username: username,
+            profilePic:profilePicture,
+            selfStatement:selfStatement,
+            isPrivate:privacy,
+           
+            
+        },include:{
+             location:true,
+            likedStories:true,
+            historyStories:true,
+            collectionHistory:true,
+            collections:true,
+            stories:true,
+            followers:true
+        }})
+      
+    }
+      res.json({profile})
     }catch(e){
+        console.log("UPDATE PROFILE",e)
         res.status(409).json({error:e})
     }
     })

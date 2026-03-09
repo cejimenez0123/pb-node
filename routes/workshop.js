@@ -474,7 +474,7 @@ const findCollection= async({id})=>{
     }
     return groups;
   };
-  function groupColsByProximity({profile,items, radius = 50,}){
+  function groupColsByProximity({profile,items=[], radius = 50,}){
     const groups = [];
     while (items.length > 0) {
       const item = items.pop();
@@ -494,43 +494,193 @@ const findCollection= async({id})=>{
     return groups;
   };
 module.exports = function (authMiddleware) {
-    
+router.post('/look', authMiddleware, async (req, res) => {
+  try {
+    const { radius = 50, global = false, location } = req.body;
 
-  
-    // Route: Get active users
-    router.post('/active-users',authMiddleware, async (req, res) => {
-      try {
-        const {profile,story}=req.body
-        const prof = await prisma.profile.update({
-          where:{
-            id:profile.id
-      },data:{
-        isActive:true
-      }});
+    const profile = req.user?.profiles?.[0];
 
-    const profiles = await prisma.profile.findMany({where:{
-        isActive:{
-          equals:true
-        }
-      }})
-      
-      if(story){
-        const stor = await prisma.story.update({where:{id:story.id
-        },data:{
-          needsFeedback:true
-        }})
-          return  res.json({ profile:prof,story:stor,profiles});
-      }else{
-        return res.json({ profile:prof,story:null,profiles});
-      }
-    
-      } catch (error) {
-      return  res.status(500).json({ error: error});
+    if (!profile) {
+      return res.status(400).json({ error: "Profile not found" });
+    }
+
+    // GLOBAL SEARCH
+    if (global || !location) {
+      const groups = await prisma.collection.findMany({
+        where: {
+          type: "feedback",
+          locationId: null
+        },
+        take: 3
+      });
+
+      return res.send({ groups });
+    }
+
+    const { latitude, longitude } = location;
+
+    // find or create location
+    const userLocation =
+      (await prisma.location.findFirst({
+        where: { latitude, longitude }
+      })) ||
+      (await prisma.location.create({
+        data: { latitude, longitude }
+      }));
+
+    // update profile location
+    await prisma.profile.update({
+      where: { id: profile.id },
+      data: { locationId: userLocation.id }
+    });
+
+    // get all local collections
+    const collections = await prisma.collection.findMany({
+      where: {
+        type: "feedback",
+        locationId: { not: null }
+      },
+      include: {
+        location: true
       }
     });
+
+    let groups = [];
+    let rad = radius;
+    const MAX_RADIUS = 500;
+    let includesGlobe = false
+    // expand search radius
+    while (groups.length < 3 && rad <= MAX_RADIUS) {
+      groups = filterAvailableCollections(profile, collections, rad);
+      rad += 50;
+    }
+
+    // fallback to global groups
+    if (groups.length < 3) {
+      includesGlobe = true
+      const globalGroups = await prisma.collection.findMany({
+        where: {
+          type: "feedback",
+          locationId: null
+        },
+        take: 3 - groups.length
+      });
+
+      groups = [...groups, ...globalGroups];
+    }
+
+    return res.send({ groups,message:includesGlobe?"Includes Global Groups":"All Local"});
+
+  } catch (error) {
+    console.error("LOOK_ERROR", error);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+// router.post('/look', authMiddleware, async (req, res) => {
+//   try {
+//     const { radius = 50, global = false, location: locale } = req.body;
+
+//     // GLOBAL SEARCH
+//     if (global || !locale) {
+//       const collections = await prisma.collection.findMany({
+//         where: {
+//           type: "feedback",
+//           locationId: null
+//         }
+//       });
+
+//       return res.send({ groups: collections });
+//     }
+
+//     // LOCAL SEARCH
+//     const { latitude, longitude } = locale;
+
+//     // find or create location
+//     let location = await prisma.location.findFirst({
+//       where: {
+//         latitude,
+//         longitude
+//       }
+//     });
+
+//     if (!location) {
+//       location = await prisma.location.create({
+//         data: { latitude, longitude }
+//       });
+//     }
+
+//     // attach location to profile
+//     let profile = req.user.profiles[0];
+
+//     profile = await prisma.profile.update({
+//       where: { id: profile.id },
+//       data: { locationId: location.id }
+//     });
+
+//     // get local collections
+//     const collections = await prisma.collection.findMany({
+//       where: {
+//         type: "feedback",
+//         locationId: { not: null }
+//       },
+//       include: {
+//         location: true
+//       }
+//     });
+
+//     let groups = [];
+//     let rad = radius;
+
+//     // expand radius until we find 3 groups
+
+// const MAX_RADIUS = 500;
+
+// while (groups.length < 3 && rad <= MAX_RADIUS) {
+//   groups = filterAvailableCollections(profile, collections, rad);
+//   rad += 50;
+// }
+
+//     return res.send({ groups });
+
+//   } catch (error) {
+//     console.error("LOOK_ERROR", error);
+//     return res.status(500).json({ error });
+//   }
+// });
+
+//     router.post('/active-users',authMiddleware, async (req, res) => {
+//       try {
+//         const {profile,story}=req.body
+//         const prof = await prisma.profile.update({
+//           where:{
+//             id:profile.id
+//       },data:{
+//         isActive:true
+//       }});
+
+//     const profiles = await prisma.profile.findMany({where:{
+//         isActive:{
+//           equals:true
+//         }
+//       }})
+      
+//       if(story){
+//         const stor = await prisma.story.update({where:{id:story.id
+//         },data:{
+//           needsFeedback:true
+//         }})
+//           return  res.json({ profile:prof,story:stor,profiles});
+//       }else{
+//         return res.json({ profile:prof,story:null,profiles});
+//       }
+    
+//       } catch (error) {
+//       return  res.status(500).json({ error: error});
+//       }
+//     });
   
 
-router.post('/groups', authMiddleware, async (req, res) => {
+router.post('/group', authMiddleware, async (req, res) => {
   try {
     const { story, profile } = req.body;
     const radius = parseFloat(req.query.radius) || 50;
@@ -587,18 +737,20 @@ router.post('/groups', authMiddleware, async (req, res) => {
       });
     }
 
+
+ 
     // ---------------------------------------------------------
     // CASE 2: NO EXISTING GROUP → ALWAYS CREATE NEW
     // ---------------------------------------------------------
     const newCollection = await prisma.collection.create({
       data: {
         type: "feedback",
-        location: {
-          create: {
-            latitude: prof.location.latitude,
-            longitude: prof.location.longitude,
-          },
+        location:{
+          connect:{
+            id:prof.location.id
+          }
         },
+        title:enerate({ min: 3, max: 6,join:" " }),
         roles: {
           create: {
             role: "editor",
@@ -835,6 +987,7 @@ router.post('/groups', authMiddleware, async (req, res) => {
     
     // Helper: Group by proximity
     function filterAvailableCollections({ profile, collections, radius }) {
+
       let proxGroups = groupColsByProximity({ profile, items: collections, radius });
       return proxGroups.filter(col => col.roles.length < 6 && !col.roles.find(role => role.profile.id == profile.id));
     }
