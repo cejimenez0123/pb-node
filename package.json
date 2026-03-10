@@ -4,11 +4,10 @@
   "description": "Backend",
   "main": "server.js",
   "scripts": {
-  "test": "jest",
+    "test": "jest",
     "prisma:generate": "prisma generate",
-     "start": "npm run prisma:generate && node server.js",
-
-  "postinstall": "prisma generate"
+    "start": "npm run prisma:generate && node server.js",
+    "postinstall": "prisma generate"
   },
   "author": "plumbum",
   "license": "ISC",
@@ -44,7 +43,7 @@
     "jsonwebtoken": "^9.0.2",
     "jwk-to-pem": "^2.0.7",
     "mongodb": "^6.17.0",
-    "node": "^22.7.0",
+    "node": "^22.22.1",
     "node-cache": "^5.1.2",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.15",
