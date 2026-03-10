@@ -106,7 +106,6 @@ app.get("/image", async (req, res) => {
 
     // 🧠 Convert to Buffer
     const bufferData = Buffer.from(response.data);
-
     // 💾 Cache the image
     imageCache.set(path, {
       buffer: bufferData,
