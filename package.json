@@ -4,8 +4,9 @@
   "description": "Backend",
   "main": "server.js",
   "scripts": {
-    "test": "jest",
-    "start": "node server.js"
+  "test": "jest",
+  "start": "node server.js",
+  "postinstall": "prisma generate"
   },
   "author": "plumbum",
   "license": "ISC",

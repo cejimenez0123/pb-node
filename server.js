@@ -153,17 +153,12 @@ socket.on("register", async ({ profileId, location }) => {
   try {
     console.log(location)
 const locale = await prisma.location.upsert({
-  where: {
-    location_coords: {
-      latitude: location.latitude,
-      longitude: location.longitude
-    }
+  where:{
+
+  },update:{
+
   },
-  update: {},
-  create: {
-    latitude: location.latitude,
-    longitude: location.longitude
-  }
+
 
 });
     const updateData = {
