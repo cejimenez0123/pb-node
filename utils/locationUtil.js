@@ -27,5 +27,4 @@ const createLocation = async (location)=>{
     return locale
 
 }
-
 module.exports = {createLocation}
