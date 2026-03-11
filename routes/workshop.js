@@ -552,6 +552,7 @@ router.post('/look', authMiddleware, async (req, res) => {
     // expand search radius
     while (groups.length < 3 && rad <= MAX_RADIUS) {
       groups = filterAvailableCollections(profile, collections, rad);
+      console.log(groups)
       rad += 50;
     }
 
@@ -750,7 +751,7 @@ router.post('/group', authMiddleware, async (req, res) => {
             id:prof.location.id
           }
         },
-        title:enerate({ min: 3, max: 6,join:" " }),
+        title:generate({ min: 3, max: 6,join:" " }),
         roles: {
           create: {
             role: "editor",
