@@ -5,15 +5,13 @@
   "main": "server.js",
   "scripts": {
     "test": "jest",
-    "prisma:generate": "prisma generate",
-    "start": "node server.js",
-    "postinstall": "prisma generate"
+    "start": "node server.js"
   },
   "author": "plumbum",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^22.5.0",
-    "prisma": "^7.5.0",
+    "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   },
@@ -22,7 +20,7 @@
     "@google-cloud/local-auth": "^2.1.0",
     "@googleapis/calendar": "^9.8.0",
     "@googleapis/docs": "^3.3.0",
-    "@prisma/client": "^7.5.0",
+    "@prisma/client": "^5.22.0",
     "@sentry/node": "^10.22.0",
     "algoliasearch": "^5.41.0",
     "axios": "^1.12.2",
