@@ -148,52 +148,96 @@ app.use(
 
 io.on('connection', (socket) => {
 
+// socket.on("register", async ({ profileId, location }) => {
+//   try {
+//     console.log(location)
+// const locale = await prisma.location.upsert({
+//   where:{
+
+//   },update:{
+
+//   },
+
+
+// });
+//     const updateData = {
+//       isActive: true
+//     };
+
+//   //   // Attach location relation only if we have one
+//     if (locale) {
+//       updateData.location = {
+//         connect: { id: locale.id }
+//       };
+//     }
+
+//   //   // Update profile
+//     const updatedProfile = await prisma.profile.update({
+//       where: { id: profileId },
+//       data:{location:{connect:{
+//         id:locale.id
+//       }}},
+//       include: {
+//         location: true
+//       }
+//     });
+
+//   //   // Track active socket user
+//     activeUsers.set(socket.id, updatedProfile);
+
+//     console.log(
+//       `User ${updatedProfile.id}:${updatedProfile.username} connected`
+//     );
+
+//   } catch (error) {
+//     console.error("Socket register error:", error);
+//   }
+// });
 socket.on("register", async ({ profileId, location }) => {
   try {
-    console.log(location)
-const locale = await prisma.location.upsert({
-  where:{
-
-  },update:{
-
-  },
-
-
-});
-    const updateData = {
-      isActive: true
-    };
-
-  //   // Attach location relation only if we have one
-    if (locale) {
-      updateData.location = {
-        connect: { id: locale.id }
-      };
-    }
-
-  //   // Update profile
-    const updatedProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data:{location:{connect:{
-        id:locale.id
-      }}},
-      include: {
-        location: true
-      }
+    if(location){
+    const locale = await prisma.location.upsert({
+      where: {
+        location_coords: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+        },
+      },
+      update: {
+        latitude: location.latitude,
+        longitude: location.longitude,
+      },
+      create: {
+        latitude: location.latitude,
+        longitude: location.longitude,
+      },
     });
 
-  //   // Track active socket user
-    activeUsers.set(socket.id, updatedProfile);
-
-    console.log(
-      `User ${updatedProfile.id}:${updatedProfile.username} connected`
-    );
-
+    const updatedProfile = await prisma.profile.update({
+      where: { id: profileId },
+      data: {
+        isActive: true,
+        location: { connect: { id: locale.id } },
+      },
+      include: { location: true },
+    });
+     activeUsers.set(socket.id, updatedProfile);
+  }else{
+    const updatedProfile = await prisma.profile.update({
+      where: { id: profileId },
+      data: {
+        isActive: true
+      },
+      include: { location: true },
+    });
+     activeUsers.set(socket.id, updatedProfile);
+  }
+   
+    // console.log(`User ${updatedProfile.id}:${updatedProfile.username} connected`);
   } catch (error) {
     console.error("Socket register error:", error);
   }
 });
-
 
   socket.on('disconnect', async () => {
     const profile = activeUsers.get(socket.id); // Lookup profileId
