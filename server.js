@@ -147,7 +147,174 @@ app.use(
 
 
 io.on('connection', (socket) => {
+  socket.on("register", async ({ profileId, location }) => {
+  try {
+    let localeId;
 
+    if (location) {
+      const locale = await findOrCreateLocation(location.latitude, location.longitude);
+      localeId = locale.id;
+    }
+
+    const updatedProfile = await updateProfileWithRetry(profileId, localeId);
+
+    activeUsers.set(socket.id, updatedProfile);
+  } catch (error) {
+    console.error("Socket register error:", error);
+  }
+});
+async function findOrCreateLocation(latitude, longitude) {
+  // 1. Try to find existing location
+  let locale = await prisma.location.findFirst({
+    where: { latitude, longitude },
+  });
+
+  // 2. If not found, try to create it
+  if (!locale) {
+    try {
+      locale = await prisma.location.create({
+        data: { latitude, longitude },
+      });
+    } catch (err) {
+      // 3. Handle race condition (unique constraint)
+      if (err.code === "P2002") {
+        locale = await prisma.location.findFirst({
+          where: { latitude, longitude },
+        });
+        if (!locale) {
+          throw new Error(
+            "Failed to fetch location after P2002 – this should never happen"
+          );
+        }
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  return locale;
+}
+async function updateProfileWithRetry(profileId, localeId) {
+  let retries = 2;
+
+  while (retries--) {
+    try {
+      // Single-document update — no transaction needed
+      const updatedProfile = await prisma.profile.update({
+        where: { id: profileId },
+        data: {
+          isActive: true,
+          ...(localeId ? { location: { connect: { id: localeId } } } : {}),
+        },
+        include: { location: true },
+      });
+
+      return updatedProfile;
+    } catch (err) {
+      // Retry only if it's a transaction abort (P2028)
+      if (err.code === "P2028" && retries > 0) {
+        console.log("Update aborted, retrying after delay...");
+        await new Promise((res) => setTimeout(res, 100)); // short delay
+        continue; // retry
+      }
+      // Throw other errors immediately
+      throw err;
+    }
+  }
+}
+// async function updateProfileWithRetry(profileId, localeId) {
+//   let retries = 2;
+//   while (retries--) {
+//     try {
+//       return await prisma.profile.update({
+//         where: { id: profileId },
+//         data: {
+//           isActive: true,
+//           ...(localeId ? { location: { connect: { id: localeId } } } : {}),
+//         },
+//         include: { location: true },
+//       });
+//     } catch (err) {
+//       if (err.code === "P2028" && retries > 0) {
+//         // Transaction aborted, retry
+//         continue;
+//       }
+//       throw err;
+//     }
+//   }
+// }
+// socket.on("register", async ({ profileId, location }) => {
+//   try {
+//     let updatedProfile;
+
+//     if (location) {
+//       let locale;
+
+//       // 1. Attempt to find the location first
+//       locale = await prisma.location.findFirst({
+//         where: {
+//           latitude: location.latitude,
+//           longitude: location.longitude,
+//         },
+//       });
+
+//       // 2. If not found, try to create it
+//       if (!locale) {
+//         try {
+//           locale = await prisma.location.create({
+//             data: {
+//               latitude: location.latitude,
+//               longitude: location.longitude,
+//             },
+//           });
+//         } catch (err) {
+//           // 3. Handle rare race condition if another socket created it simultaneously
+//           if (err.code === "P2002") {
+//             // Unique constraint failed, location already exists
+//             locale = await prisma.location.findFirst({
+//               where: {
+//                 latitude: location.latitude,
+//                 longitude: location.longitude,
+//               },
+//             });
+//             if (!locale) {
+//               throw new Error(
+//                 "Failed to fetch location after P2002 error – this should never happen"
+//               );
+//             }
+//           } else {
+//             throw err;
+//           }
+//         }
+//       }
+
+//       // 4. Update the profile and connect the location
+//       updatedProfile = await prisma.profile.update({
+//         where: { id: profileId },
+//         data: {
+//           isActive: true,
+//           location: { connect: { id: locale.id } },
+//         },
+//         include: { location: true },
+//       });
+//     } else {
+//       // If no location, just update isActive
+//       updatedProfile = await prisma.profile.update({
+//         where: { id: profileId },
+//         data: { isActive: true },
+//         include: { location: true },
+//       });
+//     }
+
+//     // 5. Add to active users map
+//     activeUsers.set(socket.id, updatedProfile);
+
+//     // Optional: log
+//     // console.log(`User ${updatedProfile.id}:${updatedProfile.username} connected`);
+//   } catch (error) {
+//     console.error("Socket register error:", error);
+//   }
+// });
 // socket.on("register", async ({ profileId, location }) => {
 //   try {
 //     console.log(location)
@@ -193,51 +360,47 @@ io.on('connection', (socket) => {
 //     console.error("Socket register error:", error);
 //   }
 // });
-socket.on("register", async ({ profileId, location }) => {
-  try {
-    if(location){
-    const locale = await prisma.location.upsert({
-      where: {
-        location_coords: {
-          latitude: location.latitude,
-          longitude: location.longitude,
-        },
-      },
-      update: {
-        latitude: location.latitude,
-        longitude: location.longitude,
-      },
-      create: {
-        latitude: location.latitude,
-        longitude: location.longitude,
-      },
-    });
+// socket.on("register", async ({ profileId, location }) => {
+//   try {
+//     if(location){
+//       let locale = await prisma.location.findFirst({where:{
+      
+//       }})
+// // let locale = await prisma.location.findFirst({
+// //   where: {},
+// // });
 
-    const updatedProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: {
-        isActive: true,
-        location: { connect: { id: locale.id } },
-      },
-      include: { location: true },
-    });
-     activeUsers.set(socket.id, updatedProfile);
-  }else{
-    const updatedProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: {
-        isActive: true
-      },
-      include: { location: true },
-    });
-     activeUsers.set(socket.id, updatedProfile);
-  }
+// if (!locale) {
+//   locale = await prisma.location.create({
+//     data: { latitude: location.latitude, longitude: location.longitude },
+//   });
+// }
+
+//     const updatedProfile = await prisma.profile.update({
+//       where: { id: profileId },
+//       data: {
+//         isActive: true,
+//         location: { connect: { id: locale.id } },
+//       },
+//       include: { location: true },
+//     });
+//      activeUsers.set(socket.id, updatedProfile);
+//   }else{
+//     const updatedProfile = await prisma.profile.update({
+//       where: { id: profileId },
+//       data: {
+//         isActive: true
+//       },
+//       include: { location: true },
+//     });
+//      activeUsers.set(socket.id, updatedProfile);
+//   }
    
-    // console.log(`User ${updatedProfile.id}:${updatedProfile.username} connected`);
-  } catch (error) {
-    console.error("Socket register error:", error);
-  }
-});
+//     // console.log(`User ${updatedProfile.id}:${updatedProfile.username} connected`);
+//   } catch (error) {
+//     console.error("Socket register error:", error);
+//   }
+// });
 
   socket.on('disconnect', async () => {
     const profile = activeUsers.get(socket.id); // Lookup profileId

@@ -139,27 +139,27 @@ for(let i = 0;i<profile.likedStories.length;i++){
     return scores;
   };
   
-const getRecommendations = async (profileId) => {
-    const user = await prisma.profile.findUnique({
-      where: { id: profileId},
-      include: { likedStories:true
+// const getRecommendations = async (profileId) => {
+//     const user = await prisma.profile.findUnique({
+//       where: { id: profileId},
+//       include: { likedStories:true
       
-       },
-    });
+//        },
+//     });
   
-    const contentBasedScores = await getContentBasedScores(user.likedStories);
-    const collaborativeScores = await getCollaborativeScores(profileId);
+//     const contentBasedScores = await getContentBasedScores(user.likedStories);
+//     const collaborativeScores = await getCollaborativeScores(profileId);
     
-    const hybridScores = {};
-    for (let storyId in contentBasedScores) {
-      hybridScores[storyId] =
-        0.7 * contentBasedScores[storyId] + 0.3 * (collaborativeScores[storyId] || 0);
-    }
+//     const hybridScores = {};
+//     for (let storyId in contentBasedScores) {
+//       hybridScores[storyId] =
+//         0.7 * contentBasedScores[storyId] + 0.3 * (collaborativeScores[storyId] || 0);
+//     }
   
-    return Object.entries(hybridScores)
-      .sort((a, b) => b[1] - a[1]) 
-      .map(([storyId]) => storyId); // Return sorted story IDs
-  };
+//     return Object.entries(hybridScores)
+//       .sort((a, b) => b[1] - a[1]) 
+//       .map(([storyId]) => storyId); // Return sorted story IDs
+//   };
   
 module.exports = function ({authMiddleware}){
     const allMiddlewares = [authMiddleware,updateWriterLevelMiddleware];
@@ -212,60 +212,116 @@ module.exports = function ({authMiddleware}){
         res.json(error)
     }
     })
-    router.get("/recommendations",authMiddleware,async(req,res)=>{
+   router.get("/recommendations", authMiddleware, async (req, res) => {
+  try {
+    let profile = req.user.profiles[0];
 
-        try{
-        let profile = req.user.profiles[0]
-        if(profile&&!profile.id){
-            prisma.profile.findFirst({where:{
-                userId:{
-                    equals:req.user.id
-                }
-            }})
-        }
-        let recommendations = await getRecommendations(profile.id)
-   
-        if(recommendations.length==0){
-            recommendations = await recommendStories(profile.id)
-        }
- 
-       let stories = await prisma.story.findMany({where:{
-            id:{
-                in:recommendations
-            },
-            OR:[
-{  isPrivate:{
-    equals:false
-}},{
-    betaReaders:{
-        some:{
-            profileId:{equals:profile.id}
-        }
+    // Ensure we have a profile ID
+    if (!profile || !profile.id) {
+      profile = await prisma.profile.findFirst({
+        where: { userId: req.user.id },
+      });
     }
-}
-            ]
-          
-        },include:{
-            author:true
-        }})
-        if(stories.length==0){
-            stories = await prisma.story.findMany({orderBy:{
-            storyLikes:{
-                _count:"desc"
-            }},where:{
-                isPrivate:false
-                
-            },include:{
-                author:true
-            }})
+
+    let recommendations = await getRecommendations(profile.id);
+
+    // If no recommendations, fallback
+    if (recommendations.length === 0) {
+      recommendations = await recommendStories(profile.id);
+    }
+
+    // Fetch stories while respecting privacy/beta readers
+    let stories = await prisma.story.findMany({
+      where: {
+        id: { in: recommendations },
+        OR: [
+          { isPrivate: { equals: false } },
+          {
+            betaReaders: {
+              some: { profileId: { equals: profile.id } },
+            },
+          },
+        ],
+      },
+      include: { author: true },
+    });
+
+    // If still empty, fetch top public stories
+    if (stories.length === 0) {
+      stories = await prisma.story.findMany({
+        orderBy: { storyLikes: { _count: "desc" } },
+        where: { isPrivate: false },
+        include: { author: true },
+      });
+    }
+
+    res.json({ stories });
+  } catch (error) {
+    console.log(error);
+    res.json({ error });
+  }
+});
+
+// ---------------------- Recommender ---------------------- //
+
+const getRecommendations = async (profileId) => {
+  const user = await prisma.profile.findUnique({
+    where: { id: profileId },
+    include: { likedStories: true },
+  });
+
+  const contentScores = await getContentBasedScores(user.likedStories);
+  const collabScores = await getCollaborativeScores(profileId);
+
+  // Hybrid score
+  const hybridScores= {};
+  for (let storyId in contentScores) {
+    hybridScores[storyId] = 0.7 * contentScores[storyId] + 0.3 * (collabScores[storyId] || 0);
+  }
+
+  let scoredStories = Object.entries(hybridScores).map(([storyId, score]) => ({ storyId, score }));
+
+  // --- 1️⃣ Shuffle top-N ---
+  scoredStories = scoredStories.sort((a, b) => b.score - a.score);
+  const topN = scoredStories.slice(0, 20); // top 20
+  for (let i = topN.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [topN[i], topN[j]] = [topN[j], topN[i]];
+  }
+
+  // --- 2️⃣ Weighted random pick ---
+  const weightedPick = (stories, n) => {
+    const { storyId, score } = stories
+    const picked = [];
+    const copy = [...stories];
+    while (picked.length < n && copy.length > 0) {
+      const total = copy.reduce((sum, s) => sum + s.score, 0);
+      let r = Math.random() * total;
+      for (let i = 0; i < copy.length; i++) {
+        r -= copy[i].score;
+        if (r <= 0) {
+          picked.push(copy[i].storyId);
+          copy.splice(i, 1);
+          break;
         }
-    
-        res.json({stories:stories})
-        }catch(error){
-            console.log(error)
-            res.json({error})
-        }
-    })
+      }
+    }
+    return picked;
+  };
+
+  let recommendations = weightedPick(topN, 10); // pick 10 stories
+
+  // --- 3️⃣ Random exploration ---
+  if (Math.random() < 0.2) { // 20% chance
+    const randomStory = await prisma.story.findFirst({
+      where: { isPrivate: false, id: { notIn: recommendations } },
+      orderBy: { storyLikes: { _count: "desc" } },
+    });
+    if (randomStory) recommendations.push(randomStory.id);
+  }
+
+  return recommendations;
+};
     router.get("/profile/protected/draft",authMiddleware,async (req,res)=>{
     
             const profile = await prisma.profile.findFirst({where:{
@@ -665,6 +721,27 @@ await Promise.all(promises)
             type:type
         }})
         res.status(201).json({story})
+    }catch(error){
+        console.log({error})
+        res.json({error})
+    }
+    })
+    router.get("/prompts",async (req,res)=>{
+    try{
+        let hashtags = await prisma.hashtag.findMany({where:{
+          name:"prompt",
+        
+        },include:{
+          stories:{
+            include:{
+              story:true
+            }
+          }
+        }})
+      
+      let prompts = hashtags.flatMap(hashtag=>hashtag.stories.flatMap(story=>story)).slice(0,3)
+    
+        res.status(201).json({prompts})
     }catch(error){
         console.log({error})
         res.json({error})
