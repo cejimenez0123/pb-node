@@ -482,7 +482,44 @@ if (groups.length < 3) {
     return res.status(500).json({ error: "Server error" });
   }
 });
-
+router.get("/profile/workshops",authMiddleware,async (req,res)=>{
+  try{
+    let profile = req.user.profiles[0]
+  const groups = await prisma.collection.findMany({where:{AND:[
+      {roles:{
+        some:{
+         profileId:{
+          equals:profile.id
+         }
+            
+          
+        }
+      }}
+   ,{
+    type:{equals:"feedback"}
+   } ]},include:{
+    storyIdList:{
+      include:{
+        story:{
+          include:{
+            author:true
+          }
+        }
+      }
+    },
+    roles:{
+      include:{
+        profile:true
+      }
+    }
+   }})
+  res.send({groups:groups})
+}catch(err){
+  console.log(err)
+  res.send({error:err})
+  
+}
+})
 router.post('/group/join', authMiddleware, async (req, res) => {
   try {
     const { story, profile, location } = req.body;

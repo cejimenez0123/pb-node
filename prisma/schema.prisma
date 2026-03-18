@@ -35,8 +35,8 @@ model Story{
     isPrivate Boolean @default(true)
     authorId String? @db.ObjectId
     author Profile? @relation(fields: [authorId], references: [id],onDelete:Cascade,onUpdate:Cascade)
-    needsFeedback Boolean? @default(false)
     commentable Boolean
+    status StoryStatus @default(draft)
     priority Int? @default(0)
     approvalScore Int @default(0)
     storyLikes UserStoryLike[]
@@ -231,6 +231,12 @@ enum Content{
   profile
   collection
   story
+}
+enum StoryStatus{
+  draft
+  fragment
+  finished
+  workshop
 }
 model Comment {
      id      String  @id @default(auto()) @map("_id") @db.ObjectId

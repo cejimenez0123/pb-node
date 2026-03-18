@@ -190,7 +190,7 @@ module.exports = function (authMiddleware){
 
     router.put("/:id",authMiddleware,async (req,res)=>{
         const {username,profilePicture,selfStatement,privacy,location} = req.body
-        console.log(location)
+        // console.log(location)
       try{
       
        let  locale = location && location.latitude?await prisma.location.upsert({
