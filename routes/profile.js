@@ -137,14 +137,16 @@ module.exports = function (authMiddleware){
     
     
     })
-    router.get("/:id/protected",async (req,res)=>{
+    router.get("/:id/protected",authMiddleware,async (req,res)=>{
         try{
         
         const profile = await prisma.profile.findFirst({where:{
             id: req.params.id
         },include:{
         
-           
+           location:{
+            include:true
+           },
             followers:{
                 include:{
                     follower:true
@@ -172,7 +174,7 @@ module.exports = function (authMiddleware){
             collections:{
                 where:{isPrivate:{equals:false}}
             },
-           
+            location:true,
             followers:{
                 include:{
                     follower:true
