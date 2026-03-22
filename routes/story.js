@@ -139,27 +139,7 @@ for(let i = 0;i<profile.likedStories.length;i++){
     return scores;
   };
   
-// const getRecommendations = async (profileId) => {
-//     const user = await prisma.profile.findUnique({
-//       where: { id: profileId},
-//       include: { likedStories:true
-      
-//        },
-//     });
-  
-//     const contentBasedScores = await getContentBasedScores(user.likedStories);
-//     const collaborativeScores = await getCollaborativeScores(profileId);
-    
-//     const hybridScores = {};
-//     for (let storyId in contentBasedScores) {
-//       hybridScores[storyId] =
-//         0.7 * contentBasedScores[storyId] + 0.3 * (collaborativeScores[storyId] || 0);
-//     }
-  
-//     return Object.entries(hybridScores)
-//       .sort((a, b) => b[1] - a[1]) 
-//       .map(([storyId]) => storyId); // Return sorted story IDs
-//   };
+
   
 module.exports = function ({authMiddleware}){
     const allMiddlewares = [authMiddleware,updateWriterLevelMiddleware];
@@ -171,12 +151,13 @@ module.exports = function ({authMiddleware}){
        }, where:{
         isPrivate:{equals: false}
        },include:{
+        
         hashtags:{
-            include:{
-                hashtag:true
-            }
-        },
-        author:true
+          include:{
+            hashtag:true
+          }
+        },author:true
+        
        }})
         res.json({stories})
     }catch(error){
