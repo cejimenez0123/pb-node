@@ -1848,6 +1848,7 @@ async function getCollectionById(id) {
   const collection = await prisma.collection.findFirst({
     where: { id },
     include: {
+    
       storyIdList: {
         include: {
           story: { include: { author: true } },

@@ -308,6 +308,7 @@ const mailOptions = recievedReferralTemplate(email,name)
             fullName,
             email,
         } = req.body
+        
         let user 
     try{
       let mail = email??""
@@ -697,7 +698,7 @@ let mailOptions = forgotPasswordTemplate(user)
   try {
     let user = null;
 
-    // --- Apple OAuth login ---
+    console.log(identityToken)
     if (identityToken) {
       const payload = await verifyAppleIdentityToken(identityToken);
       user = await prisma.user.findFirst({
@@ -828,17 +829,21 @@ let mailOptions = forgotPasswordTemplate(user)
           }
         }
       });
+// If user still not found
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
+  // ✅ NEW: user exists but no profiles
+  if (!user.profiles || user.profiles.length === 0) {
+    return res.status(403).json({ message: "No profile found. Please create one." });
+  }
       // Check password only for email login
       if (!user || !user.password || !bcrypt.compareSync(password, user.password)) {
         return res.status(409).json({ message: "Invalid email or password" });
       }
     }
 
-    // If user still not found
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
 
     // Update profile activity
     await prisma.profile.updateMany({
@@ -847,7 +852,7 @@ let mailOptions = forgotPasswordTemplate(user)
     });
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-
+console.log({ token, user })
     res.json({ token, user });
   } catch (error) {
     console.error(error);
@@ -1039,7 +1044,7 @@ router.post("/email-webhook", express.json(), (req, res) => {
      
        try{
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-     
+
       if(!token || (!username || !password)){
          return res.status(400).json({ message: 'Missing required fields' });
         }
@@ -1073,8 +1078,10 @@ router.post("/email-webhook", express.json(), (req, res) => {
          
         })
          await createNewProfileCollections(profile)
+      
         res.json({firstTime:true,profile:profile,token:verifiedToken})
       }else{
+           
 return res.json({ message: 'User has profile',profile:user.profiles[0],idToken:verifiedToken });
    
 }
