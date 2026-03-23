@@ -698,7 +698,7 @@ let mailOptions = forgotPasswordTemplate(user)
   try {
     let user = null;
 
-    console.log(identityToken)
+   
     if (identityToken) {
       const payload = await verifyAppleIdentityToken(identityToken);
       user = await prisma.user.findFirst({
@@ -763,6 +763,14 @@ let mailOptions = forgotPasswordTemplate(user)
       });
 
       // If user not found by googleId, link account by email
+      
+      if(email){
+        try{
+       user = await  prisma.user.findFirstOrThrow({where:{email:{equals:email}}})
+        }catch{
+       return res.status(403).json({ message: "No profile found. Apply Today." });
+        }
+      }
       if (!user && email) {
         user = await prisma.user.update({
           where: { email },
@@ -829,10 +837,7 @@ let mailOptions = forgotPasswordTemplate(user)
           }
         }
       });
-// If user still not found
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+
 
   // ✅ NEW: user exists but no profiles
   if (!user.profiles || user.profiles.length === 0) {
@@ -843,8 +848,11 @@ let mailOptions = forgotPasswordTemplate(user)
         return res.status(409).json({ message: "Invalid email or password" });
       }
     }
-
-
+// If user still not found
+    if (!user&&!user.id) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
     // Update profile activity
     await prisma.profile.updateMany({
       where: { userId: user.id },
@@ -852,7 +860,7 @@ let mailOptions = forgotPasswordTemplate(user)
     });
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-console.log({ token, user })
+
     res.json({ token, user });
   } catch (error) {
     console.error(error);
