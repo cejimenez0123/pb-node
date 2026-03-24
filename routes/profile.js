@@ -139,22 +139,96 @@ module.exports = function (authMiddleware){
     })
     router.get("/:id/protected",authMiddleware,async (req,res)=>{
         try{
-        
-        const profile = await prisma.profile.findFirst({where:{
-            id: req.params.id
-        },include:{
-        
-           location:{
-            include:true
-           },
-            followers:{
-                include:{
-                    follower:true
+        const currentUserId = req.user.id;
+
+const profile = await prisma.profile.findFirst({
+  where: {
+    id: req.params.id
+  },
+  include: {
+    location: true,
+
+    collections: {
+      where: {
+        OR: [
+          { isPublic: true },
+          {
+            roles: {
+              some: {
+                profileId: currentUserId
+              }
+            }
+          }
+        ]
+      },
+      include: {
+        roles: true,
+
+        // If stories belong to collections
+        stories: {
+          where: {
+            OR: [
+              { isPublic: true },
+              {
+                roles: {
+                  some: {
+                    profileId: currentUserId
+                  }
                 }
-            },
-            following:true
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    // If stories are directly on profile instead
+    stories: {
+      where: {
+        OR: [
+          { isPublic: true },
+          {
+            roles: {
+              some: {
+                profileId: currentUserId
+              }
+            }
+          }
+        ]
+      }
+    },
+
+    followers: {
+      include: {
+        follower: true
+      }
+    },
+
+    following: true
+  }
+});
+        // const profile = await prisma.profile.findFirst({where:{
+        //     id: req.params.id
+        // },include:{
+        
+        //    location:{
+        //     include:true
+        //    },
+        //    collections:{
+        //     include:{
+        //         roles:{
+                    
+        //         }
+        //     }
+        //    },
+        //     followers:{
+        //         include:{
+        //             follower:true
+        //         }
+        //     },
+        //     following:true
          
-        }})
+        // }})
         res.status(200).json({profile:profile})
 
     }catch(err){
@@ -173,6 +247,22 @@ module.exports = function (authMiddleware){
             },
             collections:{
                 where:{isPrivate:{equals:false}}
+                ,include:{
+                    childCollections:{where:{
+                    childCollection:{
+                        isPrivate:{equals:false}
+                    }
+                    }},
+                    storyIdList:{
+                        where:{
+                            story:{
+                                isPrivate:{
+                                    equals:false
+                                }
+                            }
+                        }
+                    }
+                }
             },
             location:true,
             followers:{
