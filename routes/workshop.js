@@ -542,15 +542,16 @@ router.post('/group/join', authMiddleware, async (req, res) => {
           location_coords: {
             latitude: location.latitude,
             longitude: location.longitude,
+            
           },
         },
-        update: { latitude: location.latitude, longitude: location.longitude },
-        create: { latitude: location.latitude, longitude: location.longitude },
+        update: { latitude: location.latitude, longitude: location.longitude, city:location?.name?.split(",")?.slice(-3,-1)?.join(", ")},
+        create: { latitude: location.latitude, longitude: location.longitude ,city:location.name}
       });
 
 
     }
-console.log(resolvedLocation)
+
     // 3. LOCAL: require location
     if (!isGlobal && !resolvedLocation) {
       return res.json({ joined: false, error: "Location required to join or create local groups." });
@@ -561,7 +562,7 @@ console.log(resolvedLocation)
     let availableCollections = [];
     // console.log("ISGLOV",isGlobal)
     if (isGlobal) {
-      console.log("X")
+   
       const collections = await prisma.collection.findMany({
         where: {
           AND: [
@@ -575,6 +576,12 @@ console.log(resolvedLocation)
           ]
         },
         include: {
+          location:true,
+          childCollections:{
+            include:{
+              childCollection:true
+            }
+          },
           roles: { include: { profile: true } },
           storyIdList: { include: { story: { include: { author: true } } } }
         }
@@ -582,7 +589,7 @@ console.log(resolvedLocation)
 
       availableCollections = collections.filter(col => col.roles.length < 6);
     } else {
-      console.log("y")
+    
       const profWithLocation = { ...prof, location: resolvedLocation };
       const allCollections = await getEligibleCollections({ profileId: prof.id });
       availableCollections = filterAvailableCollections({
@@ -709,247 +716,44 @@ console.log(resolvedLocation)
     res.status(500).json({ error: error.message });
   }
 });
-// router.post('/group/join', authMiddleware, async (req, res) => {
-//   try {
-//     const { story, profile, } = req.body;
-//     const radius = parseFloat(req.query.radius) || 50;
-//     const isGlobal = req.query.global == 'true';
-// console.log("FULLSELG",req.query)
-//     // 1. Load profile with location
-//     const prof = await prisma.profile.findFirst({
-//       where: { id: profile.id },
-//       include: { location: true },
-//     });
+async function findOrCreateLocation({latitude, longitude,city=""}) {
+  // 1. Try to find existing location
+  console.log({latitude, longitude,city})
+  let locale = await prisma.location.findFirst({
+    where: { latitude, longitude },
+  });
 
-//     if (!prof) return res.status(404).json({ error: 'Profile not found' });
+  // 2. If not found, try to create it
+  if (!locale) {
+    try {
+      locale = await prisma.location.create({
+        data: { latitude, longitude,city },
+      });
+      console.log("LOCOC",locale)
+    } catch (err) {
+      // 3. Handle race condition (unique constraint)
+      if (err.code === "P2002") {
+        locale = await prisma.location.findFirst({
+          where: { latitude, longitude },
+        });
+        if (!locale) {
+          throw new Error(
+            "Failed to fetch location after P2002 – this should never happen"
+          );
+        }
+      } else {
+        throw err;
+      }
+    }
+  }
 
-//     // 2. LOCAL: require location
-//     if (!isGlobal && !prof.location) {
-//       return res.json({ joined: false, error: "Location required to join or create local groups." });
-//     }
-
-//     // ─── FIND ELIGIBLE COLLECTIONS ────────────────────────────────────────────
-
-//     let availableCollections = [];
-
-//     if (isGlobal) {
-//       const collections = await prisma.collection.findMany({
-//         where: {
-//           AND: [
-//             { type: { equals: "feedback" } },
-//             { profile: { id: { notIn: [prof.id, process.env.PLUMBUM_PROFILE_ID] } } },
-//             { roles: { some: { profileId: { notIn: [prof.id, process.env.PLUMBUM_PROFILE_ID] } } } },
-//           ],
-//           OR: [
-//             { location: { is: null } },
-//             { isOpenCollaboration: { equals: true } }
-//           ]
-//         },
-//         include: {
-//           roles: { include: { profile: true } },
-//           storyIdList: { include: { story: { include: { author: true } } } }
-//         }
-//       });
-
-//       availableCollections = collections.filter(col => col.roles.length < 6);
-//     } else {
-//       const allCollections = await getEligibleCollections({ profileId: prof.id });
-//       availableCollections = filterAvailableCollections({ profile: prof, collections: allCollections, radius });
-//     }
-
-//     // ─── CASE 1: JOIN EXISTING COLLECTION ─────────────────────────────────────
-
-//     if (availableCollections.length > 0) {
-//       const col = availableCollections[0];
-
-//       if (isGlobal) {
-//         // Upsert role
-//         const existingRole = await prisma.roleToCollection.findFirst({
-//           where: { profileId: prof.id, collectionId: col.id },
-//         });
-
-//         if (!existingRole) {
-//           await prisma.roleToCollection.create({
-//             data: { profileId: prof.id, collectionId: col.id, role: "writer" },
-//           });
-//         }
-
-//         if (story) {
-//           await createStoryToCollection({ storyId: story.id, collectionId: col.id, profileId: prof.id });
-//           await prisma.story.update({ where: { id: story.id }, data: { needsFeedback: false } });
-//         }
-
-//         const workshopCollection = await prisma.collection.findFirst({
-//           where: { id: col.id },
-//           include: {
-//             roles: { include: { profile: true } },
-//             storyIdList: { include: { story: { include: { author: true } } } }
-//           }
-//         });
-
-//         return res.json({ joined: true, created: false, collection: workshopCollection });
-//       } else {
-//         // Local join
-//         const roleRecord = await addProfileToCollection({ profileId: prof.id, collection: col });
-
-//         if (story) {
-//           await attachStory({ storyId: story.id, collectionId: col.id, profileId: prof.id });
-//         }
-
-//         return res.json({ joined: true, created: false, collection: roleRecord.collection });
-//       }
-//     }
-
-//     // ─── CASE 2: CREATE NEW COLLECTION ────────────────────────────────────────
-
-//     let newCollection;
-
-//     if (isGlobal) {
-//       newCollection = await createNewWorkshopCollection({ profile: prof });
-
-//       if (!newCollection) return res.status(500).json({ error: "Failed to create workshop collection" });
-
-//       await prisma.roleToCollection.create({
-//         data: { profileId: prof.id, collectionId: newCollection.id, role: "owner" },
-//       });
-
-//       if (story?.id) {
-//         await createStoryToCollection({ storyId: story.id, collectionId: newCollection.id, profileId: prof.id });
-//         await prisma.story.update({ where: { id: story.id }, data: { needsFeedback: false } });
-//       }
-
-//       // Backfill collection with stories needing feedback
-//       const stories = await prisma.story.findMany({
-//         where: {
-//           AND: [
-//             { author: { id: { not: prof.id }, isActive: true } },
-//             { needsFeedback: true }
-//           ]
-//         },
-//         include: { author: { include: { location: true } } }
-//       });
-
-//       const groups = groupItemsByCount({ items: stories, groupSize: 6 });
-//       let addedCount = story ? 1 : 0;
-
-//       for (let i = 0; i < groups.length && addedCount < 6; i++) {
-//         for (const page of groups[i]) {
-//           if (addedCount >= 6) break;
-//           await createStoryToCollection({ storyId: page.id, collectionId: newCollection.id });
-//           addedCount++;
-//         }
-//       }
-
-//       newCollection = await prisma.collection.findFirst({
-//         where: { id: newCollection.id },
-//         include: {
-//           roles: { include: { profile: true } },
-//           storyIdList: { include: { story: { include: { author: true } } } }
-//         }
-//       });
-//     } else {
-//       newCollection = await prisma.collection.create({
-//         data: {
-//           type: "feedback",
-//           location: { connect: { id: prof.location.id } },
-//           title: generate({ min: 3, max: 6, join: " " }),
-//           roles: {
-//             create: { role: "editor", profile: { connect: { id: prof.id } } },
-//           },
-//         },
-//         include: {
-//           roles: { include: { profile: true } },
-//           location: true,
-//         },
-//       });
-
-//       if (story) {
-//         await attachStory({ storyId: story.id, collectionId: newCollection.id, profileId: prof.id });
-//       }
-//     }
-
-//     return res.json({ joined: true, created: true, collection: newCollection });
-
-//   } catch (error) {
-//     console.error("GROUP ERROR:", error);
-//     res.status(500).json({ error: error.message });
-//   }
-// });
-// router.post('/look', authMiddleware, async (req, res) => {
-//   try {
-//     const { radius = 50, global = false, location: locale } = req.body;
-
-//     // GLOBAL SEARCH
-//     if (global || !locale) {
-//       const collections = await prisma.collection.findMany({
-//         where: {
-//           type: "feedback",
-//           locationId: null
-//         }
-//       });
-
-//       return res.send({ groups: collections });
-//     }
-
-//     // LOCAL SEARCH
-//     const { latitude, longitude } = locale;
-
-//     // find or create location
-//     let location = await prisma.location.findFirst({
-//       where: {
-//         latitude,
-//         longitude
-//       }
-//     });
-
-//     if (!location) {
-//       location = await prisma.location.create({
-//         data: { latitude, longitude }
-//       });
-//     }
-
-//     // attach location to profile
-//     let profile = req.user.profiles[0];
-
-//     profile = await prisma.profile.update({
-//       where: { id: profile.id },
-//       data: { locationId: location.id }
-//     });
-
-//     // get local collections
-//     const collections = await prisma.collection.findMany({
-//       where: {
-//         type: "feedback",
-//         locationId: { not: null }
-//       },
-//       include: {
-//         location: true
-//       }
-//     });
-
-//     let groups = [];
-//     let rad = radius;
-
-//     // expand radius until we find 3 groups
-
-// const MAX_RADIUS = 500;
-
-// while (groups.length < 3 && rad <= MAX_RADIUS) {
-//   groups = filterAvailableCollections(profile, collections, rad);
-//   rad += 50;
-// }
-
-//     return res.send({ groups });
-
-//   } catch (error) {
-//     console.error("LOOK_ERROR", error);
-//     return res.status(500).json({ error });
-//   }
-// });
-
+  return locale;
+}
     router.post('/active-users',authMiddleware, async (req, res) => {
       try {
-        const {profile,story}=req.body
+        const {profile,story,location}=req.body
+        console.log("DSD",location)
+       await findOrCreateLocation({...location})
         const prof = await prisma.profile.update({
           where:{
             id:profile.id

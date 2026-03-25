@@ -52,6 +52,7 @@ model Story{
 model Location {
   id    String @id @default(auto()) @map("_id") @db.ObjectId
   latitude  Float
+  city String?
   longitude Float
   profiles Profile[]
   collections Collection[]

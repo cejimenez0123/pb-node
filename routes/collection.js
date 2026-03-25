@@ -1023,52 +1023,7 @@ const otherCols = libraries.filter(book=>book.priority<90)
 
         //GET COLLECTION
         try{
-        const collection = await prisma.collection.findFirst({where:{
-            AND:[{id:{equals:req.params.id}},{isPrivate:false}]
-            
-        },include:{
-            storyIdList:{
-                include:{story:{include:{author:true}}}  
-              },
-            childCollections:{
-                where:{
-                    childCollection:{
-                        
-                        isPrivate:{
-                            equals:false
-                        }
-                    }
-                },
-                include:{
-                    childCollection:{
-                        include:{
-                            storyIdList:{
-                                
-                                    
-                            
-                                include:{
-                                
-                                    story:{
-                                      
-                                        include:{
-                                            author:true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            roles:{
-                include:{
-                    collection:true,
-                    profile:true,
-                }
-            },
-            profile:true
-            
-        }})
+       let collection = await getCollectionById(req.params.id)
        
         res.status(200).json({collection:collection})
     }catch(error){
@@ -1861,6 +1816,7 @@ async function getCollectionById(id) {
           },
         },
       },
+      location:true,
       childCollections: {
         include: {
           parentCollection: true,

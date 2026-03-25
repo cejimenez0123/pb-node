@@ -139,7 +139,7 @@ module.exports = function (authMiddleware){
     })
     router.get("/:id/protected",authMiddleware,async (req,res)=>{
         try{
-        const currentUserId = req.user.id;
+        const currentUserId = req.user.profiles[0].id
 
 const profile = await prisma.profile.findFirst({
   where: {
@@ -151,11 +151,11 @@ const profile = await prisma.profile.findFirst({
     collections: {
       where: {
         OR: [
-          { isPublic: true },
+          { isPrivate:false },
           {
             roles: {
               some: {
-                profileId: currentUserId
+                profileId: {equals:currentUserId}
               }
             }
           }
@@ -163,19 +163,25 @@ const profile = await prisma.profile.findFirst({
       },
       include: {
         roles: true,
-
-        // If stories belong to collections
-        stories: {
+storyIdList:{
+      
+     
           where: {
             OR: [
-              { isPublic: true },
-              {
-                roles: {
-                  some: {
-                    profileId: currentUserId
-                  }
+              { story:{
+                isPrivate:{
+                    equals:false
                 }
-              }
+              }},{story:{
+                betaReaders:{
+                    some:{
+                        profileId:{
+                            equals:currentUserId
+                        }
+                    }
+                }
+              }}
+          
             ]
           }
         }
@@ -186,14 +192,15 @@ const profile = await prisma.profile.findFirst({
     stories: {
       where: {
         OR: [
-          { isPublic: true },
-          {
-            roles: {
-              some: {
-                profileId: currentUserId
-              }
+          { isPrivate:false },
+          {betaReaders:{
+            some:{
+                profileId:{
+                    equals:currentUserId
+                }
             }
-          }
+          }}
+     
         ]
       }
     },
@@ -232,7 +239,7 @@ const profile = await prisma.profile.findFirst({
         res.status(200).json({profile:profile})
 
     }catch(err){
-     
+     console.log(err)
         res.status(409).json({error:err})
     }
     })
@@ -360,8 +367,7 @@ let profile = null
             }
         }
        }})
-   
-
+console.log(profiles)
 res.json({profiles})
 }catch(err){
 console.log(err)
