@@ -720,7 +720,7 @@ await Promise.all(promises)
           }
         }})
       
-      let prompts = hashtags.flatMap(hashtag=>hashtag.stories.flatMap(story=>story)).slice(0,3)
+      let prompts = hashtags.flatMap(hashtag=>hashtag.stories.flatMap(story=>story)).slice(0,6)
     
         res.status(201).json({prompts})
     }catch(error){
