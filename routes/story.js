@@ -690,7 +690,7 @@ await Promise.all(promises)
    
         const {title,data,isPrivate,authorId,commentable,type}= doc
         const story = await prisma.story.create({data:{
-            title:title,
+            title:title??"",
             data:data,
             isPrivate:isPrivate,
             author:{
