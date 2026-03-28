@@ -12,10 +12,10 @@ module.exports = function (authMiddleware){
 router.post("/",...middlewareArr,async(req,res)=>{
  
  try{   const {profileId,storyId,text,parentId}=req.body
-   if(profileId.length>0){
-    if(parentId.length>0 ){
 
-    let com = await prisma.comment.create({data:{
+    // if(parentId.length>0 ){
+
+   let com =  parentId?await prisma.comment.create({data:{
         content:text,
         story:{
             connect:{
@@ -34,11 +34,7 @@ router.post("/",...middlewareArr,async(req,res)=>{
         }
     },include:{
         profile:true
-    }})
-    let comment =await prisma.comment.findFirst({where:{id:com.id},include:{profile:true}})
-    res.json({comment:comment})
-}else{
-    let com = await prisma.comment.create({data:{
+    }}):await prisma.comment.create({data:{
         content:text,
         story:{
             connect:{
@@ -46,17 +42,34 @@ router.post("/",...middlewareArr,async(req,res)=>{
             }
         },
      
-       profile:{
+        profile:{
             connect:{
                 id: profileId
             }
         }
+    },include:{
+        profile:true
     }})
     let comment =await prisma.comment.findFirst({where:{id:com.id},include:{profile:true}})
-    res.json({comment:comment})}
-}else{
-    throw new Error("no profile")
-}
+    res.json({comment:comment})
+// }else{
+//     let com = await prisma.comment.create({data:{
+//         content:text,
+//         story:{
+//             connect:{
+//                 id:storyId
+//             }
+//         },
+     
+//        profile:{
+//             connect:{
+//                 id: profileId
+//             }
+//         }
+//     }})
+    // let comment =await prisma.comment.findFirst({where:{id:com.id},include:{profile:true}})
+    // res.json({comment:comment})}
+
 }catch(err){
     console.log(err)
     res.status(409).json({error:err})

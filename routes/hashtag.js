@@ -247,7 +247,8 @@ where:{
         }
     })
     router.post("/comment/:id",authMiddleware,async(req,res)=>{
-        const {name,profileId}=req.body
+        const {name}=req.body
+        const profileId = req.user.profiles[0].id
         try{
         let hashtag = await prisma.hashtag.findFirst({where:{name:{equals:name}}})
         if(hashtag){
