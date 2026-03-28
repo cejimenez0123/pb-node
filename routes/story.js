@@ -383,7 +383,7 @@ const getRecommendations = async (profileId) => {
      })
     router.get("/:id/comment/protected",authMiddleware,async (req,res)=>{
       try{
-        console.log(req.params.id)
+     
         let comments =await prisma.comment.findMany({where:{
             storyId:{
                 equals:req.params.id

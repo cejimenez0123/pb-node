@@ -129,7 +129,7 @@ where:{
             }
         }
     }})
-    console.log(hashtag)
+  
     res.json({hashtag})
 }catch(error){
     console.log(error)

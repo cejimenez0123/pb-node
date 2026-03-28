@@ -194,10 +194,10 @@ module.exports = function (authMiddleware){
       try{
      
       const {frequency,token}=req.body
-      console.log("token",token)
+     
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const {userId}=decoded
-        console.log("Decode",decoded)
+   
       if(frequency==0){
         const user = await prisma.user.update({where:{
           id:userId},data:{
@@ -676,7 +676,7 @@ let mailOptions = forgotPasswordTemplate(user)
     
         if(newUser&&newUser.profiles && newUser.profiles.length==0){
     const profile =  await createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId:newUser.id})
-          console.log(profile)
+          
           await prisma.referral.update({
             where: {id:referralId },
             data: { usageCount: { increment: 1 } }
@@ -695,7 +695,7 @@ let mailOptions = forgotPasswordTemplate(user)
       });
       router.post("/session", async (req, res) => {
   const { email, password, uId, identityToken } = req.body;
-  console.log(req.body)
+
   try {
     let user = null;
 
