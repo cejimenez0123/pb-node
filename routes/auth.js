@@ -104,7 +104,7 @@ module.exports = function (authMiddleware){
     async function createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId}){
       const profile = await prisma.profile.create({
         data:{
-            username:username,
+            username:username?.toLowerCase(),
             profilePic:profilePicture,
             selfStatement,
             isPrivate:isPrivate,
@@ -1074,7 +1074,7 @@ router.post("/email-webhook", express.json(), (req, res) => {
             
               profile = await prisma.profile.create({
             data:{
-                username:username,
+                username:username.toLowerCase(),
                 profilePic:profilePicture,
                 selfStatement,
                 isPrivate:privacy,
@@ -1122,20 +1122,7 @@ return res.json({ message: 'User has profile',profile:user.profiles[0],idToken:v
           profiles:true
         }})
         
-      //  let prof = await prisma.profile.create({
-      //       data:{
-               
-      //           profilePic:profile.profilePicture,
-      //           username:profile.username,
-                
-      //           selfStatement:profile.selfStatement,
-      //           user:{
-      //               connect:{
-      //               id:user.id
-      //           }},
-      //           isPrivate:profile.privacy  
-      //       }
-      //   })
+    
         let collection = await prisma.collection.create({data:{
             title:"Saved",
             profile:{
