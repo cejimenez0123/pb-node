@@ -143,7 +143,7 @@ module.exports = function (authMiddleware){
 
 const profile = await prisma.profile.findFirst({
   where: {
-    id: req.params.id
+    id: currentUserId
   },
   include: {
     location: true,
@@ -214,28 +214,7 @@ storyIdList:{
     following: true
   }
 });
-        // const profile = await prisma.profile.findFirst({where:{
-        //     id: req.params.id
-        // },include:{
-        
-        //    location:{
-        //     include:true
-        //    },
-        //    collections:{
-        //     include:{
-        //         roles:{
-                    
-        //         }
-        //     }
-        //    },
-        //     followers:{
-        //         include:{
-        //             follower:true
-        //         }
-        //     },
-        //     following:true
-         
-        // }})
+
         res.status(200).json({profile:profile})
 
     }catch(err){
@@ -289,9 +268,15 @@ storyIdList:{
 
     router.put("/:id",authMiddleware,async (req,res)=>{
         const {username,profilePicture,selfStatement,privacy,location} = req.body
+        console.log("FDLOCE",location)
+      
         // console.log(location)
       try{
-      
+       let  city =""
+       if(location && location.address && location.address.length>0){
+      const parts = location.address.split(',').map(p => p.trim());
+      city = `${parts[2]}, ${parts[-1]}` || "";
+       }
        let  locale = location && location.latitude?await prisma.location.upsert({
   where: {
     location_coords: {
@@ -299,10 +284,14 @@ storyIdList:{
       longitude: location.longitude
     }
   },
-  update: {},
+  update: { city: location.city,
+    latitude: location.latitude,
+    longitude: location.longitude},
   create: {
+    city: location.city,
     latitude: location.latitude,
     longitude: location.longitude
+    
   }
 }):null
 let profile = null
