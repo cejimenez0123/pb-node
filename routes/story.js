@@ -313,7 +313,8 @@ const getRecommendations = async (profileId) => {
             const stories = await prisma.story.findMany({where:{
                 AND:[{author:{
                     id:{equals:profile.id}
-                }},{needsFeedback:{equals:true}}]
+                }},{
+                  OR:[{status:{equals:"workshop"}},{status:{equals:"draft"}}]}]
             },include:{
                 author:true,
                 collections:{

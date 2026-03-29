@@ -83,7 +83,10 @@ async function createOrJoinGroupCollection({ group, profile, story }) {
     });
     await prisma.story.update({
       where: { id: story.id },
-      data: { needsFeedback: false },
+      data:{
+        status:"workshop",
+      }
+ 
     });
   }
 
@@ -133,7 +136,7 @@ async function createSoloCollection({ profile, story }) {
     });
     await prisma.story.update({
       where: { id: story.id },
-      data: { needsFeedback: false },
+      data: { status:"workshop" },
     });
   }
 
@@ -618,7 +621,7 @@ router.post('/group/join', authMiddleware, async (req, res) => {
 
         if (story) {
           await createStoryToCollection({ storyId: story.id, collectionId: col.id, profileId: prof.id });
-          await prisma.story.update({ where: { id: story.id }, data: { needsFeedback: false } });
+          await prisma.story.update({ where: { id: story.id }, data: {status:"workshop"} });
         }
 
         const workshopCollection = await prisma.collection.findFirst({
@@ -656,14 +659,14 @@ router.post('/group/join', authMiddleware, async (req, res) => {
 
       if (story?.id) {
         await createStoryToCollection({ storyId: story.id, collectionId: newCollection.id, profileId: prof.id });
-        await prisma.story.update({ where: { id: story.id }, data: { needsFeedback: false } });
+        await prisma.story.update({ where: { id: story.id }, data: { status:"workshop"} });
       }
 
       const stories = await prisma.story.findMany({
         where: {
           AND: [
             { author: { id: { not: prof.id }, isActive: true } },
-            { needsFeedback: true }
+            { OR: [{ status: { equals: "workshop" } }, { status: { equals: "draft" } }] }
           ]
         },
         include: { author: { include: { location: true } } }
@@ -770,7 +773,8 @@ async function findOrCreateLocation({latitude, longitude,city=""}) {
       if(story){
         const stor = await prisma.story.update({where:{id:story.id
         },data:{
-          needsFeedback:true
+          status:"workshop",
+         
         }})
           return  res.json({ profile:prof,story:stor,profiles});
       }else{
@@ -783,290 +787,12 @@ async function findOrCreateLocation({latitude, longitude,city=""}) {
     });
   
 
-// router.post('/group', authMiddleware, async (req, res) => {
-//   try {
-//     const { story, profile } = req.body;
-//     const radius = parseFloat(req.query.radius) || 50;
-
-//     // 1. Load profile and location
-//     const prof = await prisma.profile.findFirst({
-//       where: { id: profile.id },
-//       include: { location: true },
-//     });
-
-//     if (!prof || !prof.location) {
-//       return res.json({
-//         joined: false,
-//         error: "Location required to join or create groups.",
-//       });
-//     }
-
-//     // 2. Get nearby profiles (optional but you may still want this)
-//     const nearbyProfiles = await getNearbyProfiles({ profileId: prof.id, radius });
-
-//     // 3. Get collections available
-//     const collections = await getEligibleCollections({ profileId: prof.id });
-
-//     // 4. Filter by proximity
-//     const availableCollections = filterAvailableCollections({
-//       profile: prof,
-//       collections,
-//       radius,
-//     });
-
-//     // ---------------------------------------------------------
-//     // CASE 1: JOIN EXISTING GROUP
-//     // ---------------------------------------------------------
-//     if (availableCollections.length > 0) {
-//       const col = availableCollections[0];
-
-//       const roleRecord = await addProfileToCollection({
-//         profileId: prof.id,
-//         collection: col,
-//       });
-
-//       if (story) {
-//         await attachStory({
-//           storyId: story.id,
-//           collectionId: col.id,
-//           profileId: prof.id,
-//         });
-//       }
-
-//       return res.json({
-//         joined: true,
-//         created: false,
-//         collection: roleRecord.collection,
-//       });
-//     }
-
-
- 
-//     // ---------------------------------------------------------
-//     // CASE 2: NO EXISTING GROUP → ALWAYS CREATE NEW
-//     // ---------------------------------------------------------
-//     const newCollection = await prisma.collection.create({
-//       data: {
-//         type: "feedback",
-//         location:{
-//           connect:{
-//             id:prof.location.id
-//           }
-//         },
-//         title:generate({ min: 3, max: 6,join:" " }),
-//         roles: {
-//           create: {
-//             role: "editor",
-//             profile: { connect: { id: prof.id } },
-//           },
-//         },
-//       },
-//       include: {
-//         roles: { include: { profile: true } },
-//         location: true,
-//       },
-//     });
-
-//     if (story) {
-//       await attachStory({
-//         storyId: story.id,
-//         collectionId: newCollection.id,
-//         profileId: prof.id,
-//       });
-//     }
-
-//     return res.json({
-//       joined: true,
-//       created: true,
-//       collection: newCollection,
-//     });
-
-//   } catch (error) {
-//     console.error("GROUP ERROR:", error);
-//     res.status(500).json({ error: error.message });
-//   }
-// });
-
-//   router.post('/groups/global', authMiddleware, async (req, res) => {
-//   try {
-//     const { story, profile } = req.body;
-
-//     const prof = await prisma.profile.findFirst({
-//       where: { id: profile.id },
-//     });
-
-//     if (!prof) {
-//       return res.status(404).json({ error: 'Profile not found' });
-//     }
-
-//     // Find all eligible collections
-//     const collections = await prisma.collection.findMany({
-//       where: {
-//         AND: [
-//           { type: { equals: "feedback" } },
-//           {
-//             profile: {
-//               id: { notIn: [profile.id, process.env.PLUMBUM_PROFILE_ID] }
-//             }
-//           },
-//           {
-//             storyIdList: {
-//               some: {
-//                 story: {
-//                   authorId: { notIn: [profile.id, process.env.PLUMBUM_PROFILE_ID] }
-//                 }
-//               }
-//             }
-//           },
-//           {
-//             roles: {
-//               some: {
-//                 profileId: { notIn: [profile.id, process.env.PLUMBUM_PROFILE_ID] }
-//               }
-//             }
-//           }
-//         ],
-//         OR: [
-//           { location: { is: null } },
-//           { isOpenCollaboration: { equals: true } }
-//         ]
-//       },
-//       include: {
-//         roles: { include: { profile: true } },
-//         storyIdList: { include: { story: { include: { author: true } } } }
-//       }
-//     });
-
-//     // Find all stories that need feedback
-//     const stories = await prisma.story.findMany({
-//       where: {
-//         AND: [
-//           { author: { id: { not: prof.id }, isActive: true } },
-//           { needsFeedback: true }
-//         ]
-//       },
-//       include: {
-//         author: { include: { location: true } }
-//       }
-//     });
-
-//     let availableCollections = collections.filter(col => col.roles.length < 6);
-//     const groups = groupItemsByCount({ items: stories, groupSize: 6 });
-
-//     let workshopCollection = null;
-
-//     // 🟢 CASE 1: Add user to existing eligible collection
-//     if (availableCollections[0]) {
-//       const col = availableCollections[0];
-
-//       // Ensure the user has a role in this collection
-//       const existingRole = await prisma.roleToCollection.findFirst({
-//         where: {
-//           profileId: prof.id,
-//           collectionId: col.id,
-//         },
-//       });
-
-//       if (!existingRole) {
-//         await prisma.roleToCollection.create({
-//           data: {
-//             profileId: prof.id,
-//             collectionId: col.id,
-//             role: "writer",
-//           },
-//         });
-//       }
-
-//       // If a story is passed, link it to this collection
-//       if (story) {
-//         await createStoryToCollection({
-//           storyId: story.id,
-//           collectionId: col.id,
-//           profileId: prof.id
-//         });
-
-//         await prisma.story.update({
-//           where: { id: story.id },
-//           data: { needsFeedback: false }
-//         });
-//       }
-
-//       workshopCollection = await prisma.collection.findFirst({
-//         where: { id: col.id },
-//         include: {
-//           roles: { include: { profile: true } },
-//           storyIdList: { include: { story: { include: { author: true } } } }
-//         }
-//       });
-
-//       return res.json({ collection: workshopCollection });
-//     }
-
-//     // 🟢 CASE 2: Create a new workshop collection and assign user + stories
-//     const newCollection = await createNewWorkshopCollection({ profile: prof });
-
-//     if (!newCollection) {
-//       return res.status(500).json({ error: "Failed to create workshop collection" });
-//     }
-
-//     // Assign the creating user a role
-//     await prisma.role.create({
-//       data: {
-//         profileId: prof.id,
-//         collectionId: newCollection.id,
-//         role: "owner",
-//       },
-//     });
-
-//     // Add the user's story if provided
-//     if (story?.id) {
-//       await createStoryToCollection({
-//         storyId: story.id,
-//         collectionId: newCollection.id,
-//         profileId: prof.id
-//       });
-
-//       await prisma.story.update({
-//         where: { id: story.id },
-//         data: { needsFeedback: false }
-//       });
-//     }
-
-//     // Fill up the new collection with stories needing feedback
-//     let addedCount = story ? 1 : 0;
-//     for (let i = 0; i < groups.length && addedCount < 6; i++) {
-//       const group = groups[i];
-//       for (const page of group) {
-//         if (addedCount >= 6) break;
-//         await createStoryToCollection({
-//           storyId: page.id,
-//           collectionId: newCollection.id
-//         });
-//         addedCount++;
-//       }
-//     }
-
-//     workshopCollection = await prisma.collection.findFirst({
-//       where: { id: newCollection.id },
-//       include: {
-//         roles: { include: { profile: true } },
-//         storyIdList: { include: { story: { include: { author: true } } } }
-//       }
-//     });
-
-//     return res.json({ collection: workshopCollection });
-
-//   } catch (error) {
-//     console.error("ERROR /groups/global", error);
-//     return res.status(500).json({ error: error.message });
-//   }
-// });
 
     return router;}
     async function getNearbyProfiles({ profileId, radius }) {
       return prisma.profile.findMany({
         where: { isActive: true, location: { isNot: null } },
-        include: { location: true, stories: { where: { needsFeedback: true } } },
+        include: { location: true, stories: { where: { status:"workshop" } } },
       });
     }
     
@@ -1115,5 +841,5 @@ async function findOrCreateLocation({latitude, longitude,city=""}) {
     // Helper: Attach story to collection
     async function attachStory({ storyId, collectionId, profileId }) {
       await createStoryToCollection({ storyId, collectionId, profileId });
-      await prisma.story.update({ where: { id: storyId }, data: { needsFeedback: false } });
+      await prisma.story.update({ where: { id: storyId }, data: { status:"workshop" } });
     }
