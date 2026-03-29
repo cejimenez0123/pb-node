@@ -606,14 +606,14 @@ console.log({story})
 
     router.put("/:id",...allMiddlewares,async (req,res)=>{
 try{
-        const {title,data, description, needsFeedback,isPrivate,commentable,type}= req.body
+        const {title,data, description,status, needsFeedback,isPrivate,commentable,type}= req.body
         let story  = await prisma.story.update({where:{
             id:req.params.id
         },data:{
             title,
             data,
             isPrivate,
-            status:needsFeedback?"workshop":"draft",
+            status:needsFeedback?"workshop":isPrivate?"draft":"finished",
             commentable,
             description,
             type,
