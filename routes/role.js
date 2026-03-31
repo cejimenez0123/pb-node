@@ -105,109 +105,51 @@ try{
                 res.json({error})
             }
     })
-//     router.put("/story", authMiddleware, async (req, res) => {
-//   try {
-//     const { roles = [] } = req.body;
 
-//     const operations = roles.map((role) => {
-   
-//       if (role.role === "none" && role.id) {
-//         return prisma.roleToStory.delete({
-//           where: { id: role.id },
-//         });
-//       }
-
-//       const hasValidId = role.id && role.id.length > 10;
-// console.log("Processing role:", role.item.betaReaders, "Has valid ID:", hasValidId);
-//       const baseData = {
-//         role: role.role,
-//         profileId: role.profile.id,
-//         storyId: role.item.id,
-//       };
-
-//       const include = {
-//         story: true,
-//         profile: true,
-//       };
-
-//       // UPSERT case
-//       if (hasValidId) {
-//         // if(role.role != "none"){
-//        return prisma.roleToStory.upsert({
-//           where: { id: role.id },
-//           update: { role: role.role },
-//           create: baseData,
-//           include,
-//         });
-
-//       }})
-
-    
-
-//     const newRoles = await Promise.all(operations);
-// console.log("New Roles after processing:", newRoles);
-//     res.json({
-//       roles: newRoles.filter(Boolean),
-//     });
-//   } catch (error) {
-//     console.log(error);
-//     res.json({ error });
-//   }
-// });
 router.put("/story", authMiddleware, async (req, res) => {
   try {
     const { roles = [] } = req.body;
 
+    const include = {
+      story: true,
+      profile: true,
+    };
+
     const operations = roles.map((role) => {
-      const hasValidId = role.id && role.id.length > 10;
+      const profileId = role.profile.id;
+      const storyId = role.item.id;
 
-      // 🗑 DELETE when role is "none"
+      // 🗑 DELETE
       if (role.role === "none") {
-        if (!hasValidId) return null; // nothing to delete
-        return prisma.roleToStory.delete({
-          where: { id: role.id },
+        return prisma.roleToStory.deleteMany({
+          where: {
+            profileId,
+            storyId,
+          },
         });
       }
 
-      const include = {
-        story: true,
-        profile: true,
-      };
-
-      // 🔄 UPDATE (or create if somehow missing)
-      if (hasValidId) {
-        return prisma.roleToStory.upsert({
-          where: { id: role.id },
-          update: {
-            role: role.role,
+      // 🔄 UPSERT by composite key (THE FIX)
+      return prisma.roleToStory.upsert({
+        where: {
+          profileId_storyId: {
+            profileId,
+            storyId,
           },
-          create: {
-            role: role.role,
-            profileId: role.profile.id,
-            storyId: role.item.id,
-          },
-          include,
-        });
-      }
-
-      // ➕ CREATE (new role)
-      return prisma.roleToStory.create({
-        data: {
+        },
+        update: {
           role: role.role,
-          profile: {
-            connect: { id: role.profile.id },
-          },
-          story: {
-            connect: { id: role.item.id },
-          },
+        },
+        create: {
+          role: role.role,
+          profileId,
+          storyId,
         },
         include,
       });
     });
 
-    const newRoles = await Promise.all(
-      operations.filter(Boolean) // remove nulls from deletes w/o id
-    );
+    const newRoles = await Promise.all(operations);
 
     res.json({
       roles: newRoles,
@@ -217,6 +159,7 @@ router.put("/story", authMiddleware, async (req, res) => {
     res.json({ error });
   }
 });
+
 
     router.post("/story",authMiddleware,async(req,res)=>{
         let {type,profileId,storyId}=req.body

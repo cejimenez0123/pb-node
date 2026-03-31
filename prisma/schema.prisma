@@ -220,6 +220,7 @@ model RoleToStory{
   approved Boolean @default(true)
   updated DateTime? @default(now())
   created DateTime? @default(now())
+   @@unique([profileId, storyId])
 }
 
 enum Role {
