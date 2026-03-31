@@ -548,9 +548,11 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
           include: { profile: true, parent: true },
         },
         betaReaders: {
-          select: {
-            profileId: true,
-          },
+          
+          include:{
+            profile:true
+            
+          }
         },
       },
     });

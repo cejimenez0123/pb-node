@@ -1074,7 +1074,7 @@ router.post("/email-webhook", express.json(), (req, res) => {
             
               profile = await prisma.profile.create({
             data:{
-                username:username.toLowerCase(),
+                username:username?.toLowerCase(),
                 profilePic:profilePicture,
                 selfStatement,
                 isPrivate:privacy,

@@ -107,7 +107,7 @@ module.exports = function (authMiddleware){
                 }
             },
             profilePic:profilePicture,
-             username:username,
+             username:username?.toLowerCase(),
             selfStatement:selfStatement,
             isPrivate:privacy
         },include:{
@@ -299,7 +299,7 @@ let profile = null
         profile = await prisma.profile.update({where:{
             id: req.params.id
         },data:{
-            username: username,
+            username: username.toLowerCase(),
             profilePic:profilePicture,
             selfStatement:selfStatement,
             isPrivate:privacy,
@@ -320,7 +320,7 @@ let profile = null
     }else{profile =prisma.profile.update({where:{
             id: req.params.id
         },data:{
-            username: username,
+            username: username?.toLowerCase(),
             profilePic:profilePicture,
             selfStatement:selfStatement,
             isPrivate:privacy,

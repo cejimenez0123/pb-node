@@ -32,7 +32,7 @@ const dailyTask=async ()=>{
       await sleep(1000)
 if(comments.length>0||roles.length>0||following.length>0||followers.length>0||collections.length>0||events.length>0){
       await sendEmail(template)
-        console.log(i,profile.username)
+  
  await prisma.user.update({where:{id:user.id},data:{
           lastEmailed: new Date()
         }})
