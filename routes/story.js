@@ -520,7 +520,7 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
     const userId = req.user.profiles[0].id; // from auth middleware
     const storyId = req.params.id;
     let canUserSee = false;
-    const story = await prisma.story.findFirst({
+    const story = await prisma.story.findFirstOrThrow({
       where: { id: storyId },
       include: {
         author: true,
@@ -554,7 +554,7 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
         },
       },
     });
-console.log({story})
+
     if (!story) {
       return res.status(404).json({ error: "Story not found." });
     }
@@ -600,8 +600,12 @@ console.log({story})
     // Authorized — return full story
     // return res.json({story});
   } catch (err) {
+    if(err.code === "P2025"){
+       return res.status(404).json({ error: "Story not found." });
+    }
     console.error("Error fetching protected story:", err);
     return res.status(500).json({ error: "Internal server error." });
+
   }
 });
 
