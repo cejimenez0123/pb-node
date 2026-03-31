@@ -105,59 +105,198 @@ try{
                 res.json({error})
             }
     })
-    router.put("/story", authMiddleware, async (req, res) => {
+//     router.put("/story", authMiddleware, async (req, res) => {
+//   try {
+//     const { roles = [] } = req.body;
+
+//     const operations = roles.map((role) => {
+   
+//       if (role.role === "none" && role.id) {
+//         return prisma.roleToStory.delete({
+//           where: { id: role.id },
+//         });
+//       }
+
+//       const hasValidId = role.id && role.id.length > 10;
+// console.log("Processing role:", role.item.betaReaders, "Has valid ID:", hasValidId);
+//       const baseData = {
+//         role: role.role,
+//         profileId: role.profile.id,
+//         storyId: role.item.id,
+//       };
+
+//       const include = {
+//         story: true,
+//         profile: true,
+//       };
+
+//       // UPSERT case
+//       if (hasValidId) {
+//         // if(role.role != "none"){
+//        return prisma.roleToStory.upsert({
+//           where: { id: role.id },
+//           update: { role: role.role },
+//           create: baseData,
+//           include,
+//         });
+
+//       }})
+
+    
+
+//     const newRoles = await Promise.all(operations);
+// console.log("New Roles after processing:", newRoles);
+//     res.json({
+//       roles: newRoles.filter(Boolean),
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.json({ error });
+//   }
+// });
+router.put("/story", authMiddleware, async (req, res) => {
   try {
     const { roles = [] } = req.body;
 
     const operations = roles.map((role) => {
-      // DELETE case
-      console.log("Processing role:", role);
-      if (role.role === "role" && role.id) {
+      const hasValidId = role.id && role.id.length > 10;
+
+      // 🗑 DELETE when role is "none"
+      if (role.role === "none") {
+        if (!hasValidId) return null; // nothing to delete
         return prisma.roleToStory.delete({
           where: { id: role.id },
         });
       }
-
-      const hasValidId = role.id && role.id.length > 10;
-
-      const baseData = {
-        role: role.role,
-        profileId: role.profile.id,
-        storyId: role.item.id,
-      };
 
       const include = {
         story: true,
         profile: true,
       };
 
-      // UPSERT case
+      // 🔄 UPDATE (or create if somehow missing)
       if (hasValidId) {
-        if(role.role != "none"){
-        prisma.roleToStory.upsert({
+        return prisma.roleToStory.upsert({
           where: { id: role.id },
-          update: { role: role.role },
-          create: baseData,
+          update: {
+            role: role.role,
+          },
+          create: {
+            role: role.role,
+            profileId: role.profile.id,
+            storyId: role.item.id,
+          },
           include,
         });
-      }else{       
-         prisma.roleToStory.delete({
-            where: { id: role.id },
-          });
-      }}})
+      }
 
-    
+      // ➕ CREATE (new role)
+      return prisma.roleToStory.create({
+        data: {
+          role: role.role,
+          profile: {
+            connect: { id: role.profile.id },
+          },
+          story: {
+            connect: { id: role.item.id },
+          },
+        },
+        include,
+      });
+    });
 
-    const newRoles = await Promise.all(operations);
+    const newRoles = await Promise.all(
+      operations.filter(Boolean) // remove nulls from deletes w/o id
+    );
 
     res.json({
-      roles: newRoles.filter(Boolean),
+      roles: newRoles,
     });
   } catch (error) {
     console.log(error);
     res.json({ error });
   }
 });
+// router.put("/story", authMiddleware, async (req, res) => {
+//   try {
+//     const { roles = [] } = req.body;
+
+//     const operations = roles.map(async (role) => {
+//       // DELETE
+//       if (role.role === "none" && role.id) {
+//         return prisma.roleToStory.delete({
+//           where: { id: role.id },
+//         });
+//       }
+
+//       const hasValidId = role.id && role.id.length > 10;
+
+//       console.log(
+//         "Processing role:",
+//         role.item.betaReaders,
+//         "Has valid ID:",
+//         hasValidId
+//       );
+
+//       const include = {
+//         story: true,
+//         profile: true,
+//       };
+
+//       // UPDATE (via upsert)
+//       if (hasValidId) {
+//         return prisma.roleToStory.upsert({
+//           where: { id: role.id },
+//           update: { role: role.role },
+//           create: {
+//             role: role.role,
+//             profileId: role.profile.id,
+//             storyId: role.item.id,
+//           },
+//           include,
+//         });
+//       }
+
+//       // 🧠 PREVENT DUPLICATES
+//       const existing = await prisma.roleToStory.findFirst({
+//         where: {
+//           profileId: role.profile.id,
+//           storyId: role.item.id,
+//         },
+//       });
+
+//       if (existing) {
+//         return existing; // skip creating duplicate
+//       }
+
+//       // CREATE
+//       console.log("Creating new role for profile", role.profile.id, "and" , role.role);
+//       return prisma.roleToStory.create({
+//         data: {
+//           role: role.role,
+//           profile: {
+//             connect: { id: role.profile.id },
+//           },
+//           story: {
+//             connect: { id: role.item.id },
+//           },
+//         },
+//         include,
+//       });
+//     });
+
+//     const newRoles = await Promise.all(operations);
+
+//     console.log("New Roles after processing:", newRoles);
+
+//     res.json({
+//       roles: newRoles.filter(Boolean),
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.json({ error });
+//   }
+// });
     // router.put("/story",authMiddleware,async(req,res)=>{
     //     try{
     //         const {roles,profileId,storyId}=req.body
