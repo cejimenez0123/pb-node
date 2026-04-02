@@ -383,33 +383,133 @@ const findCollection= async({id})=>{
     return groups;
   };
 module.exports = function (authMiddleware) {
-  router.post('/look', authMiddleware, async (req, res) => {
+//   router.post('/look', authMiddleware, async (req, res) => {
+//   try {
+//     const { radius = 50}= req.query
+//       const global = req.query.global == 'true';
+//     const {location:locale}=req.body
+
+   
+//     const profile = req.user?.profiles?.[0];
+
+//     if (!profile) {
+//       return res.status(400).json({ error: "Profile not found" });
+//     }
+
+//     let location = locale ?? profile.location;
+
+//     // GLOBAL SEARCH
+//     if (global || !location) {
+//       const groups = await prisma.collection.findMany({
+//         where: { type: "feedback", locationId: null},
+//         take: 3,
+//       });
+//       return res.send({ groups });
+//     }
+
+//     const { latitude, longitude } = location;
+
+//     // Find or create location record
+//     const userLocation =
+//       (await prisma.location.findFirst({ where: { latitude, longitude } })) ||
+//       (await prisma.location.create({ data: { latitude, longitude } }));
+
+//     // Update profile location
+//     await prisma.profile.update({
+//       where: { id: profile.id },
+//       data: { locationId: userLocation.id },
+//     });
+
+//     // Get all local collections
+//     const collections = await prisma.collection.findMany({
+//       where: { type: "feedback", locationId: { not: null }, isGlobal: false },
+//       include: { location: true },
+//     });
+
+//     let groups = [];
+//     let rad = radius;
+//     const MAX_RADIUS = 500;
+//     let includesGlobe = false;
+
+// while (groups.length < 3 && rad <= MAX_RADIUS) {
+//   // FIX 1: guard against null/undefined return from filter function
+//   groups = filterAvailableCollections(profile, collections, rad) ?? [];
+//   rad += 50;
+// }
+
+
+// if (groups.length < 3) {
+//   const collection = await prisma.collection.create({
+//     data: {
+//       title: generate({ min: 3, max: 6, join: " " }),
+//       type: "feedback",
+//       profile: { connect: { id: profile.id } },
+//       location: { connect: { id: userLocation.id } },
+//       roles: {
+//         create: {
+//           role: "editor",
+//           profile: { connect: { id: profile.id } },
+//         },
+//       },
+//     },include:{
+//       location:true
+//     }
+//   });
+//   groups.push(collection);
+// }
+
+// // Fallback: pad up to 3 with global groups
+// if (groups.length < 3) {
+//   includesGlobe = true;
+//   const globalGroups = await prisma.collection.findMany({
+//     where: {
+//       type: "feedback",
+//       // locationId: null,
+//       isGlobal: true, // FIX 3: was missing, could pull in non-global orphaned records
+//     },include:{
+//       location:true
+//     },
+//     take: 2
+//   });
+//   groups = [...groups, ...globalGroups];
+// }
+
+
+//     return res.send({
+//       groups,
+//       message: includesGlobe ? "Includes Global Groups" : "All Local",
+//     });
+
+//   } catch (error) {
+//     console.error("LOOK_ERROR", error);
+//     return res.status(500).json({ error: "Server error" });
+//   }
+// });
+router.post('/look', authMiddleware, async (req, res) => {
   try {
-    const { radius = 50}= req.query
-      const global = req.query.global == 'true';
-    const {location:locale}=req.body
+    const { radius: queryRadius = 50 } = req.query;
+    const global = req.query.global === 'true';
+    const { location: locale } = req.body;
 
-    console.log(req.query)
     const profile = req.user?.profiles?.[0];
-
-    if (!profile) {
-      return res.status(400).json({ error: "Profile not found" });
-    }
+    if (!profile) return res.status(400).json({ error: "Profile not found" });
 
     let location = locale ?? profile.location;
+    let includesGlobe = false;
 
-    // GLOBAL SEARCH
+    // --- GLOBAL SEARCH ---
     if (global || !location) {
       const groups = await prisma.collection.findMany({
-        where: { type: "feedback", locationId: null},
+        where: { type: "feedback", isGlobal: true },
         take: 3,
+        include: { location: true },
       });
-      return res.send({ groups });
+      return res.send({ groups, message: "Global search" });
     }
 
     const { latitude, longitude } = location;
 
-    // Find or create location record
+    // Find or create location
     const userLocation =
       (await prisma.location.findFirst({ where: { latitude, longitude } })) ||
       (await prisma.location.create({ data: { latitude, longitude } }));
@@ -420,66 +520,64 @@ module.exports = function (authMiddleware) {
       data: { locationId: userLocation.id },
     });
 
-    // Get all local collections
+    // --- LOCAL COLLECTIONS ---
     const collections = await prisma.collection.findMany({
-      where: { type: "feedback", locationId: { not: null }, isGlobal: false },
-      include: { location: true },
+      where: {
+        type: "feedback",
+        locationId: { not: null },
+        isGlobal: false,
+      },
+      include: { location: true, roles: { include: { profile: true } } },
     });
 
     let groups = [];
-    let rad = radius;
-    const MAX_RADIUS = 500;
-    let includesGlobe = false;
+    let rad = Number(queryRadius);
+    const MAX_RADIUS = rad * 3;
 
-while (groups.length < 3 && rad <= MAX_RADIUS) {
-  // FIX 1: guard against null/undefined return from filter function
-  groups = filterAvailableCollections(profile, collections, rad) ?? [];
-  rad += 50;
-}
-
-
-if (groups.length < 3) {
-  const collection = await prisma.collection.create({
-    data: {
-      title: generate({ min: 3, max: 6, join: " " }),
-      type: "feedback",
-      profile: { connect: { id: profile.id } },
-      location: { connect: { id: userLocation.id } },
-      roles: {
-        create: {
-          role: "editor",
-          profile: { connect: { id: profile.id } },
-        },
-      },
-    },include:{
-      location:true
+    // Filter collections by proximity & availability, expanding radius if needed
+    while (groups.length < 3 && rad <= MAX_RADIUS) {
+      groups = filterAvailableCollections({ profile, collections, radius: rad }) ?? [];
+      rad += Number(queryRadius); // increase in steps of original radius
     }
-  });
-  groups.push(collection);
-}
 
-// Fallback: pad up to 3 with global groups
-if (groups.length < 3) {
-  includesGlobe = true;
-  const globalGroups = await prisma.collection.findMany({
-    where: {
-      type: "feedback",
-      // locationId: null,
-      isGlobal: true, // FIX 3: was missing, could pull in non-global orphaned records
-    },include:{
-      location:true
-    },
-    take: 2
-  });
-  groups = [...groups, ...globalGroups];
-}
+    // --- If no local groups found, create a new one ---
+    if (groups.length < 3) {
+      const newCollection = await prisma.collection.create({
+        data: {
+          title: generate({ min: 3, max: 6, join: " " }),
+          type: "feedback",
+          profile: { connect: { id: profile.id } },
+          location: { connect: { id: userLocation.id } },
+          roles: {
+            create: {
+              role: "editor",
+              profile: { connect: { id: profile.id } },
+            },
+          },
+        },
+        include: { location: true, roles: { include: { profile: true } } },
+      });
+      groups.push(newCollection);
+    }
 
+    // --- Pad with global collections if still less than 3 ---
+    if (groups.length < 3) {
+      includesGlobe = true;
+      const globalGroups = await prisma.collection.findMany({
+        where: {
+          type: "feedback",
+          isGlobal: true,
+        },
+        include: { location: true, roles: { include: { profile: true } } },
+        take: 3 - groups.length,
+      });
+      groups = [...groups, ...globalGroups];
+    }
 
     return res.send({
       groups,
       message: includesGlobe ? "Includes Global Groups" : "All Local",
     });
-
   } catch (error) {
     console.error("LOOK_ERROR", error);
     return res.status(500).json({ error: "Server error" });

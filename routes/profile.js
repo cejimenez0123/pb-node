@@ -558,19 +558,35 @@ try{
   const profile = await prisma.profile.findUnique({
   where: { id: req.user.profiles[0].id },
   include: {
+    stories:true,
     collections:{
         include:{
             storyIdList:true,
             childCollections:true
         }
     },
+    location:true,
     rolesToCollection: { include: { collection: true } },
     rolesToStory: { include: { story: true } },
     likedStories: true,
     historyStories: true,
   }
 });
+const stories = await prisma.story.findMany({
+  where: {
+    AND: [
 
+      { OR: [
+          { authorId: profile.id },
+          {betaReaders:{
+            some:{profileId:profile.id}
+          }}
+       
+        ]
+      }
+    ]
+  }
+});
 // Lazy-load collections only if needed
 const collections = await prisma.collection.findMany({
   where: {
@@ -586,7 +602,7 @@ const collections = await prisma.collection.findMany({
 });
 
 res.status(200).json({
-  profile: { ...profile, collections: [...profile.collections, ...collections] }
+  profile: { ...profile, collections: [...profile.collections, ...collections],stories:[...stories] }
 });
 
      
