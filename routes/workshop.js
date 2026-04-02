@@ -490,8 +490,15 @@ router.post('/look', authMiddleware, async (req, res) => {
     const { radius: queryRadius = 50 } = req.query;
     const global = req.query.global === 'true';
     const { location: locale } = req.body;
+console.log("LOKffe",req.user)
+console.log("LOKffe",req.user.id)
+    const profileId = req.user?.profiles[0].id
+    const profile = prisma.profile.findUnique({where:{
+      id:profileId,
 
-    const profile = req.user?.profiles?.[0];
+    },include:{
+      location:true
+    }})
     if (!profile) return res.status(400).json({ error: "Profile not found" });
 
     let location = locale ?? profile.location;
@@ -516,7 +523,7 @@ router.post('/look', authMiddleware, async (req, res) => {
 
     // Update profile location
     await prisma.profile.update({
-      where: { id: profile.id },
+      where: { id: profileId},
       data: { locationId: userLocation.id },
     });
 
@@ -546,12 +553,12 @@ router.post('/look', authMiddleware, async (req, res) => {
         data: {
           title: generate({ min: 3, max: 6, join: " " }),
           type: "feedback",
-          profile: { connect: { id: profile.id } },
+          profile: { connect: { id: profileId } },
           location: { connect: { id: userLocation.id } },
           roles: {
             create: {
               role: "editor",
-              profile: { connect: { id: profile.id } },
+              profile: { connect: { id: profileId} },
             },
           },
         },
@@ -916,7 +923,7 @@ async function findOrCreateLocation({latitude, longitude,city=""}) {
     
     // Helper: Group by proximity
     function filterAvailableCollections({ profile, collections, radius }) {
-
+console.log("FILTER AVAILAB",profile)
       let proxGroups = groupColsByProximity({ profile, items: collections, radius });
       return proxGroups.filter(col => col.roles.length < 6 && !col.roles.find(role => role.profile.id == profile.id));
     }
