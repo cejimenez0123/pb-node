@@ -559,6 +559,8 @@ try{
   where: { id: req.user.profiles[0].id },
   include: {
     stories:true,
+    followers:true,
+    following:true,
     collections:{
         include:{
             storyIdList:true,
