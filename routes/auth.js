@@ -693,6 +693,8 @@ let mailOptions = forgotPasswordTemplate(user)
           res.status(400).json({ message: 'Error processing referral' });
         }
       });
+
+      ///////
       router.post("/session", async (req, res) => {
   const { email, password, uId, identityToken } = req.body;
 
@@ -767,7 +769,26 @@ let mailOptions = forgotPasswordTemplate(user)
       
       if(email){
         try{
-       user = await  prisma.user.findFirstOrThrow({where:{email:{equals:email}}})
+       user = await  prisma.user.findFirstOrThrow({where:{email:{equals:email}},include:{
+      
+       profiles: {
+        
+            include: {
+              profileToCollections:{
+                include:{
+                  collection:{
+                    include:{
+                      childCollections:true,
+                      storyIdList:true
+                    }
+                  }
+                }
+              },
+              collections:true,
+              stories: true,
+              rolesToCollection:{
+                include:{collection:true}}}
+       }}})
         }catch{
        return res.status(403).json({ message: "No profile found. Apply Today." });
         }
@@ -861,8 +882,8 @@ let mailOptions = forgotPasswordTemplate(user)
     });
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-
-    res.json({ token, user });
+console.log("FCUCKCD",user)
+    res.json({ token, profile:user.profiles[0]});
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal server error" });
@@ -955,7 +976,7 @@ router.post("/feedback", async (req, res) => {
     });
 
     await resend.emails.send(template);
-
+    console.log("Sent Feedback")
     return res.status(201).json({ message: "Success" });
   } catch (err) {
     console.error("Feedback error:", err);

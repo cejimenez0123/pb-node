@@ -716,17 +716,30 @@ await Promise.all(promises)
     })
     router.get("/prompts",async (req,res)=>{
     try{
-        let hashtags = await prisma.hashtag.findMany({where:{
-          name:"prompt",
+        // let hashtags = await prisma.hashtag.findMany({where:{
+        //   name:"prompt",
         
-        },include:{
-          stories:{
-            include:{
-              story:true
-            }
-          }
-        }})
-      
+        // },include:{
+        //   stories:{
+        //     include:{
+        //       story:true
+        //     }
+        //   }
+        // }})
+        let hashtags = await prisma.hashtag.findMany({
+  where: {
+    name: "prompt",
+  },
+  include: {
+    stories: {
+     
+      include: {
+        story: true,
+      },
+    },
+  },
+});
+      console.log(hashtags)
       let prompts = hashtags.flatMap(hashtag=>hashtag.stories.flatMap(story=>story)).slice(0,6)
     
         res.status(201).json({prompts})

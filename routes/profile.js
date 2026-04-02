@@ -555,78 +555,111 @@ try{
 
     return res.status(403).json({ message: "No profile found. Please create one." });
   }
-            const profile = await prisma.profile.findFirst({where:{
-                id:{
-                   equals: req.user.profiles[0].id
-                }
-            },include:{
-                rolesToCollection:{
-                    include:{
-                        collection:true
-                    }
-                },
-                rolesToStory:{
-                    include:{
-                        story:true
-                    }
-                },
-                profileToCollections:{
+  const profile = await prisma.profile.findUnique({
+  where: { id: req.user.profiles[0].id },
+  include: {
+    collections:{
+        include:{
+            storyIdList:true,
+            childCollections:true
+        }
+    },
+    rolesToCollection: { include: { collection: true } },
+    rolesToStory: { include: { story: true } },
+    likedStories: true,
+    historyStories: true,
+  }
+});
+
+// Lazy-load collections only if needed
+const collections = await prisma.collection.findMany({
+  where: {
+    AND: [
+      { type: "feedback" },
+      { OR: [
+          { profileId: profile.id },
+          { roles: { some: { profileId: profile.id } } }
+        ]
+      }
+    ]
+  }
+});
+
+res.status(200).json({
+  profile: { ...profile, collections: [...profile.collections, ...collections] }
+});
+//             const profile = await prisma.profile.findFirst({where:{
+//                 id:{
+//                    equals: req.user.profiles[0].id
+//                 }
+//             },include:{
+//                 rolesToCollection:{
+//                     include:{
+//                         collection:true
+//                     }
+//                 },
+//                 rolesToStory:{
+//                     include:{
+//                         story:true
+//                     }
+//                 },
+//                 profileToCollections:{
                 
-                    include:{
+//                     include:{
                         
-                        collection:{
-                            include:{
-storyIdList:true,
-                                childCollections:{
-                                    include:{
-                                        childCollection:{
-                                            include:{
-                                                storyIdList:{
-                                                    include:{
-                                                        story:{
-                                                            include:{
-                                                                author:true
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
+//                         collection:{
+//                             include:{
+// storyIdList:true,
+//                                 childCollections:{
+//                                     include:{
+//                                         childCollection:{
+//                                             include:{
+//                                                 storyIdList:{
+//                                                     include:{
+//                                                         story:{
+//                                                             include:{
+//                                                                 author:true
+//                                                             }
+//                                                         }
+//                                                     }
+//                                                 }
+//                                             }
+//                                         }
                                 
-                            }
-                        },
-                    }
+//                             }
+//                         },
+//                     }
                        
                 
-        }}},likedStories:true,
-        historyStories:true,
-        collections:{
-            include:{
-                profile:true
-            }
-        },
-        stories:{
-            include:{
-                author:true
-            }
-        },
-        location:true,
-        followers:{
-            include:{
-                follower:true
-            }
-        },
-        following:true}})
-        let collections = await prisma.collection.findMany({where:{
-           AND:[{type:{equals:"feedback"}},{OR: [{profileId:{equals:profile.id}},{roles:{
-            some:{
-                profileId:{equals:profile.id}
+//         }}},likedStories:true,
+//         historyStories:true,
+//         collections:{
+//             include:{
+//                 profile:true
+//             }
+//         },
+//         stories:{
+//             include:{
+//                 author:true
+//             }
+//         },
+//         location:true,
+//         followers:{
+//             include:{
+//                 follower:true
+//             }
+//         },
+//         following:true}})
+//         let collections = await prisma.collection.findMany({where:{
+//            AND:[{type:{equals:"feedback"}},{OR: [{profileId:{equals:profile.id}},{roles:{
+//             some:{
+//                 profileId:{equals:profile.id}
             
-           }}}]
-           }]
-        }})
+//            }}}]
+//            }]
+//         }})
        
-                res.status(200).json({profile: {...profile,collections:[...profile.collections,...collections]}})
+                // res.status(200).json({profile: {...profile,collections:[...profile.collections,...collections]}})
     
      
      

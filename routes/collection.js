@@ -1032,74 +1032,145 @@ const otherCols = libraries.filter(book=>book.priority<90)
     }
     })
  
-    router.get('/col/:id/protected',authMiddleware, async (req, res) => {
+//     router.get('/col/:id/protected',authMiddleware, async (req, res) => {
+//   try {
+//     const { id } = req.params;
+    
+//     const currentProfile = req.user.profiles[0]
+//     const collection = await getCollectionById(id); 
+
+//     if (!collection) {
+//       return res.status(404).json({ error: 'Collection not found' });
+//     }
+
+//     const sightArr = ['reader',  'commneter', 'editor', 'writer'];
+  
+//     // Owner can always see
+//     if (currentProfile && collection.profileId === currentProfile.id) {
+//          return res.json({collection});
+    
+//     }
+//     if (!collection.isPrivate) {
+//       return res.json({collection});
+//     }
+  
+//     if (!currentProfile && collection.isPrivate) {
+//       return res.status(403).json({ error: 'Access denied: private collection' });
+//     }
+
+//     if (currentProfile && collection.roles) {
+//       const found = collection.roles.find(r => r?.profileId === currentProfile.id);
+//       if (found && sightArr.includes(found.role)) {
+//         return res.json({collection});
+//       }
+//     }
+
+//     // Check parent collections
+//     if (collection.parentCollections?.length > 0) {
+//       for (const cTc of collection.parentCollections) {
+//         const parent = cTc.parentCollection;
+//         if (!parent) continue;
+
+//         // Public parent allows view
+//         if (!parent.isPrivate) {
+//           return res.json({collection});
+//         }
+
+//         // Role inheritance
+//         if (currentProfile && parent.roles) {
+//           const found = parent.roles.find(r => r?.profileId === currentProfile.id);
+//           if (found && sightArr.includes(found.role)) {
+//             return res.json({collection});
+//           }
+//         }
+
+//         // Parent ownership
+//         if (parent.profileId === currentProfile?.id) {
+//           return res.json({collection});
+//         }
+//       }
+//     }
+
+//     // ❌ No permission
+//     return res.status(403).json({ error: 'Access denied: user cannot view this collection' });
+
+//   } catch (error) {
+//     console.error('Error fetching collection:', error);
+//     res.status(500).json({ error: 'Failed to fetch collection' });
+//   }
+// });
+router.get('/col/:id/protected', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const currentProfile = req.user.profiles[0]
-    const collection = await getCollectionById(id); 
+
+    if (!req.user || !req.user.profiles?.length) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const currentProfile = req.user.profiles[0];
+    const collection = await getCollectionById(id);
 
     if (!collection) {
       return res.status(404).json({ error: 'Collection not found' });
     }
 
-    const sightArr = ['reader',  'commneter', 'editor', 'writer'];
-  
-    // Owner can always see
-    if (currentProfile && collection.profileId === currentProfile.id) {
-         return res.json({collection});
-    
-    }
-    if (!collection.isPrivate) {
-      return res.json({collection});
-    }
-  
-    if (!currentProfile && collection.isPrivate) {
-      return res.status(403).json({ error: 'Access denied: private collection' });
+    const sightArr = ['reader', 'commenter', 'editor', 'writer'];
+
+    // ---------- OWNER ----------
+    if (collection.profileId === currentProfile.id) {
+      return res.json({ collection });
     }
 
-    if (currentProfile && collection.roles) {
-      const found = collection.roles.find(r => r?.profileId === currentProfile.id);
+    // ---------- ROLE ----------
+    if (collection.roles?.length) {
+      const found = collection.roles.find(
+        (r) => r?.profileId === currentProfile.id
+      );
+
       if (found && sightArr.includes(found.role)) {
-        return res.json({collection});
+        return res.json({ collection });
       }
     }
 
-    // Check parent collections
-    if (collection.parentCollections?.length > 0) {
+    // ---------- PUBLIC ----------
+    if (!collection.isPrivate) {
+      return res.json({ collection });
+    }
+
+    // ---------- PARENT ----------
+    if (collection.parentCollections?.length) {
       for (const cTc of collection.parentCollections) {
         const parent = cTc.parentCollection;
         if (!parent) continue;
 
-        // Public parent allows view
+        if (parent.profileId === currentProfile.id) {
+          return res.json({ collection });
+        }
+
         if (!parent.isPrivate) {
-          return res.json({collection});
+          return res.json({ collection });
         }
 
-        // Role inheritance
-        if (currentProfile && parent.roles) {
-          const found = parent.roles.find(r => r?.profileId === currentProfile.id);
-          if (found && sightArr.includes(found.role)) {
-            return res.json({collection});
-          }
-        }
+        const found = parent.roles?.find(
+          (r) => r?.profileId === currentProfile.id
+        );
 
-        // Parent ownership
-        if (parent.profileId === currentProfile?.id) {
-          return res.json({collection});
+        if (found && sightArr.includes(found.role)) {
+          return res.json({ collection });
         }
       }
     }
 
-    // ❌ No permission
-    return res.status(403).json({ error: 'Access denied: user cannot view this collection' });
+    // ---------- DENY ----------
+    return res.status(403).json({
+      error: 'Access denied: user cannot view this collection',
+    });
 
   } catch (error) {
     console.error('Error fetching collection:', error);
     res.status(500).json({ error: 'Failed to fetch collection' });
   }
 });
-
 router.get("/:id/collection/protected",authMiddleware,async (req,res)=>{
     const {id}=req.params
 try{

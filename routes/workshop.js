@@ -431,17 +431,13 @@ module.exports = function (authMiddleware) {
     const MAX_RADIUS = 500;
     let includesGlobe = false;
 
-    // Expand search radius until 3 found or limit hit
-  // Expand search radius until 3 found or limit hit
 while (groups.length < 3 && rad <= MAX_RADIUS) {
   // FIX 1: guard against null/undefined return from filter function
   groups = filterAvailableCollections(profile, collections, rad) ?? [];
   rad += 50;
 }
 
-// FIX 2: was `=== 0` — create a local group whenever we're still short,
-// not only when completely empty (no local groups at all may still leave
-// the global fallback dry)
+
 if (groups.length < 3) {
   const collection = await prisma.collection.create({
     data: {
@@ -455,7 +451,9 @@ if (groups.length < 3) {
           profile: { connect: { id: profile.id } },
         },
       },
-    },
+    },include:{
+      location:true
+    }
   });
   groups.push(collection);
 }
@@ -468,6 +466,8 @@ if (groups.length < 3) {
       type: "feedback",
       // locationId: null,
       isGlobal: true, // FIX 3: was missing, could pull in non-global orphaned records
+    },include:{
+      location:true
     },
     take: 2
   });
