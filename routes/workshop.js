@@ -859,7 +859,7 @@ async function findOrCreateLocation({latitude, longitude,city=""}) {
     router.post('/active-users',authMiddleware, async (req, res) => {
       try {
         const {profile,story,location}=req.body
-        console.log("DSD",location)
+       
        await findOrCreateLocation({...location})
         const prof = await prisma.profile.update({
           where:{

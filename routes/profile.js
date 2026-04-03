@@ -140,16 +140,31 @@ module.exports = function (authMiddleware){
     router.get("/:id/protected",authMiddleware,async (req,res)=>{
         try{
         const currentUserId = req.user.profiles[0].id
-
+console.log(currentUserId)
 const profile = await prisma.profile.findFirst({
   where: {
-    id: currentUserId
+    id: req.params.id
   },
   include: {
     location: true,
+stories:{
+    orderBy:{
+        updated:"desc"
+    },
+    where:{
+        OR:[{isPrivate:{equals:false}},{
+            betaReaders:{
+                some:{
+                    profileId:req.params.id
+                }
+            }
+        }]
+    },take:100
 
+},
     collections: {
       where: {
+        
         OR: [
           { isPrivate:false },
           {
@@ -159,59 +174,19 @@ const profile = await prisma.profile.findFirst({
               }
             }
           }
-        ]
-      },
-      include: {
-        roles: true,
-storyIdList:{
-      
-     
-          where: {
-            OR: [
-              { story:{
-                isPrivate:{
-                    equals:false
-                }
-              }},{story:{
-                betaReaders:{
-                    some:{
-                        profileId:{
-                            equals:currentUserId
-                        }
-                    }
-                }
-              }}
-          
-            ]
-          }
+        ]},take:100,
+      orderBy:{
+        updated:"desc"
+      }
+    },
+
+    _count:{
+        select:{
+            followers:true,
+            following:true
         }
-      }
-    },
-
-    // If stories are directly on profile instead
-    stories: {
-      where: {
-        OR: [
-          { isPrivate:false },
-          {betaReaders:{
-            some:{
-                profileId:{
-                    equals:currentUserId
-                }
-            }
-          }}
-     
-        ]
-      }
-    },
-
-    followers: {
-      include: {
-        follower: true
-      }
-    },
-
-    following: true
+    }
+   
   }
 });
 
@@ -228,34 +203,22 @@ storyIdList:{
         const profile = await prisma.profile.findFirst({where:{
             id: req.params.id
         },include:{
+            location:true,
+            _count:{
+                select:{
+                    followers:true,
+                    following:true,
+                }
+            },
             stories:{
                 where:{isPrivate:{equals:false}}
             },
             collections:{
                 where:{isPrivate:{equals:false}}
-                ,include:{
-                    childCollections:{where:{
-                    childCollection:{
-                        isPrivate:{equals:false}
-                    }
-                    }},
-                    storyIdList:{
-                        where:{
-                            story:{
-                                isPrivate:{
-                                    equals:false
-                                }
-                            }
-                        }
-                    }
+  
                 }
-            },
-            location:true,
-            followers:{
-                include:{
-                    follower:true
-                }
-            },
+            
+           
            
         }})
         res.status(200).json({profile:profile})
@@ -558,10 +521,16 @@ try{
   const profile = await prisma.profile.findUnique({
   where: { id: currentProfile.id},
   include: {
+
     location:true,
     rolesToCollection: true,
     rolesToStory:true,
-
+_count: {
+      select: {
+        followers: true,
+        following: true
+      }
+    }
  
   }
 });
@@ -581,21 +550,7 @@ const stories = await prisma.story.findMany({
   },
   take: 100 // limit to 100
 });
-// const stories = await prisma.story.findMany({
-//   where: {
-//     AND: [
 
-//       { OR: [
-//           { authorId: profile.id },
-//           {betaReaders:{
-//             some:{profileId:profile.id}
-//           }}
-       
-//         ]
-//       }
-//     ]
-//   }
-// });
 
 const collections = await prisma.collection.findMany({
   where: {
@@ -613,7 +568,7 @@ const collections = await prisma.collection.findMany({
   take: 100 // limit to 100
 
 });
-
+console.log(profile)
 res.status(200).json({
   profile: { ...profile, collections: [ ...collections],stories:[...stories] }
 });
