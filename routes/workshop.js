@@ -622,7 +622,7 @@ router.get("/profile/workshops",authMiddleware,async (req,res)=>{
    }})
   res.send({groups:groups})
 }catch(err){
-  console.log(err)
+
   res.send({error:err})
   
 }
@@ -704,7 +704,7 @@ router.post('/group/join', authMiddleware, async (req, res) => {
         collections: allCollections, 
         radius,
       });
-      console.log(JSON.stringify(availableCollections))
+ 
     }
 
     // ─── CASE 1: JOIN EXISTING COLLECTION ─────────────────────────────────────
@@ -825,7 +825,7 @@ router.post('/group/join', authMiddleware, async (req, res) => {
 });
 async function findOrCreateLocation({latitude, longitude,city=""}) {
   // 1. Try to find existing location
-  console.log({latitude, longitude,city})
+ 
   let locale = await prisma.location.findFirst({
     where: { latitude, longitude },
   });
@@ -922,7 +922,7 @@ async function findOrCreateLocation({latitude, longitude,city=""}) {
     
     // Helper: Group by proximity
     function filterAvailableCollections({ profile, collections, radius }) {
-console.log("FILTER AVAILAB",profile)
+
       let proxGroups = groupColsByProximity({ profile, items: collections, radius });
       return proxGroups.filter(col => col.roles.length < 6 && !col.roles.find(role => role.profile.id == profile.id));
     }

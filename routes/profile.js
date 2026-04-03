@@ -532,7 +532,24 @@ try{
   const profile = await prisma.profile.findUnique({
   where: { id: currentProfile.id},
   include: {
-
+    profileToCollections:{
+        include:{
+            collection:{
+                
+                include:{
+                    childCollections:{
+                        select:{
+                            childCollection:true
+                        }
+                    },
+                    storyIdList:
+                    {
+                        select:{story:true}
+                    }
+                }
+            }
+        }
+    },
     location:true,
     rolesToCollection: true,
     rolesToStory:true,
