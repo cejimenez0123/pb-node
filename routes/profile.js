@@ -268,7 +268,7 @@ storyIdList:{
 
     router.put("/:id",authMiddleware,async (req,res)=>{
         const {username,profilePicture,selfStatement,privacy,location} = req.body
-        console.log("FDLOCE",location)
+      
       
         // console.log(location)
       try{
@@ -339,7 +339,7 @@ let profile = null
     }
       res.json({profile})
     }catch(e){
-        console.log("UPDATE PROFILE",e)
+        
         res.status(409).json({error:e})
     }
     })
@@ -551,45 +551,52 @@ try{
     })
     router.get("/protected",authMiddleware,async (req,res)=>{
         try{
-               if(req.user && req?.user?.profiles.length==0){
-
-    return res.status(403).json({ message: "No profile found. Please create one." });
+               if(!req?.user){
+    return res.status(403).json({ message: "No profile found. " });
   }
+  const currentProfile = req.user.profiles[0]
   const profile = await prisma.profile.findUnique({
-  where: { id: req.user.profiles[0].id },
+  where: { id: currentProfile.id},
   include: {
-    stories:true,
-    followers:true,
-    following:true,
-    collections:{
-        include:{
-            storyIdList:true,
-            childCollections:true
-        }
-    },
     location:true,
-    rolesToCollection: { include: { collection: true } },
-    rolesToStory: { include: { story: true } },
-    likedStories: true,
-    historyStories: true,
+    rolesToCollection: true,
+    rolesToStory:true,
+
+ 
   }
 });
 const stories = await prisma.story.findMany({
   where: {
-    AND: [
-
-      { OR: [
-          { authorId: profile.id },
-          {betaReaders:{
-            some:{profileId:profile.id}
-          }}
-       
-        ]
+    OR: [
+      { authorId: profile.id },
+      {
+        betaReaders: {
+          some: { profileId: profile.id }
+        }
       }
     ]
-  }
+  },
+  orderBy: {
+    updated: "desc" // most recently updated first
+  },
+  take: 100 // limit to 100
 });
-// Lazy-load collections only if needed
+// const stories = await prisma.story.findMany({
+//   where: {
+//     AND: [
+
+//       { OR: [
+//           { authorId: profile.id },
+//           {betaReaders:{
+//             some:{profileId:profile.id}
+//           }}
+       
+//         ]
+//       }
+//     ]
+//   }
+// });
+
 const collections = await prisma.collection.findMany({
   where: {
     AND: [
@@ -600,18 +607,24 @@ const collections = await prisma.collection.findMany({
         ]
       }
     ]
-  }
+  },  orderBy: {
+    updated: "desc" // most recently updated first
+  },
+  take: 100 // limit to 100
+
 });
 
 res.status(200).json({
-  profile: { ...profile, collections: [...profile.collections, ...collections],stories:[...stories] }
+  profile: { ...profile, collections: [ ...collections],stories:[...stories] }
 });
 
      
     }catch(error){
-        console.log({error})
+        console.log(
+            "GET WHAT",error)
         res.status(404).json({message:"User not found"})
     }
+     
     })
     router.get("/:id/collection",async (req,res)=>{
 try{

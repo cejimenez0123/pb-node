@@ -490,8 +490,7 @@ router.post('/look', authMiddleware, async (req, res) => {
     const { radius: queryRadius = 50 } = req.query;
     const global = req.query.global === 'true';
     const { location: locale } = req.body;
-console.log("LOKffe",req.user)
-console.log("LOKffe",req.user.id)
+
     const profileId = req.user?.profiles[0].id
     const profile = prisma.profile.findUnique({where:{
       id:profileId,
@@ -668,7 +667,7 @@ router.post('/group/join', authMiddleware, async (req, res) => {
     // ─── FIND ELIGIBLE COLLECTIONS ────────────────────────────────────────────
 
     let availableCollections = [];
-    // console.log("ISGLOV",isGlobal)
+ 
     if (isGlobal) {
    
       const collections = await prisma.collection.findMany({
@@ -837,7 +836,7 @@ async function findOrCreateLocation({latitude, longitude,city=""}) {
       locale = await prisma.location.create({
         data: { latitude, longitude,city },
       });
-      console.log("LOCOC",locale)
+    
     } catch (err) {
       // 3. Handle race condition (unique constraint)
       if (err.code === "P2002") {

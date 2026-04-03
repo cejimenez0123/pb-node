@@ -196,7 +196,7 @@ module.exports = function ({authMiddleware}){
    router.get("/recommendations", authMiddleware, async (req, res) => {
   try {
     let profile = req.user.profiles[0];
-
+   
     // Ensure we have a profile ID
     if (!profile || !profile.id) {
       profile = await prisma.profile.findFirst({
