@@ -146,12 +146,23 @@ const profile = await prisma.profile.findFirst({
     id: req.params.id
   },
   include: {
+    followers:{
+        where:{
+            followerId:{equals:currentUserId}
+        }
+    },
+    following:{
+        where:{
+            followingId:{equals: currentUserId}
+        }
+    },
     location: true,
 stories:{
     orderBy:{
         updated:"desc"
     },
     where:{
+        
         OR:[{isPrivate:{equals:false}},{
             betaReaders:{
                 some:{
@@ -179,7 +190,7 @@ stories:{
         updated:"desc"
       }
     },
-
+    
     _count:{
         select:{
             followers:true,
