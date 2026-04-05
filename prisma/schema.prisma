@@ -102,7 +102,7 @@ model Profile{
     collectionHistory UserCollectionHistory[]
     rolesToCollection RoleToCollection[]
     comments Comment[] 
-    
+    devices DeviceToken[] 
     followers             Follow[]    @relation(name: "Followers")
     following             Follow[]   @relation(name: "Following")
     created DateTime? @default(now())
@@ -222,7 +222,12 @@ model RoleToStory{
   created DateTime? @default(now())
    @@unique([profileId, storyId])
 }
-
+model DeviceToken {
+  id  String  @id @default(auto()) @map("_id") @db.ObjectId
+  profileId String  @db.ObjectId
+  profile Profile @relation(fields: [profileId], references: [id])
+  token     String @unique
+}
 enum Role {
   reader
   editor

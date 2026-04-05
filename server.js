@@ -36,7 +36,7 @@ Sentry.init({
 }catch(err){
   
 }
-// const { initializeApp } = require("firebase/app");
+
 const { getDownloadURL,ref } = require("firebase/storage")
 app.use(bodyParser.urlencoded({ extended: false }))
 
