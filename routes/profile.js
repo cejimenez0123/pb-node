@@ -591,8 +591,8 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
 
 
 
+
 // async function sendNotification(profileId, title, body) {
-//   // Get device tokens for this profile
 //   const tokens = await prisma.deviceToken.findMany({
 //     where: { profileId },
 //     select: { token: true }
@@ -607,163 +607,16 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
 //   const response = await admin.messaging().sendMulticast(message);
 //   console.log('Sent notifications:', response.successCount);
 // }
-// router.get("/:id/alert",authMiddleware,async(req,res)=>{
-// try{
-//     const profId =req.user.profiles[0].id
-
-//    let collections =  await prisma.collection.findMany({where:{
-//         roles:{
-//             some:{
-//                 profileId:{
-//                     equals:profId
-//                 }
-//             }
-//         },
-//         type:{
-//             not:"feedback"
-//         }
-    
-//     },
-//             include:{
-//                 profile:true,
-//                 roles:{
-//                     where:{
-//                         profileId:{
-//                             equals:profId
-//                         }
-//                     }
-//                 },
-//                 childCollections:{
-//                     include:{
-//                         childCollection:{
-//                             include:{
-//                                 profile:true
-//                             }
-//                         }
-//                     },
-//                    where:{
-                    
-//                     childCollection:{
-                      
-//                         OR:[{isPrivate:{
-//                             equals:false
-//                         }},{roles:{
-//                             some:{
-//                                 profileId:{
-//                                     equals:profId
-//                                 }
-//                             }
-//                         }}]
-
-//                     }
-//                    }
-//                 },
-//                 storyIdList:{
-//                     where:{
-//                         story:{
-//                             updated:{
-//                                 gte:new Date(req.user.profiles[0].lastNotified)
-//                             }
-//                         }
-//                     },
-//                     include:{
-//                         story:{
-//                             include:{
-//                                 author:true
-//                             }
-//                         }
-//                     }
-//                 }
-            
-//     }})
-//     const following = await prisma.follow.findMany({where:{
-//         followerId:{
-//             equals:profId
-//         }
-//     },include:{
-//     following:{
-//         include:{
-//             stories:{where:{
-//                AND:[{OR:[{
-//                 betaReaders:{
-//                     some:{
-//                         profileId:{
-//                             equals:profId
-//                         }
-//                     }
-//                 }},{isPrivate:false}]
-//             },{
-//                 created:{gte:new Date("1-1-2025")}
-//             }],
-//             collections:{
-//                 every:{
-//                     collection:{
-//                         OR:[
-//                             {
-//                                 roles:{
-//                                     some:{
-//                                         profileId:{
-//                                             equals:profId
-//                                         }
-//                                     }  
-//                                 }
-//                             },
-//                             {isPrivate:{
-//                                 equals:false
-//                             }}
-//                         ]
-                       
-//                     }
-                
-//             }
-//     }}}}}}})
-//    let followers= await prisma.follow.findMany({where:{
-//         followingId:{
-//             equals:profId
-//         }
-//     },include:{
-//         follower:true
-//     }})
-//     let comments = await prisma.comment.findMany({where:{
-//         AND:[{story:{
-//             authorId:{
-//                 equals:profId
-//             }
-//         }},{updated:{
-//             gte:new Date("1-1-2025")
-//         }}]
-//     },include:{
-//         profile:true,
-//         story:{
-//             include:{
-//                 author:true
-//             }
-//         }
-//     }})
-
-            
-     
- 
-
-   
-//     res.json({collections,comments,following,followers})
-//     }catch(err){
-//         console.log(err)
-//         res.json({error:err})
-//     }
-//     })
-// const admin = require('./firebaseAdmin'); // Firebase Admin SDK
-
-async function sendNotification(profileId, title, body) {
-  const tokens = await prisma.deviceToken.findMany({
-    where: { profileId },
-    select: { token: true }
-  });
+async function sendPush(tokens, payload) {
   if (!tokens.length) return;
 
   const message = {
-    notification: { title, body },
-    tokens: tokens.map(t => t.token)
+    notification: {
+      title: payload.title,
+      body: payload.body
+    },
+    data: payload.data,
+    tokens
   };
 
   const response = await admin.messaging().sendMulticast(message);

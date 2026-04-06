@@ -51,24 +51,15 @@ router.post("/",...middlewareArr,async(req,res)=>{
         profile:true
     }})
     let comment =await prisma.comment.findFirst({where:{id:com.id},include:{profile:true}})
+      await notifyUser({
+    userId: comment.profileId,
+    type: 'COMMENT',
+    title: 'New feedback on your piece',
+    body: 'Someone left a comment',
+    entityId: comment.id,
+    actorId: req.user.id
+  })
     res.json({comment:comment})
-// }else{
-//     let com = await prisma.comment.create({data:{
-//         content:text,
-//         story:{
-//             connect:{
-//                 id:storyId
-//             }
-//         },
-     
-//        profile:{
-//             connect:{
-//                 id: profileId
-//             }
-//         }
-//     }})
-    // let comment =await prisma.comment.findFirst({where:{id:com.id},include:{profile:true}})
-    // res.json({comment:comment})}
 
 }catch(err){
     console.log(err)
