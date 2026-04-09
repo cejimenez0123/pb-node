@@ -2,7 +2,8 @@ const express = require('express');
 const prisma = require("../db");
 const router = express.Router()
 const updateWriterLevelMiddleware = require("../middleware/updateWriterLevelMiddleware")
-const fetchEvents = require("../newsletter/fetchEvents")
+const fetchEvents = require("../newsletter/fetchEvents");
+const getStory = require('../utils/getstory');
 const recommendStories = async (profileId) => {
     // Fetch user history
     const profile = await prisma.profile.findFirst({where:{
@@ -522,6 +523,7 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
     const storyId = req.params.id;
 
     // Fetch the story with related data
+    // let story = await getStory(storyId)
     const story = await prisma.story.findFirstOrThrow({
   where: { id: storyId },
   include: {
@@ -559,12 +561,10 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
         },
       },
     },
-    betaReaders: {
-      select: {
-        profile: {
-          select: { id: true, username: true },
-        },
-      },
+    betaReaders:{
+      include:{
+        profile:true
+      }
     },
   },
 });

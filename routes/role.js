@@ -4,6 +4,7 @@ const generateMongoId = require("./generateMongoId");
 const router = express.Router()
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs");
+const getStory = require('../utils/getstory');
 
 module.exports = function (authMiddleware){
     router.get("/collection/:id",authMiddleware,async(req,res)=>{
@@ -108,16 +109,13 @@ try{
 
 router.put("/story", authMiddleware, async (req, res) => {
   try {
-    const { roles = [] } = req.body;
+    const { roles} = req.body;
 
-    const include = {
-      story: true,
-      profile: true,
-    };
-
+  console.log(roles)
+let storyId 
     const operations = roles.map((role) => {
       const profileId = role.profile.id;
-      const storyId = role.item.id;
+       storyId = role.item.id;
 
       // 🗑 DELETE
       if (role.role === "none") {
@@ -145,14 +143,28 @@ router.put("/story", authMiddleware, async (req, res) => {
           profileId,
           storyId,
         },
-        include,
+       include:{
+        profile:true,
+        story:true
+       },
+      
       });
     });
-
+    const story = await getStory(storyId)
+    
     const newRoles = await Promise.all(operations);
-
+  //   let newRoles = await prisma.roleToStory.findMany({where:{
+  //     storyId:storyId
+  // },include:{
+  
+  //  profile:{select:{
+  //   id:true,
+  //   profilePic:true,
+  //   username:true
+  //  }}
+  // }})
     res.json({
-      roles: newRoles,
+      roles: newRoles,story
     });
   } catch (error) {
     console.log(error);
