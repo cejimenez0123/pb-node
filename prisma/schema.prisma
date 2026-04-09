@@ -246,10 +246,14 @@ model RoleToStory{
    @@unique([profileId, storyId])
 }
 model DeviceToken {
-  id  String  @id @default(auto()) @map("_id") @db.ObjectId
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
   profileId String  @db.ObjectId
-  profile Profile @relation(fields: [profileId], references: [id])
-  token     String @unique
+  profile   Profile @relation(fields: [profileId], references: [id])
+
+  token     String  @unique
+  platform  String  // "ios" | "android"
+
+  createdAt DateTime @default(now())
 }
 enum Role {
   reader

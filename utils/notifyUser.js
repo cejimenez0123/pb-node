@@ -1,3 +1,4 @@
+const prisma = require("../db");
 
 async function notifyUser({
   userId,
@@ -45,7 +46,7 @@ async function notifyUser({
   }
 
   // 4. Get tokens
-  const tokens = await prisma.pushToken.findMany({
+  const tokens = await prisma.deviceToken.findMany({
     where: { userId },
     select: { token: true }
   });

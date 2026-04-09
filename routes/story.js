@@ -517,35 +517,58 @@ router.get("/:id/public", async (req, res) => {
 });
 router.get("/:id/protected", authMiddleware, async (req, res) => {
   try {
+    console.log("FOCUH")
     const userId = req.user.profiles[0].id; // Authenticated user's profile ID
     const storyId = req.params.id;
 
     // Fetch the story with related data
     const story = await prisma.story.findFirstOrThrow({
-      where: { id: storyId },
+  where: { id: storyId },
+  include: {
+    author: {
+      select: { id: true, username: true },
+    },
+    collections: {
       include: {
-        author: true,
-        collections: {
-          include: {
-            collection: {
-              select: {
-                id: true,
-                title: true,
-                type: true,
-                isPrivate: true,
-                roles: { select: { profileId: true } },
-              },
-            },
+        collection: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            isPrivate: true,
           },
         },
-        hashtags: { include: { hashtag: true } },
-        comments: { include: { profile: true, parent: true } },
-        betaReaders: { include: { profile: true } },
       },
-    });
-
-    // --- Authorization Checks ---
-
+    },
+    hashtags: {
+      include: {
+        hashtag: {
+          select: { id: true, name: true },
+        },
+      },
+    },
+    comments: {
+      select: {
+        id: true,
+        content: true,
+        profile: {
+          select: { id: true, username: true },
+        },
+        parent: {
+          select: { id: true },
+        },
+      },
+    },
+    betaReaders: {
+      select: {
+        profile: {
+          select: { id: true, username: true },
+        },
+      },
+    },
+  },
+});
+console.log("TOCUH")
     // 1️⃣ Author can always see
     if (story.authorId === userId) return res.json({ story });
 
@@ -565,7 +588,7 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
     if (hasRoleInCollection) return res.json({ story });
 
     // 5️⃣ User is a beta reader
-    const isBetaReader = story.betaReaders.some((br) => br.profileId === userId);
+    const isBetaReader = story.betaReaders.some((br) => br.profile.id === userId);
     if (isBetaReader) return res.json({ story });
 
     // 6️⃣ Otherwise, deny access
@@ -579,101 +602,6 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
     return res.status(500).json({ error: "Internal server error." });
   }
 });
-// router.get("/:id/protected", authMiddleware, async (req, res) => {
-//   try {
-//     const userId = req.user.profiles[0].id; // from auth middleware
-//     const storyId = req.params.id;
-//     let canUserSee = false;
-//     const story = await prisma.story.findFirstOrThrow({
-//       where: { id: storyId },
-//       include: {
-//         author: true,
-//         collections: {
-//           include: {
-//             collection: {
-//               select: {
-//                 id: true,
-//                 title: true,
-//                 type: true,
-//                 isPrivate: true,
-//                 roles: {
-//                   select: {
-//                     profileId: true,
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         },
-//         hashtags: {
-//           include: { hashtag: true },
-//         },
-//         comments: {
-//           include: { profile: true, parent: true },
-//         },
-//         betaReaders: {
-          
-//           include:{
-//             profile:true
-            
-//           }
-//         },
-//       },
-//     });
-
-//     if (!story) {
-//       return res.status(404).json({ error: "Story not found." });
-//     }
-
-
-//   if ( story.authorId === userId)return res.json({story});
-
-//     // 1️⃣ Story is public
-//     if (!story.isPrivate)return res.json({story});
-
-//     // 2️⃣ User is the author
-  
-
-//     // 3️⃣ Story belongs to a public collection
-//     if (!canUserSee && story.collections?.length > 0) {
-//       const publicCollection = story.collections.find(
-//         (col) => col.collection && !col.collection.isPrivate
-//       );
-//       if (publicCollection) return res.json({story});
-//     }
-
-//     // 4️⃣ User has a role in a private collection
-//     if (story.collections?.length > 0) {
-//       const hasRole = story.collections.find((col) =>
-//         col.collection.roles.find((role) => role.profileId === userId)
-//       );
-//       if (hasRole) return res.json({story});
-//     }
-
-//     // 5️⃣ User is a beta reader
-//     if ((story.betaReaders?.length > 0)) {
-//       const isBetaReader = story.betaReaders.find(
-//         (br) => br.profileId === userId
-//       );
-//       if (isBetaReader) return res.json({story});
-//     }
-
-//     // --- Return or throw ---
-//     // if (!canUserSee) {
-//       return res.status(403).json({ error: "Access denied: private story." });
-//     // }
-
-//     // Authorized — return full story
-//     // return res.json({story});
-//   } catch (err) {
-//     if(err.code === "P2025"){
-//        return res.status(404).json({ error: "Story not found." });
-//     }
-//     console.error("Error fetching protected story:", err);
-//     return res.status(500).json({ error: "Internal server error." });
-
-//   }
-// });
 
     router.put("/:id",...allMiddlewares,async (req,res)=>{
 try{
@@ -758,11 +686,25 @@ await Promise.all(promises)
     try{
        
         const doc = req.body
-   
-        const {title,data,isPrivate,authorId,commentable,type}= doc
+   const {isPrivate,
+    data,
+    title,
+    isSaved,
+    needsFeedback,
+    status,
+    description,
+    commentable,
+    profile,
+    profileId,
+    type}=doc
+        // const {title,data,isPrivate,authorId,commentable,type}= doc
+      
         const story = await prisma.story.create({data:{
             title:title??"",
             data:data,
+            status:needsFeedback?isSaved?"workshop":"draft":"fragment",
+          
+            description:description??"",
             isPrivate:isPrivate,
             author:{
                 connect:{
