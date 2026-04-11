@@ -366,7 +366,7 @@ const getRecommendations = async (profileId) => {
     })
     router.get("/:storyId/comment/public",async (req,res)=>{
         let id = req.params.storyId
-        console.log(req.params)
+
         try{
             
         let comments = await prisma.comment.findMany({where:{
@@ -518,7 +518,7 @@ router.get("/:id/public", async (req, res) => {
 });
 router.get("/:id/protected", authMiddleware, async (req, res) => {
   try {
-    console.log("FOCUH")
+    
     const userId = req.user.profiles[0].id; // Authenticated user's profile ID
     const storyId = req.params.id;
 
@@ -606,6 +606,7 @@ console.log("TOCUH")
     router.put("/:id",...allMiddlewares,async (req,res)=>{
 try{
         const {title,data, description,status, needsFeedback,isPrivate,commentable,type}= req.body
+     
         let story  = await prisma.story.update({where:{
             id:req.params.id
         },data:{
@@ -684,7 +685,7 @@ await Promise.all(promises)
     })
     router.post("/",...allMiddlewares,async (req,res)=>{
     try{
-       
+       const authorId = req.user.profiles[0].id
         const doc = req.body
    const {isPrivate,
     data,
@@ -703,7 +704,11 @@ await Promise.all(promises)
             title:title??"",
             data:data,
             status:needsFeedback?isSaved?"workshop":"draft":"fragment",
-          
+          author:{
+            connect:{
+              id:authorId
+            }
+          },
             description:description??"",
             isPrivate:isPrivate,
             author:{
@@ -745,7 +750,7 @@ await Promise.all(promises)
     },
   },
 });
-      console.log(hashtags)
+  
       let prompts = hashtags.flatMap(hashtag=>hashtag.stories.flatMap(story=>story)).slice(0,6)
     
         res.status(201).json({prompts})
