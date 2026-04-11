@@ -592,21 +592,7 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
 
 
 
-// async function sendNotification(profileId, title, body) {
-//   const tokens = await prisma.deviceToken.findMany({
-//     where: { profileId },
-//     select: { token: true }
-//   });
-//   if (!tokens.length) return;
 
-//   const message = {
-//     notification: { title, body },
-//     tokens: tokens.map(t => t.token)
-//   };
-
-//   const response = await admin.messaging().sendMulticast(message);
-//   console.log('Sent notifications:', response.successCount);
-// }
 async function sendPush(tokens, payload) {
   if (!tokens.length) return;
 
@@ -869,3 +855,18 @@ try{
     return router
     
 }
+// async function sendNotification(profileId, title, body) {
+//   const tokens = await prisma.deviceToken.findMany({
+//     where: { profileId },
+//     select: { token: true }
+//   });
+//   if (!tokens.length) return;
+
+//   const message = {
+//     notification: { title, body },
+//     tokens: tokens.map(t => t.token)
+//   };
+
+//   const response = await admin.messaging().sendMulticast(message);
+//   console.log('Sent notifications:', response.successCount);
+// }

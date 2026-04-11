@@ -76,17 +76,20 @@ model Profile{
     id    String @id @default(auto()) @map("_id") @db.ObjectId
     profilePic String?
     username String? @unique
+ 
     profileToCollections ProfileToCollection[]
     selfStatement String @default("")
     userId String? @db.ObjectId
     user User? @relation(fields: [userId], references: [id])
     isActive Boolean? @default(false) 
     lastActive  DateTime? @default(now())
+    notifications Notification[]
     lastNotified  DateTime? @default(now())
     writerLevel Int? @default(1)
     locationId String? @db.ObjectId
     location Location?  @relation(fields: [locationId], references: [id])
     hashtag HashtagComment[]
+
     isPrivate Boolean?
     messages Message[]
     followedHashtags HashtagFollower[]
@@ -183,7 +186,8 @@ model StoryToCollection{
 }
 model Notification {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String   @db.ObjectId
+  profileId String  @db.ObjectId
+profile Profile @relation(fields: [profileId], references: [id],onDelete:Cascade,onUpdate:Cascade)
 
   type         String   
   message      String?

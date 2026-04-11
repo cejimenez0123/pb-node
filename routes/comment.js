@@ -2,7 +2,8 @@ const express = require('express');
 const prisma = require("../db");
 const { profile } = require('console');
 const updateWriterLevelMiddleware = require('../middleware/updateWriterLevelMiddleware');
-const notifyUser = require('../utils/notifyUser');
+const { default: notifyUser } = require('../utils/notifyUser');
+// const notifyUser = require('../utils/notifyUser');
 
 
 
@@ -13,7 +14,7 @@ module.exports = function (authMiddleware){
 router.post("/",...middlewareArr,async(req,res)=>{
  
  try{   const {profileId,storyId,text,parentId}=req.body
-
+    const currentuser = req.user.profiles[0]
     // if(parentId.length>0 ){
 
    let com =  parentId?await prisma.comment.create({data:{
@@ -53,12 +54,12 @@ router.post("/",...middlewareArr,async(req,res)=>{
     }})
     let comment =await prisma.comment.findFirst({where:{id:com.id},include:{profile:true}})
       await notifyUser({
-    userId: comment.profileId,
+    profileId: profileId,
     type: 'COMMENT',
     title: 'New feedback on your piece',
     body: 'Someone left a comment',
     entityId: comment.id,
-    actorId: req.user.id
+    actorId: currentuser.id
   })
     res.json({comment:comment})
 

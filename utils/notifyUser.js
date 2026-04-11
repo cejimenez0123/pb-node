@@ -1,7 +1,9 @@
-const prisma = require("../db");
-
+// const prisma = require("../db/index")
+// const admin = require("firebase-admin");
+import prisma from "../db/index.js";
+import admin from "firebase-admin";
 async function notifyUser({
-  userId,
+profileId,
   type,
   title,
   body,
@@ -12,7 +14,7 @@ async function notifyUser({
   // 1. Cooldown check (prevent spam)
   const recent = await prisma.notification.findFirst({
     where: {
-      userId,
+      profileId,
       type,
       entityId,
       createdAt: {
@@ -35,7 +37,7 @@ async function notifyUser({
   } else {
     // 3. Create new notification
     notification = await createNotification({
-      userId,
+      profileId,
       type,
       message: body,
       entityId,
@@ -47,7 +49,7 @@ async function notifyUser({
 
   // 4. Get tokens
   const tokens = await prisma.deviceToken.findMany({
-    where: { userId },
+    where: { profileId:profileId },
     select: { token: true }
   });
 
@@ -56,13 +58,13 @@ async function notifyUser({
   // 5. Badge count (iOS)
   const unreadCount = await prisma.notification.count({
     where: {
-      userId,
+    
+      
       readAt: null
     }
   });
-
-  // 6. Send push
-  await sendPush(tokenList, {
+  await sendPush({
+    profileId,
     title,
     body,
     data: {
@@ -73,20 +75,35 @@ async function notifyUser({
     },
     badge: unreadCount
   });
+  // 6. Send push
+  // await sendPush(tokenList, {
+  //   title,
+  //   body,
+  //   data: {
+  //     type,
+  //     notificationId: notification.id,
+  //     route,
+  //     highlightId: notification.id
+  //   },
+  //   badge: unreadCount
+  // });
 
 
 async function createNotification({
-  userId,
+  profileId,
+  //recvieves
   type,
   message,
   entityId,
   actorId,
+  //sends
   route,
   highlightId
 }) {
   return prisma.notification.create({
     data: {
-      userId,
+      // profileId,
+      profileId,
       type,
       message,
       entityId,
@@ -96,4 +113,62 @@ async function createNotification({
     }
   });
 }}
-module.exports = notifyUser
+
+export async function sendPush({
+  profileId,
+  title,
+  body,
+  data = {},
+  badge
+}) {
+  // 1. Get all device tokens for user
+  const tokens = await prisma.deviceToken.findMany({
+    where: { profileId: profileId },
+    select: { token: true }
+  });
+
+  if (!tokens.length) return;
+
+  const tokenList = tokens.map(t => t.token);
+
+  // 2. Build message
+  const message = {
+    notification: {
+      title,
+      body
+    },
+    data: Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, String(v)])
+    ),
+    tokens: tokenList,
+
+    // iOS-specific
+    apns: badge
+      ? {
+          payload: {
+            aps: {
+              badge
+            }
+          }
+        }
+      : undefined
+  };
+
+  // 3. Send push
+  const response = await admin.messaging().sendMulticast(message);
+
+  console.log('Sent:', response.successCount);
+
+  // 4. Clean up invalid tokens
+  response.responses.forEach((res, i) => {
+    if (!res.success) {
+      const failedToken = tokenList[i];
+
+      prisma.deviceToken.delete({
+        where: { token: failedToken }
+      }).catch(() => {});
+    }
+  });
+}
+export default notifyUser
+
