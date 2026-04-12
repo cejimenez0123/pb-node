@@ -1384,67 +1384,174 @@ router.post("/email-webhook", express.json(), (req, res) => {
         res.json({message:"No user found"})
       }
     })
-    router.post("/register",async (req,res)=>{
-    
-        const{token,idToken,email,googleId,password,username,
-        profilePicture,selfStatement,privacy,frequency
-       }=req.body
-     
-       try{
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    router.post("/register", async (req, res) => {
+  const {
+    token,
+    email,
+    password,
+    username,
+    profilePicture,
+    selfStatement,
+    privacy,
+    frequency
+  } = req.body;
 
-      if(!token || (!username || !password)){
-         return res.status(400).json({ message: 'Missing required fields' });
-        }
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user =  await prisma.user.update({where:{
-          id:decoded.applicantId
-      },data:{
-        password:hashedPassword,
-    verified:true,
-    emailFrequency:parseInt(frequency)
-      },include:{
-        profiles:true
-      }})
-       const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-       let profile 
+  // ✅ Validate early
+  if (!token || !username || !password || !email) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
 
-        if(user.profiles.length<1){
-            
-              profile = await prisma.profile.create({
-            data:{
-                username:username?.toLowerCase(),
-                profilePic:profilePicture,
-                selfStatement,
-                isPrivate:privacy,
-                user:{
-                    connect:{
-                        id:user.id
-                    }
-                }
-            }
-         
-        })
-         await createNewProfileCollections(profile)
-      
-        res.json({firstTime:true,profile:profile,token:verifiedToken})
-      }else{
-           
-return res.json({ message: 'User has profile',profile:user.profiles[0],idToken:verifiedToken });
-   
-}
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    console.log("Token verification error:", err);
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
 
-        
-    } catch(error){
-        console.log(error)
-        if(error.message.includes("Unique")){
-          res.status(409).json("USERNAME IS NOT UNIQUE")
-        }else{
+  try {
+    // ✅ Find user instead of upsert
+    const existingUser = await prisma.user.findUnique({
+      where: { id: decoded.applicantId },
+      include: { profiles: true }
+    });
 
-        res.status(409).json({error})
+    if (!existingUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // ✅ Prevent duplicate profile creation
+    if (existingUser.profiles.length > 0) {
+      const verifiedToken = jwt.sign(
+        { userId: existingUser.id },
+        process.env.JWT_SECRET
+      );
+
+      return res.json({
+        message: "User already has profile",
+        profile: existingUser.profiles[0],
+        token: verifiedToken
+      });
+    }
+
+    // ✅ Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // ✅ Update user safely
+    const updatedUser = await prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        password: hashedPassword,
+        verified: true,
+        email,
+        emailFrequency: parseInt(frequency) || 1
+      }
+    });
+
+    // ✅ Create profile
+    const profile = await prisma.profile.create({
+      data: {
+        username: username.toLowerCase(),
+        profilePic: profilePicture,
+        selfStatement,
+        isPrivate: privacy,
+        user: {
+          connect: { id: updatedUser.id }
         }
       }
-    })
+    });
+
+    await createNewProfileCollections(profile);
+
+    // ✅ Consistent token naming
+    const verifiedToken = jwt.sign(
+      { userId: updatedUser.id },
+      process.env.JWT_SECRET
+    );
+
+    return res.json({
+      firstTime: true,
+      profile,
+      token: verifiedToken
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    // ✅ Prisma unique constraint
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        message: "Username is not unique"
+      });
+    }
+
+    return res.status(500).json({
+      message: "Something went wrong",
+      error: error.message
+    });
+  }
+});
+//     router.post("/register",async (req,res)=>{
+    
+//         const{token,idToken,email,googleId,password,username,
+//         profilePicture,selfStatement,privacy,frequency
+//        }=req.body
+     
+//        try{
+//         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+//       if(!token || (!username || !password)){
+//          return res.status(400).json({ message: 'Missing required fields' });
+//         }
+//       const hashedPassword = await bcrypt.hash(password, 10);
+//       const user =  await prisma.user.upsert({where:{
+//           id:decoded.applicantId
+//       },data:{
+//         password:hashedPassword,
+//     verified:true,
+//     emailFrequency:parseInt(frequency)
+//       },include:{
+//         profiles:true
+//       }})
+//        const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+//        let profile 
+
+//         if(user.profiles.length<1){
+            
+//               profile = await prisma.profile.create({
+//             data:{
+//                 username:username?.toLowerCase(),
+//                 profilePic:profilePicture,
+//                 selfStatement,
+//                 isPrivate:privacy,
+//                 user:{
+//                     connect:{
+//                         id:user.id
+//                     }
+//                 }
+//             }
+         
+//         })
+//          await createNewProfileCollections(profile)
+      
+//         res.json({firstTime:true,profile:profile,token:verifiedToken})
+//       }else{
+           
+// return res.json({ message: 'User has profile',profile:user.profiles[0],idToken:verifiedToken });
+   
+// }
+
+        
+//     } catch(error){
+//         console.log(error)
+//         if(error.message.includes("Unique")){
+//           res.status(409).json("USERNAME IS NOT UNIQUE")
+//         }else{
+
+//         res.status(409).json({error})
+//         }
+//       }
+//     })
 
     router.post("/",async (req,res)=>{
         try{
