@@ -19,6 +19,7 @@ model User{
   igHandle String?
   referredBy Referral?   @relation(name:"ReferredByUser",fields: [referredById], references: [id],onDelete: NoAction, onUpdate: NoAction) 
   referredById String? @db.ObjectId
+  referralUses ReferralUse[]
   emailFrequency Int? @default(7)
   referrals Referral[]  @relation(name: "UserReferrals") 
   lastEmailed   DateTime?  @default(now())
@@ -62,16 +63,34 @@ model Location {
 }
 model Referral {
   id         String  @id @default(auto()) @map("_id") @db.ObjectId
-  createdBy  User  @relation(name:"UserReferrals",fields: [createdById], references: [id]) 
-  createdById String @db.ObjectId 
-  users User[] @relation(name:"ReferredByUser")
-  usageCount Int      @default(0)
-  maxUses    Int      @default(5) 
-  createdAt  DateTime @default(now()) 
+
+  createdBy  User  @relation("UserReferrals", fields: [createdById], references: [id])
+  createdById String @db.ObjectId
+
+  users User[] @relation("ReferredByUser")
+
+  usageCount Int @default(0)
+  maxUses    Int @default(5)
+
+  uses ReferralUse[]
+
+  createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
 
+model ReferralUse {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
 
+  referralId  String   @db.ObjectId
+  referral    Referral @relation(fields: [referralId], references: [id])
+
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime @default(now())
+
+  @@unique([referralId, userId])
+}
 model Profile{
     id    String @id @default(auto()) @map("_id") @db.ObjectId
     profilePic String?

@@ -1,8 +1,9 @@
-module.exports = function receiveRefferalTemplate(email,name){
-
+module.exports = function receiveRefferalTemplate(email,name,token){
+console.log("Generating referral email for:", process.env.pbEmail, email, name, token);
+const link = `${process.env.DOMAIN}/use-referral?token=${token}`;
     return {
-            from:  `Plumbum <${process.env.pbEmail}>`,
-            to:email ,// Email to yourself
+            from: `Plumbum <${process.env.pbEmail}>`,
+            to:email ,
             subject: 'You’ve Been Invited to Join Plumbum!',
               html: `
                 
@@ -71,7 +72,7 @@ module.exports = function receiveRefferalTemplate(email,name){
         <p>You've been invited to join Plumbum, a place where creativity and community come together. We believe your voice can make a difference in this artistic space.</p>
         <p>To get started, simply click the link below and sign up:</p>
 
-        <a href="${process.env.DOMAIN}/signup?token=${token}" target="_blank">Join Plumbum</a>
+       <a href="${link}" target="_blank">Join Plumbum</a>
         <p class="footer">If you did not request this invitation, feel free to ignore this email.</p>
      
       </div>
