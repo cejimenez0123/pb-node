@@ -613,7 +613,7 @@ try{
             title,
             data,
             isPrivate,
-            status:needsFeedback?"workshop":isPrivate?"draft":"finished",
+            status:status??(needsFeedback?"workshop":"fragment"),
             commentable,
             description,
             type,
