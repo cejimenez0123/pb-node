@@ -18,9 +18,7 @@ const eventNewsletterTemplate=(events,user,days)=>{
            { date: parseEventDate("Sat. Mar. 21st", today.getFullYear()), description: "Writers Workshop:Sonia Sanchez-Loved and Free" },
     ,{ date: parseEventDate("Sat. Mar. 21st", today.getFullYear()), description: "CaFeTaTo:An Uptown Coffee Rave" },
    
-        // { date: parseEventDate("Sat. Dec 6", today.getFullYear()), description: "CAFETATO: AN UPTOWN COFFEE RAVE" },
-        // { date: parseEventDate("Sat. Jan. 24th", today.getFullYear()), description: "CAFETATO: AN UPTOWN COFFEE RAVE"  },
-
+      
       ];
       
       // 1. Filter out events before today (optional, if you only want upcoming)

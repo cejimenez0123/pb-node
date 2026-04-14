@@ -75,18 +75,6 @@ profileId,
     },
     badge: unreadCount
   });
-  // 6. Send push
-  // await sendPush(tokenList, {
-  //   title,
-  //   body,
-  //   data: {
-  //     type,
-  //     notificationId: notification.id,
-  //     route,
-  //     highlightId: notification.id
-  //   },
-  //   badge: unreadCount
-  // });
 
 
 async function createNotification({

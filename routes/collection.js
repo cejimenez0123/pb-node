@@ -245,9 +245,9 @@ module.exports = function (authMiddleware){
                     }
                 }}]
             }})
-            //.map(col=>col.id)
+            
             for(const cTc of collections){
-                // for (const like of sTc.storyIdList) {
+                
                     
                     if (!scores[cTc.childCollectionId]) { scores[sTc.childCollectionId] = 0;}
                     else{
@@ -355,9 +355,7 @@ module.exports = function (authMiddleware){
                         storyId:{
                             in:childCollectionStorieIds
                         },
-                        // profileId:{
-                        //     not:profileId
-                        // },
+                     
                         collectionId:{
                             not:colId
                         }
