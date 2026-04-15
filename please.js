@@ -1,3 +1,2 @@
-const prisma = require("./db")
 
 

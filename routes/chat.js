@@ -16,7 +16,6 @@ module.exports = function (authMiddleware){
             content,
           },
         });
-      
         res.json({message});
       });
       router.post("/collection/:colId", async (req, res) => {

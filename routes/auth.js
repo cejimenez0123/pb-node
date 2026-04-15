@@ -15,8 +15,8 @@ const { Resend } = require('resend');
 const forgotPasswordTemplate = require('../html/forgotPasswordTemplate');
 const recievedReferralTemplate = require('../html/recievedReferralTemplate');
 const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken");
-const { google } = require('googleapis');
-
+// const feedbackTemplate = require("../feedbackTemplate");
+const crypto = require("crypto");
 function isHex(num) {
 
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
@@ -104,7 +104,7 @@ module.exports = function (authMiddleware){
     async function createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId}){
       const profile = await prisma.profile.create({
         data:{
-            username:username,
+            username:username?.toLowerCase(),
             profilePic:profilePicture,
             selfStatement,
             isPrivate:isPrivate,
@@ -194,10 +194,10 @@ module.exports = function (authMiddleware){
       try{
      
       const {frequency,token}=req.body
-      console.log("token",token)
+     
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const {userId}=decoded
-        console.log("Decode",decoded)
+   
       if(frequency==0){
         const user = await prisma.user.update({where:{
           id:userId},data:{
@@ -218,87 +218,135 @@ module.exports = function (authMiddleware){
       res.json({error})
     }
     })
-    router.post('/generate-referral', authMiddleware,async (req, res) => {
-      const userId  = req.user.id;
-      try {
-      const DAILY_LIMIT=5
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Start of the day
   
-      // Count how many referrals the user has created today
-      const referralsToday = await prisma.referral.count({
-          where: {
-            createdById:{equals:userId},
-              createdAt: {
-                  gte: today, // Get referrals created today
-              },
-          },
-      });
   
   
    
 
-  if (referralsToday >= 5) {
-    const latestReferral = await prisma.referral.findFirst({
+  router.post('/generate-referral', authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const DAILY_LIMIT = 5;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // count referrals created today
+    const referralsToday = await prisma.referral.count({
       where: {
-         createdById:{equals:userId},
-          usageCount: { lt: 5 }, 
-      },
-      orderBy: {
-          createdAt: "desc", // Get the latest one
-      },
-  });
-  const token = jwt.sign({referralId:latestReferral.id}, process.env.JWT_SECRET);
-   
-  res.json({ referralLink: `${process.env.DOMAIN}/register?token=${token}`,message: 'Max Usage Limit of Referral:\nGood job sharing! Add more friends tomorrow. Enjoy your friends today. '  });
-
-      }else{
-    
-        const referral = await prisma.referral.create({
-          data: {
-            createdBy:{
-              connect:{
-                id:userId
-              }
-            }
-          }
-        });
-        const token = jwt.sign({referralId:referral.id}, process.env.JWT_SECRET);
-
-           res.json({ referralLink: `${process.env.DOMAIN}/register?token=${token}`,referral:referral});
-     } } catch (error) {
-        console.error(error);
-      res.status(500).json({ message: 'Error generating referral link' });
+        createdById: userId,
+        createdAt: { gte: today }
       }
     });
-    router.post("/referral",authMiddleware,async (req,res)=>{
-    const {email,name}=req.body
-try{
 
-const user = await prisma.user.create({
-  data:{
-    email:email.toLowerCase(),
-    verified:false,
+    if (referralsToday >= DAILY_LIMIT) {
+      const latestReferral = await prisma.referral.findFirst({
+        where: { createdById: userId },
+        orderBy: { createdAt: "desc" }
+      });
+
+      if (!latestReferral) {
+        return res.status(400).json({ message: "No referral exists yet" });
+      }
+
+      const token = jwt.sign(
+        { referralId: latestReferral.id },
+        process.env.JWT_SECRET
+      );
+
+      return res.json({
+        referralToken: token,
+        referralLink: `${process.env.DOMAIN}/register?token=${token}`,
+        message: "Daily limit reached"
+      });
+    }
+
+    // create referral
+    const referral = await prisma.referral.create({
+      data: {
+        createdBy: {
+          connect: { id: userId }
+        }
+      }
+    });
+
+    const token = jwt.sign(
+      { referralId: referral.id },
+      process.env.JWT_SECRET
+    );
+
+    return res.json({
+      referralToken: token,
+      referralLink: `${process.env.DOMAIN}/register?token=${token}`,
+      referral
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Error generating referral link"
+    });
   }
-})
+});
 
 
-   
 
-const mailOptions = recievedReferralTemplate(email,name)
+router.post("/invite", authMiddleware, async (req, res) => {
+  const { email, name } = req.body;
 
-          
-  
-             resend.emails.send(mailOptions).then(()=>{
-              res.json({user,message:'Referred Succesfully!'});
-            }).catch(err=>{
-              throw err
-            })
+  try {
+    if (!email || !name) {
+      return res.status(400).json({ message: "Missing email or name" });
+    }
 
-        }catch(error){
-  res.json({error})
-}})
+    const normalizedEmail = email.toLowerCase();
 
+    const userId = req.user.id;
+
+    // 1. Create referral (or reuse existing one)
+    const referral = await prisma.referral.create({
+      data: {
+        createdBy: {
+          connect: { id: userId }
+        }
+      }
+    });
+
+    // 2. Generate token
+    const token = jwt.sign(
+      { referralId: referral.id },
+      process.env.JWT_SECRET
+    );
+
+    // 3. Send referral link (NOT user creation)
+    const mailOptions = recievedReferralTemplate(
+      normalizedEmail,
+      name,
+      token
+    );
+
+    const response = await resend.emails.send(mailOptions);
+
+    if (!response || response.error) {
+      return res.status(500).json({
+        message: "Email failed to send",
+        error: response?.error
+      });
+    }
+
+    return res.json({
+      message: "Referral sent successfully",
+      referralId: referral.id
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Something went wrong"
+    });
+  }
+});
     router.post("/apply",async (req,res)=>{
    
         const {
@@ -308,6 +356,7 @@ const mailOptions = recievedReferralTemplate(email,name)
             fullName,
             email,
         } = req.body
+        
         let user 
     try{
       let mail = email??""
@@ -636,225 +685,394 @@ let mailOptions = forgotPasswordTemplate(user)
         }
       })
 
-      router.post('/use-referral', async (req, res) => {
-        const { token, email, password ,username,profilePicture,selfStatement,isPrivate} = req.body;
-      
-        try {
-      
-          const decoded = jwt.verify(token, process.env.JWT_SECRET);
-          const {referralId}=decoded
-          const referral = await prisma.referral.findUnique({ where: { id:referralId} });
-          
-          if (!referral){
-            return res.status(400).json({ message: 'Invalid referral link' });
-          }else{
-          if (referral.usageCount >= referral.maxUses){
-             return res.status(403).json({ message: 'Referral limit reached' });
+router.post('/use-referral', async (req, res) => {
+  const { token, email, password, username, profilePicture, selfStatement, isPrivate } = req.body;
 
-          }else{
-        let newUser = await  prisma.user.findFirst({where:{
-            email:{
-              equals:email
-            }
-          },include:{
-            profiles:true
-          }})
-          const hashedPassword = await bcrypt.hash(password, 10);
-          if(!newUser){
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { referralId } = decoded;
 
-       newUser = await prisma.user.create({
-            data: {
-              email:email.toLowerCase(),
-              password:hashedPassword, // You should hash the password before storing it
-              referredById: referral.createdById
-            },include:{
-              profiles:true
-            }
-          });
-        }
-    
-        if(newUser&&newUser.profiles && newUser.profiles.length==0){
-    const profile =  await createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId:newUser.id})
-          console.log(profile)
-          await prisma.referral.update({
-            where: {id:referralId },
-            data: { usageCount: { increment: 1 } }
-          });
-        
-         const userToken = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET);
-          res.json({ firstTime:true,message: 'User created successfully',token:userToken,profile:profile});
-        }else{
-         
-          res.json({ message:"User already exists. Go to forgot password at login"});
-        }}}
-        } catch (error) {
-          console.log(error);
-          res.status(400).json({ message: 'Error processing referral' });
+    const referral = await prisma.referral.findUnique({
+      where: { id: referralId }
+    });
+
+    if (!referral) {
+      return res.status(400).json({ message: 'Invalid referral link' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 1. Find or create user (idempotent-safe pattern)
+    let newUser = await prisma.user.findFirst({
+      where: { email: email.toLowerCase() },
+      include: { profiles: true }
+    });
+
+    if (!newUser) {
+      newUser = await prisma.user.create({
+        data: {
+          email: email.toLowerCase(),
+          password: hashedPassword,
+          referredById: referral.createdById
+        },
+        include: { profiles: true }
+      });
+    }
+
+    // 2. HARD GUARD: enforce maxUses (NO race-safe counter needed here)
+    const currentUses = await prisma.referralUse.count({
+      where: { referralId }
+    });
+
+    if (currentUses >= referral.maxUses) {
+      return res.status(403).json({ message: 'Referral limit reached' });
+    }
+
+    // 3. INSERT FIRST (this is the Mongo-safe lock)
+    try {
+      await prisma.referralUse.create({
+        data: {
+          referralId,
+          userId: newUser.id
         }
       });
-      router.post("/session", async (req, res) => {
+    } catch (err) {
+      // duplicate prevention (RACE CONDITION SAFETY)
+      if (err.code === "P2002") {
+        return res.status(409).json({
+          message: "This referral was already used by this user"
+        });
+      }
+      throw err;
+    }
+
+    // 4. Only AFTER successful insert → create profile
+    if (newUser.profiles.length === 0) {
+      const profile = await createNewProfileForUser({
+        username,
+        profilePicture,
+        selfStatement,
+        isPrivate,
+        userId: newUser.id
+      });
+
+      const userToken = jwt.sign(
+        { userId: newUser.id },
+        process.env.JWT_SECRET
+      );
+
+      return res.json({
+        firstTime: true,
+        token: userToken,
+        profile
+      });
+    }
+
+    return res.json({
+      message: "User already exists. Please login."
+    });
+
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({ message: 'Error processing referral' });
+  }
+});
+router.post("/session", async (req, res) => {
   const { email, password, uId, identityToken } = req.body;
-console.log(req.body)
+
   try {
     let user = null;
 
-    // --- Apple OAuth login ---
+    // ---------------------------
+    // 🍎 Apple login
+    // ---------------------------
     if (identityToken) {
       const payload = await verifyAppleIdentityToken(identityToken);
+
       user = await prisma.user.findFirst({
         where: { email: payload.email },
         include: {
-          profiles: {
-            include: {
-              collections:true,
-              stories: true,
-              rolesToCollection:{
-                include:{
-                  // profile:true,
-                  collection:true
-                }
-              },
-              profileToCollections: {
-                include: {
-                  collection: {
-                    include: {
-                      storyIdList: {
-                        include: {
-                          story: { include: { author: true } }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+          profiles: { select: { id: true } },
+        },
       });
     }
-    // --- Google OAuth login ---
+
+    // ---------------------------
+    // 🔵 Google login
+    // ---------------------------
     else if (uId) {
+      // Try find by Google ID
       user = await prisma.user.findFirst({
-        where: { uId:uId },
+        where: { uId },
         include: {
-          profiles: {
-            include: {
-              collections:true,
-              stories: true,
-              rolesToCollection:{
-                include:{
-                  // profile:true,
-                  collection:true
-                }
-              },
-              profileToCollections: {
-                include: {
-                  collection: {
-                    include: {
-                      storyIdList: {
-                        include: {
-                          story: { include: { author: true } }
-                        }
-                      }
-                    }
-                  }
-                }
-              }}}}
+          profiles: { select: { id: true } },
+        },
       });
 
-      // If user not found by googleId, link account by email
+      // Fallback: find by email if not found
       if (!user && email) {
-        user = await prisma.user.update({
-          where: { email },
-          data: { googleId: uId },
-          include: {
-            profiles: {
+        try {
+          user = await prisma.user.findFirstOrThrow({
+            where: { email },
             include: {
-              collections:true,
-              stories: true,
-              rolesToCollection:{
-                include:{
-                  // profile:true,
-                  collection:true
-                }
+              profiles: { select: { id: true } },
+            },
+          });
+
+          // Link Google ID if missing
+          if (!user.uId) {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: { uId },
+              include: {
+                profiles: { select: { id: true } },
               },
-              profileToCollections: {
-                include: {
-                  collection: {
-                    include: {
-                      storyIdList: {
-                        include: {
-                          story: { include: { author: true } }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
+            });
           }
-          }
-        });
+        } catch {
+          return res.status(403).json({
+            message: "No profile found. Apply Today.",
+          });
+        }
       }
     }
-    // --- Email/password login ---
+
+    // ---------------------------
+    // 📧 Email/password login
+    // ---------------------------
     else if (email) {
       user = await prisma.user.findFirst({
         where: { email },
         include: {
-         profiles: {
-            include: {
-              collections:true,
-              stories: true,
-              rolesToCollection:{
-                include:{
-                  // profile:true,
-                  collection:true
-                }
-              },
-              profileToCollections: {
-                include: {
-                  collection: {
-                    include: {
-                      storyIdList: {
-                        include: {
-                          story: { include: { author: true } }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+          profiles: { select: { id: true } },
+        },
       });
 
-      // Check password only for email login
-      if (!user || !user.password || !bcrypt.compareSync(password, user.password)) {
-        return res.status(409).json({ message: "Invalid email or password" });
+      // No user
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // No profiles
+      if (!user.profiles?.length) {
+        return res.status(403).json({
+          message: "No profile found. Please create one.",
+        });
+      }
+
+      // Password check
+      if (!user.password || !bcrypt.compareSync(password, user.password)) {
+        return res.status(409).json({
+          message: "Invalid email or password",
+        });
       }
     }
 
-    // If user still not found
-    if (!user) {
+    // ---------------------------
+    // 🚫 Final safety check
+    // ---------------------------
+    if (!user || !user.id) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Update profile activity
+    if (!user.profiles?.length) {
+      return res.status(403).json({
+        message: "No profile found. Please create one.",
+      });
+    }
+
+    // ---------------------------
+    // 🟢 Update activity (SAFE)
+    // ---------------------------
     await prisma.profile.updateMany({
       where: { userId: user.id },
-      data: { lastActive: new Date(), isActive: true }
+      data: {
+        lastActive: new Date(),
+        isActive: true,
+      },
     });
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+    // ---------------------------
+    // 🔄 Reload fresh user
+    // ---------------------------
+    const freshUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: {
+        profiles: { select: { id: true } },
+      },
+    });
 
-    res.json({ token, user });
+    const profileId = freshUser?.profiles?.[0]?.id;
+
+    if (!profileId) {
+      return res.status(403).json({
+        message: "Profile missing.",
+      });
+    }
+
+    // ---------------------------
+    // 📦 Load profile
+    // ---------------------------
+    const profile = await prisma.profile.findUnique({
+      where: { id: profileId },
+      include: {
+        profileToCollections: true,
+      },
+    });
+
+    // ---------------------------
+    // 🔐 Token
+    // ---------------------------
+    const token = jwt.sign(
+      { userId: freshUser.id },
+      process.env.JWT_SECRET
+    );
+
+    return res.json({ token, profile });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("SESSION ERROR:", error);
+    return res.status(500).json({
+      error: "Internal server error",
+    });
   }
 });
+// router.post("/session", async (req, res) => {
+//   const { email, password, uId, identityToken } = req.body;
+
+//   try {
+//     let user = null;
+
+   
+//     if (identityToken) {
+//       const payload = await verifyAppleIdentityToken(identityToken);
+//       user = await prisma.user.findFirst({
+//         where: { email: payload.email },
+//         include: {
+//           profiles: {
+//             select:{
+//               id:true
+//             }
+              
+              
+          
+//           }
+//         }
+//       });
+//     }
+//     // --- Google OAuth login ---
+//     else if (uId) {
+//       user = await prisma.user.findFirst({
+//         where: { uId:uId },
+//         include: {
+//           profiles: {
+//             select:{
+//               id:true
+//             }
+              
+//             }}
+//       });
+
+//     try {   // If user not found by googleId, link account by email
+//       // if (!user && email) {
+ 
+//     if (user && email && !user.googleId) {
+//   user = await prisma.user.update({
+//     where: { id: user.id },
+//     data: { googleId: uId },
+//     include: { profiles: { select: { id: true } } }
+//   });
+// }
+//     user = await prisma.user.findFirstOrThrow({ where: { email } });
+//   } catch {
+//     return res.status(403).json({ message: "No profile found. Apply Today." });
+//   }
+
+    
+//       }
+//       if (!user && email) {
+//         user = await prisma.user.update({
+//           where: { email },
+//           data: { googleId: uId },
+//           include: {
+//             profiles: {
+//               select:{
+//                 id:true
+//               }
+            
+//             }
+//         //  }
+//           }
+//         });
+//       }
+    
+//     else if (email) {
+//       user = await prisma.user.findFirst({
+//         where: { email },
+//         include: {
+//          profiles: {
+//             select: {
+//              id:true
+//               },
+              
+                  
+                
+              
+            
+//           }
+//         }
+//       });
+
+
+//   // ✅ NEW: user exists but no profiles
+//   if (!user.profiles || user.profiles.length === 0) {
+//     return res.status(403).json({ message: "No profile found. Please create one." });
+//   }
+//       // Check password only for email login
+//       if (!user || !user.password || !bcrypt.compareSync(password, user.password)) {
+//         return res.status(409).json({ message: "Invalid email or password" });
+//       }
+//     }
+// // If user still not found
+//  if (!user || !user.id) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+    
+//     // Update profile activity
+//      await prisma.profile.updateMany({
+//       where: { userId: user.id},
+//       data: { lastActive: new Date(), isActive: true }
+//     });
+//    user =  await prisma.user.findFirst({where:{
+//       id:{
+//         equals:user.id
+        
+//       },
+//     },include:{
+//       profiles:{
+//         select:{
+//           id:true
+//         }
+//       }
+//     }})
+//     if (!user.profiles?.length) {
+//   return res.status(403).json({ message: "No profile found. Please create one." });
+// }
+//   let profile = await prisma.profile.findFirst({
+//   where: {
+//     id: { equals: user.profiles[0].id }
+//   }
+// })
+//     console.log("X",user)
+//     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+// console.log("Y",profile)
+//     res.json({ token, profile });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
+
 
     router.post("/newsletter",async (req,res)=>{
       try{
@@ -890,30 +1108,88 @@ console.log(req.body)
             res.status(409).json({error})
           }
     })
-    router.post("/feedback",async (req,res)=>{
-      try{
-      const{
-          preferredName,
-          email,
-          subject,
-          purpose,
-          message
-      }=req.body
-    
-let template = feedbackTemplate({email,name:preferredName,subject,message,purpose})
+   
 
-resend.emails.send(template).then(()=>{
-  res.status(201).json({message:'Success'});
-}).catch(err=>{
-  throw err
-})
-          }catch(error){
-            console.log(error)
+router.post("/api/email-webhook", async (req, res) => {
+  const email = req.body;
 
-            res.status(409).json({error})
-          }
-    })
-    
+  console.log("Incoming Email:", email);
+
+  const {
+    from,
+    to,
+    subject,
+    text,
+    html
+  } = email;
+
+  // Save to DB
+  // Trigger notification
+  // Convert into feedback entry
+  // etc.
+
+  res.status(200).send("OK");
+});
+
+
+
+    const RESEND_WEBHOOK_SECRET = process.env.RESEND_SECRET;
+
+function verifySignature(req) {
+  const signature = req.headers["resend-signature"];
+  const body = JSON.stringify(req.body);
+  const expected = crypto
+    .createHmac("sha256", RESEND_WEBHOOK_SECRET)
+    .update(body)
+    .digest("hex");
+
+  return signature === expected;
+}
+
+// ---- Feedback form submission (send email) ----
+router.post("/feedback", async (req, res) => {
+  try {
+    const { preferredName, email, subject, purpose, message } = req.body;
+
+    const template = feedbackTemplate({
+      name: preferredName,
+      email,
+      subject,
+      purpose,
+      message,
+    });
+
+    await resend.emails.send(template);
+    console.log("Sent Feedback")
+    return res.status(201).json({ message: "Success" });
+  } catch (err) {
+    console.error("Feedback error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Webhook for receiving email replies ----
+router.post("/email-webhook", express.json(), (req, res) => {
+  if (!verifySignature(req)) {
+    return res.status(401).json({ error: "Invalid signature" });
+  }
+
+  const email = req.body;
+
+  console.log("Received Email:", {
+    from: email.from,
+    to: email.to,
+    subject: email.subject,
+    text: email.text,
+    html: email.html,
+    attachments: email.attachments,
+  });
+
+
+  return res.status(200).json({ received: true });
+});
+
+
 
 
     router.post("/apply/ios",async (req,res)=>{
@@ -974,65 +1250,305 @@ resend.emails.send(template).then(()=>{
         res.json({message:"No user found"})
       }
     })
-    router.post("/register",async (req,res)=>{
-    
-        const{token,idToken,email,googleId,password,username,
-        profilePicture,selfStatement,privacy,frequency
-       }=req.body
-     
-       try{
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-     
-      if(!token || (!username || !password)){
-         return res.status(400).json({ message: 'Missing required fields' });
-        }
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user =  await prisma.user.update({where:{
-          id:decoded.applicantId
-      },data:{
-        password:hashedPassword,
-    verified:true,
-    emailFrequency:parseInt(frequency)
-      },include:{
-        profiles:true
-      }})
-       const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-       let profile 
 
-        if(user.profiles.length<1){
-            
-              profile = await prisma.profile.create({
-            data:{
-                username:username,
-                profilePic:profilePicture,
-                selfStatement,
-                isPrivate:privacy,
-                user:{
-                    connect:{
-                        id:user.id
-                    }
-                }
-            }
-         
-        })
-         await createNewProfileCollections(profile)
-        res.json({firstTime:true,profile:profile,token:verifiedToken})
-      }else{
-return res.json({ message: 'User has profile',profile:user.profiles[0],idToken:verifiedToken });
-   
-}
+// router.post("/register", async (req, res) => {
+//  const {
+//   authToken,
+//   referralToken,
+//   email,
+//   password,
+//   username,
+//   profilePicture,
+//   selfStatement,
+//   privacy,
+//   frequency
+// } = req.body;
+//   console.log("Register request body:", req.body);
+//   // ✅ Basic validation
+//   console.log(req.body)
+// if (!referralToken || !username || !password) {
+//   return res.status(400).json({ message: "Missing required fields" });
+// }
+//   let decodedAuth;
+//   try {
+//     decodedAuth = jwt.verify(referralToken, process.env.JWT_SECRET);
+//   } catch (err) {
+//     return res.status(401).json({ message: "Invalid or expired auth token" });
+//   }
 
+
+
+// // if (referralToken) {
+// //   try {
+// //    
+// //     referralId = decodedReferral.referralId;
+// //   } catch (err) {
+// //     console.log("Invalid referral token (ignored)");
+// //   }
+// // }
+
+//   try {
+//      const decodedReferral = jwt.verify(
+//       referralToken,
+//       process.env.JWT_SECRET
+//     );
+//     // ✅ Find user
+//     console.log("DECODE AUTH",decodedReferral)
+//     const applicantId = decodedReferral["applicantId"]
+//     // console.log("Decoded auth token:", referralId)
+//     const existingUser = await prisma.user.findUnique({
+//       where: { id: applicantId },
+//       include: { profiles: true }
+//     });
+//     console.log("EXIST",existingUser)
+//     if (!existingUser) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+
+//     // ✅ Idempotent: already has profile
+//     if (existingUser.profiles.length > 0) {
+//       const verifiedToken = jwt.sign(
+//         { userId: existingUser.id },
+//         process.env.JWT_SECRET
+//       );
+
+//       return res.json({
+//         message: "User already has profile",
+//         profile: existingUser.profiles[0],
+//         token: verifiedToken
+//       });
+//     }
+
+//     // ✅ Handle referral safely
+//     if (applicantId) {
+//       if(existingUser.email == email){
+//         const referral = await prisma.referral.update({where:{
+//           users:{
+//             some:{
+//               email:{
+//                 equals:existingUser.email
+//               }
+//             }
+//           },
         
-    } catch(error){
-        console.log(error)
-        if(error.message.includes("Unique")){
-          res.status(409).json("USERNAME IS NOT UNIQUE")
-        }else{
+       
+//         },data:{
+//           usageCount:{
+//             increment:1
+//           }
+//         }})
+      
+//     try{
+//       // const referral = await prisma.referral.findUnique({
+//       //   where: { id: applicantId }
+//       // });
 
-        res.status(409).json({error})
+//       if (!referral) {
+//         console.log("Invalid referral ID");
+//       } else if (referral.createdById === existingUser.id) {
+//         console.log("Self-referral blocked");
+//       } else if (referral.usageCount >= referral.maxUses) {
+//         console.log("Referral maxed out");
+//       } else {
+// try{
+
+//           // ✅ Link user → referral
+//           await prisma.user.update({
+//             where: { id: existingUser.id },
+//             data: {
+//               referredById: referralId
+//             }
+//           });
+
+//         } catch (err) {
+//           if (err.code === "P2002") {
+//             console.log("Referral already used (safe)");
+//           } else {
+//             throw err;
+//           }
+//         }
+//       }
+    
+
+//     // ✅ Hash password
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     // ✅ Update user
+//     const updatedUser = await prisma.user.update({
+//       where: { id: existingUser.id },
+//       data: {
+//         password: hashedPassword,
+//         verified: true,
+//         email,
+//         emailFrequency: parseInt(frequency) || 1
+//       }
+//     });
+
+//     // ✅ Create profile
+//     const profile = await prisma.profile.create({
+//       data: {
+//         username: username.toLowerCase(),
+//         profilePic: profilePicture,
+//         selfStatement,
+//         isPrivate: privacy,
+//         user: {
+//           connect: { id: updatedUser.id }
+//         }
+//       }}
+//     });
+
+//     await createNewProfileCollections(profile);
+
+//     // ✅ Return auth token
+//     const verifiedToken = jwt.sign(
+//       { userId: updatedUser.id },
+//       process.env.JWT_SECRET
+//     );
+
+//     return res.json({
+//       firstTime: true,
+//       profile,
+//       token: verifiedToken
+//     });
+
+//   } catch (error) {
+//     console.error(error);
+
+//     if (error.code === "P2002") {
+//       return res.status(409).json({
+//         message: "Username is not unique"
+//       });
+//     }
+
+//     return res.status(500).json({
+//       message: "Something went wrong",
+//       error: error.message
+//     });
+//   }
+// });
+router.post("/register", async (req, res) => {
+  const {
+    referralToken, // this is your ONLY token
+    email,
+    password,
+    username,
+    profilePicture,
+    selfStatement,
+    privacy,
+    frequency
+  } = req.body;
+
+  if (!referralToken || !username || !password) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(referralToken, process.env.JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
+
+  const { applicantId, referralId } = decoded;
+
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: { id: applicantId },
+      include: { profiles: true }
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // ✅ Already registered
+    if (existingUser.profiles.length > 0) {
+      const verifiedToken = jwt.sign(
+        { userId: existingUser.id },
+        process.env.JWT_SECRET
+      );
+
+      return res.json({
+        message: "User already has profile",
+        profile: existingUser.profiles[0],
+        token: verifiedToken
+      });
+    }
+
+    // ✅ Handle referral (if present in token)
+    if (referralId) {
+      try {
+        const referral = await prisma.referral.findUnique({
+          where: { id: referralId }
+        });
+
+        if (!referral) {
+          console.log("Invalid referral");
+        } else if (referral.createdById === existingUser.id) {
+          console.log("Self-referral blocked");
+        } else if (referral.usageCount >= referral.maxUses) {
+          console.log("Referral maxed out");
+        } else {
+          await prisma.referral.update({
+            where: { id: referralId },
+            data: {
+              usageCount: { increment: 1 }
+            }
+          });
+
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: {
+              referredById: referralId
+            }
+          });
+        }
+      } catch (err) {
+        console.log("Referral handling failed (ignored)");
+      }
+    }
+
+    // ✅ Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        password: hashedPassword,
+        verified: true,
+        email,
+        emailFrequency: parseInt(frequency) || 1
+      }
+    });
+
+    const profile = await prisma.profile.create({
+      data: {
+        username: username.toLowerCase(),
+        profilePic: profilePicture,
+        selfStatement,
+        isPrivate: privacy,
+        user: {
+          connect: { id: updatedUser.id }
         }
       }
-    })
+    });
+
+    const verifiedToken = jwt.sign(
+      { userId: updatedUser.id },
+      process.env.JWT_SECRET
+    );
+
+    return res.json({
+      message: "User registered successfully",
+      profile,
+      token: verifiedToken
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+});
 
     router.post("/",async (req,res)=>{
         try{
@@ -1049,20 +1565,7 @@ return res.json({ message: 'User has profile',profile:user.profiles[0],idToken:v
           profiles:true
         }})
         
-      //  let prof = await prisma.profile.create({
-      //       data:{
-               
-      //           profilePic:profile.profilePicture,
-      //           username:profile.username,
-                
-      //           selfStatement:profile.selfStatement,
-      //           user:{
-      //               connect:{
-      //               id:user.id
-      //           }},
-      //           isPrivate:profile.privacy  
-      //       }
-      //   })
+    
         let collection = await prisma.collection.create({data:{
             title:"Saved",
             profile:{

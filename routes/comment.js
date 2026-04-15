@@ -2,6 +2,8 @@ const express = require('express');
 const prisma = require("../db");
 const { profile } = require('console');
 const updateWriterLevelMiddleware = require('../middleware/updateWriterLevelMiddleware');
+const { default: notifyUser } = require('../utils/notifyUser');
+// const notifyUser = require('../utils/notifyUser');
 
 
 
@@ -12,10 +14,10 @@ module.exports = function (authMiddleware){
 router.post("/",...middlewareArr,async(req,res)=>{
  
  try{   const {profileId,storyId,text,parentId}=req.body
-   if(profileId.length>0){
-    if(parentId.length>0 ){
+    const currentuser = req.user.profiles[0]
+    // if(parentId.length>0 ){
 
-    let com = await prisma.comment.create({data:{
+   let com =  parentId?await prisma.comment.create({data:{
         content:text,
         story:{
             connect:{
@@ -34,11 +36,7 @@ router.post("/",...middlewareArr,async(req,res)=>{
         }
     },include:{
         profile:true
-    }})
-    let comment =await prisma.comment.findFirst({where:{id:com.id},include:{profile:true}})
-    res.json({comment:comment})
-}else{
-    let com = await prisma.comment.create({data:{
+    }}):await prisma.comment.create({data:{
         content:text,
         story:{
             connect:{
@@ -46,17 +44,25 @@ router.post("/",...middlewareArr,async(req,res)=>{
             }
         },
      
-       profile:{
+        profile:{
             connect:{
                 id: profileId
             }
         }
+    },include:{
+        profile:true
     }})
     let comment =await prisma.comment.findFirst({where:{id:com.id},include:{profile:true}})
-    res.json({comment:comment})}
-}else{
-    throw new Error("no profile")
-}
+      await notifyUser({
+    profileId: profileId,
+    type: 'COMMENT',
+    title: 'New feedback on your piece',
+    body: 'Someone left a comment',
+    entityId: comment.id,
+    actorId: currentuser.id
+  })
+    res.json({comment:comment})
+
 }catch(err){
     console.log(err)
     res.status(409).json({error:err})

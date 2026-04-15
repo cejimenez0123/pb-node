@@ -129,7 +129,7 @@ where:{
             }
         }
     }})
-    console.log(hashtag)
+  
     res.json({hashtag})
 }catch(error){
     console.log(error)
@@ -247,7 +247,8 @@ where:{
         }
     })
     router.post("/comment/:id",authMiddleware,async(req,res)=>{
-        const {name,profileId}=req.body
+        const {name}=req.body
+        const profileId = req.user.profiles[0].id
         try{
         let hashtag = await prisma.hashtag.findFirst({where:{name:{equals:name}}})
         if(hashtag){
@@ -354,6 +355,30 @@ where:{
     }
       
     })
+        router.delete("/collection/:id/hash/:hashId",authMiddleware,async(req,res)=>{
+        try{
+        const {id,hashId}=req.params
+   
+
+        await prisma.hashtagCollection.delete({where:{
+            id:hashId
+        }})
+            // await prisma.hashtagCollection.delete({where:{
+            //     AND:[{
+            //         hashtagId:{
+            //             equals:hashId
+            //         }
+            //     },{collectionId:{
+            //         equals:id
+            //     }}]
+
+            // }})
+        res.json({message:"Deleted Successfully"})
+    }catch(err){
+        console.log({err})
+        res.status(409).json({error:err})
+    }
+})
     router.delete("/story/:id",authMiddleware,async(req,res)=>{
         try{
             await prisma.hashtagStory.delete({where:{

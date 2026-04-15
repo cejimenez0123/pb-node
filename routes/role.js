@@ -4,6 +4,7 @@ const generateMongoId = require("./generateMongoId");
 const router = express.Router()
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs");
+const getStory = require('../utils/getstory');
 
 module.exports = function (authMiddleware){
     router.get("/collection/:id",authMiddleware,async(req,res)=>{
@@ -105,62 +106,73 @@ try{
                 res.json({error})
             }
     })
-    router.put("/story",authMiddleware,async(req,res)=>{
-        try{
-            const {roles,profileId,storyId}=req.body
-          
-            let updated= roles.map(role=>{
 
-                if(role.role=="role"){
-                    if(role.id){
-                    return prisma.roleToStory.delete({where:{id:role.id}})
-                    }
-                }else{
-                    if(roles.role && roles.id.length>10){
-                return prisma.roleToStory.upsert({
-                    where:{
-                        id:role.id
-                    },
-                    update:{
-                        role:role.role,
-                    },
-                    create:{
-                        role:role.role,
-                        profileId:role.profile.id,
-                        storyId:role.item.id
-                    }
-                   , include:{
-                        story:true,
-                        profile:true
-                    }})
-                }else{
-                    return prisma.roleToStory.create({data:{
-                        role:role.role,
-                        profile:{
-                            connect:{
-                                id:role.profile.id
-                            }
-                        },
-                        story:{
-                            connect:{
-                                id:role.item.id
-                            }
-                        }
-                    },include:{
-                        story:true,
-                        profile:true
-                    }})
-                }}
-                })
-        let newRoles = await Promise.all(updated)
-       
-        res.json({roles:newRoles.filter(role=>!!role)})
+router.put("/story", authMiddleware, async (req, res) => {
+  try {
+    const { roles} = req.body;
 
-            }catch(error){
-                console.log(error)
-                res.json({error})
-            }
-    })
+  console.log(roles)
+let storyId 
+    const operations = roles.map((role) => {
+      const profileId = role.profile.id;
+       storyId = role.item.id;
+
+      // 🗑 DELETE
+      if (role.role === "none") {
+        return prisma.roleToStory.deleteMany({
+          where: {
+            profileId,
+            storyId,
+          },
+        });
+      }
+
+      // 🔄 UPSERT by composite key (THE FIX)
+      return prisma.roleToStory.upsert({
+        where: {
+          profileId_storyId: {
+            profileId,
+            storyId,
+          },
+        },
+        update: {
+          role: role.role,
+        },
+        create: {
+          role: role.role,
+          profileId,
+          storyId,
+        },
+       include:{
+        profile:true,
+        story:true
+       },
+      
+      });
+    });
+    const story = await getStory(storyId)
+    
+    const newRoles = await Promise.all(operations);
+  //   let newRoles = await prisma.roleToStory.findMany({where:{
+  //     storyId:storyId
+  // },include:{
+  
+  //  profile:{select:{
+  //   id:true,
+  //   profilePic:true,
+  //   username:true
+  //  }}
+  // }})
+    res.json({
+      roles: newRoles,story
+    });
+  } catch (error) {
+    console.log(error);
+    res.json({ error });
+  }
+});
+
+
     router.post("/story",authMiddleware,async(req,res)=>{
         let {type,profileId,storyId}=req.body
 try{

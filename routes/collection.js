@@ -173,12 +173,9 @@ module.exports = function (authMiddleware){
                         if (!scores[story.id]){
                              scores[story.id] = 0;
                         }else{
-                // let found = collection.storyIdList.find(sto=>sto.storyId==story.id)
-                // if(found){
+             
                     scores[story.id] += 1
-                // }else{
-                   
-                // }
+             
             }
                     }}}}
           
@@ -245,9 +242,9 @@ module.exports = function (authMiddleware){
                     }
                 }}]
             }})
-            //.map(col=>col.id)
+            
             for(const cTc of collections){
-                // for (const like of sTc.storyIdList) {
+                
                     
                     if (!scores[cTc.childCollectionId]) { scores[sTc.childCollectionId] = 0;}
                     else{
@@ -355,9 +352,7 @@ module.exports = function (authMiddleware){
                         storyId:{
                             in:childCollectionStorieIds
                         },
-                        // profileId:{
-                        //     not:profileId
-                        // },
+                     
                         collectionId:{
                             not:colId
                         }
@@ -738,140 +733,247 @@ const recommendations = await getRecommendedCollections(req.params.id)
 
 
     })
-    router.get("/profile/:id/public",async(req,res)=>{
-        try{
-            let collections = await prisma.collection.findMany({where:{
-                AND:[{profile:{
-                    id:{
-                        equals:req.params.id
-                    }
-                }},{isPrivate:{
-                    equals:false
-                }
-                    
-                }]
-            },include:{
-    
-                storyIdList:{
-                    include:{story:{include:{author:true}}}  
-                  },
-               childCollections:true,
-               roles:{
-                include:{
-                    profile:true,
-                }
-            },
-            profile:true
+router.get("/profile/:id/public", async (req, res) => {
+  try {
+    const skip = parseInt(req.query.skip) || 0;
+    const take = parseInt(req.query.take) || 20;
+
+    const profileId = req.params.id;
+
+    const collections = await prisma.collection.findMany({
+      where: {
+        AND: {
+          profile: { id: profileId },
+          isPrivate: false,
+        },
+      },
+      include: {
+        storyIdList: {
+          include: {
+            story: { include: { author: true } },
+          },
+        },
+      },
+      orderBy: {
+        updated: "desc",
+      },
+      skip,
+      take,
+    });
+
+    const totalCount = await prisma.collection.count({
+      where: {
+        profile: { id: profileId },
+        isPrivate: false,
+      },
+    });
+
+    res.status(200).json({
+      collections,
+      skip,
+      take,
+      totalCount,
+      hasMore: skip + take < totalCount,
+    });
+  } catch (err) {
+    res.status(400).send({ error: err });
+  }
+});
+    // router.get("/profile/:id/private",authMiddleware,async (req,res)=>{
+    //     try{
+    //         let collections = await prisma.collection.findMany({where:{
+    //             profile:{
+    //                 id:{
+    //                     equals:req.params.id
+    //                 }
+    //             }
+    //         },include:{
+                
+    //             storyIdList:{
+    //                 include:{story:{include:{author:true}}}  
+    //               },
+    //            childCollections:true,
+    //            roles:{
+    //             include:{
+    //                 profile:true,
+    //             }
+    //         },
+    //         profile:true
             
                 
-            }})
-            res.status(200).json({collections})
-        }catch(err){
-            res.status(400).send({error:err})
-        }
-    })
-    router.get("/profile/:id/private",authMiddleware,async (req,res)=>{
-        try{
-            let collections = await prisma.collection.findMany({where:{
-                profile:{
-                    id:{
-                        equals:req.params.id
-                    }
-                }
-            },include:{
-                
-                storyIdList:{
-                    include:{story:{include:{author:true}}}  
-                  },
-               childCollections:true,
-               roles:{
-                include:{
-                    profile:true,
-                }
-            },
-            profile:true
-            
-                
-            }})
+    //         }})
            
-            res.status(200).json({collections})
-        }catch(err){
-            res.status(400).send({error:err})
-        }
-    })
-    router.get("/profile/:id/public",async (req,res)=>{
-        try{
-            let collections = await prisma.collection.findMany({where:{
-                AND:{
-                    profile:{
-                        id:{
-                            equals:req.params.id
-                        }
-                    },
-                    isPrivate:false
-                }
-            },include:{
-                storyIdList:{
-                    include:{
-                        story:{
-                            include:{
-                                author:true
-                            }
-                        }
-                    }
-                }
-            }})
-            res.status(200).json({collections})
-        }catch(err){
-            res.status(400).send({error:err})
-        }
-    })
-    router.get("/profile/:id/protected",authMiddleware,async (req,res)=>{
-        try{
-            let colList = await prisma.collection.findMany({where:{
-                AND:{
-                    profile:{
-                        id:{
-                            equals:req.params.id
-                        }
-                    }
-                }
-            },include:{
-                storyIdList:{
-                    include:{story:{include:{author:true}}}  
-                  },
-                profile:true,
-                childCollections:true,
-                location:true
-            }})
-            let roleList = await prisma.roleToCollection.findMany({
-                where:{
-                    profileId:{
-                        equals:req.params.id
-                    }
-                },include:{
-                    collection:{
-                        
-                        include:{
-            
-                            storyIdList:{
-                                include:{story:{include:{author:true}}}  
-                              },
-                            profile:true,
-                            childCollections:true,
-                            location:true
-                        }
-                    }
-                }
-            })
-            const list = roleList.map(role=>role.collection)
-            const collections = [...list,...colList]
-            res.status(200).json({collections})
-        }catch(err){
-            res.status(400).send({error:err})
-        }
-    })
-    
+    //         res.status(200).json({collections})
+    //     }catch(err){
+    //         res.status(400).send({error:err})
+    //     }
+    // })
+    router.get("/profile/:id/protected", authMiddleware, async (req, res) => {
+  try {
+    const skip = parseInt(req.query.skip) || 0;
+    const take = parseInt(req.query.take) || 20;
+
+    const profileId = req.params.id;
+
+    const [colList, roleList] = await Promise.all([
+      prisma.collection.findMany({
+        where: {
+          profile: { id: profileId },
+        },
+        include: {
+          storyIdList: {
+            include: { story: { include: { author: true } } },
+          },
+          profile: true,
+          childCollections: true,
+          location: true,
+        },
+      }),
+
+      prisma.roleToCollection.findMany({
+        where: { profileId },
+        include: {
+          collection: {
+            include: {
+              storyIdList: {
+                include: { story: { include: { author: true } } },
+              },
+              profile: true,
+              childCollections: true,
+              location: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const all = [
+      ...colList,
+      ...roleList.map(r => r.collection),
+    ];
+
+    const uniqueMap = new Map();
+    for (const c of all) {
+      uniqueMap.set(c.id, c);
+    }
+
+    const unique = Array.from(uniqueMap.values());
+    const totalCount = unique.length;
+
+    const paginated = unique
+      .sort((a, b) => new Date(b.updated) - new Date(a.updated))
+      .slice(skip, skip + take);
+
+    res.status(200).json({
+      collections: paginated,
+      skip,
+      take,
+      totalCount,
+      hasMore: skip + take < totalCount,
+    });
+  } catch (err) {
+    res.status(400).send({ error: err });
+  }
+});
+router.get("/profile/:id/public", async (req, res) => {
+  try {
+    const skip = parseInt(req.query.skip) || 0;
+    const take = parseInt(req.query.take) || 20;
+    const type = req.query.type; // 👈 ADD THIS
+
+    const profileId = req.params.id;
+
+    const baseWhere = {
+      profile: { id: profileId },
+      isPrivate: false,
+    };
+
+    // 🔥 dynamic filtering
+    let where = { ...baseWhere };
+
+    if (type === "library") {
+      // SPECIAL RULE: library = collections with children > 0
+      where.childCollections = {
+        some: {}, // has at least one childCollection
+      };
+    } else if (type) {
+      // normal type filter
+      where.type = type;
+    }
+
+    const [collections, totalCount] = await Promise.all([
+      prisma.collection.findMany({
+        where,
+        include: {
+          storyIdList: {
+            include: {
+              story: { include: { author: true } },
+            },
+          },
+          childCollections: true, // optional but useful for UI
+        },
+        orderBy: { updated: "desc" },
+        skip,
+        take,
+      }),
+
+      prisma.collection.count({
+        where,
+      }),
+    ]);
+
+    res.status(200).json({
+      collections,
+      totalCount,
+      skip,
+      take,
+      hasMore: skip + take < totalCount,
+    });
+  } catch (err) {
+    res.status(400).send({ error: err });
+  }
+});
+//     router.get("/profile/:id/public", async (req, res) => {
+//   try {
+//     const skip = parseInt(req.query.skip) || 0;
+//     const take = parseInt(req.query.take) || 20;
+
+//     const profileId = req.params.id;
+
+//     const where = {
+//       profile: { id: profileId },
+//       isPrivate: false,
+//     };
+
+//     const [collections, totalCount] = await Promise.all([
+//       prisma.collection.findMany({
+//         where,
+//         include: {
+//           storyIdList: {
+//             include: {
+//               story: { include: { author: true } },
+//             },
+//           },
+//         },
+//         orderBy: { updated: "desc" },
+//         skip,
+//         take,
+//       }),
+
+//       prisma.collection.count({ where }),
+//     ]);
+
+//     res.status(200).json({
+//       collections,
+//       totalCount,
+//       skip,
+//       take,
+//       hasMore: skip + take < totalCount,
+//     });
+//   } catch (err) {
+//     res.status(400).send({ error: err });
+//   }
+// });
     router.get("/public/library",async (req,res)=>{
         try{
             const libraries = await prisma.collection.findMany({
@@ -1023,52 +1125,7 @@ const otherCols = libraries.filter(book=>book.priority<90)
 
         //GET COLLECTION
         try{
-        const collection = await prisma.collection.findFirst({where:{
-            AND:[{id:{equals:req.params.id}},{isPrivate:false}]
-            
-        },include:{
-            storyIdList:{
-                include:{story:{include:{author:true}}}  
-              },
-            childCollections:{
-                where:{
-                    childCollection:{
-                        
-                        isPrivate:{
-                            equals:false
-                        }
-                    }
-                },
-                include:{
-                    childCollection:{
-                        include:{
-                            storyIdList:{
-                                
-                                    
-                            
-                                include:{
-                                
-                                    story:{
-                                      
-                                        include:{
-                                            author:true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            roles:{
-                include:{
-                    collection:true,
-                    profile:true,
-                }
-            },
-            profile:true
-            
-        }})
+       let collection = await getCollectionById(req.params.id)
        
         res.status(200).json({collection:collection})
     }catch(error){
@@ -1077,73 +1134,80 @@ const otherCols = libraries.filter(book=>book.priority<90)
     }
     })
  
-    router.get('/col/:id/protected',authMiddleware, async (req, res) => {
+
+
+router.get('/col/:id/protected', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const currentProfile = req.user.profiles[0]
-    const collection = await getCollectionById(id); 
+
+    if (!req.user || !req.user.profiles?.length) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const currentProfile = req.user.profiles[0];
+    const collection = await getCollectionById(id);
 
     if (!collection) {
       return res.status(404).json({ error: 'Collection not found' });
     }
 
-    const sightArr = ['reader',  'commneter', 'editor', 'writer'];
-  
-    // Owner can always see
-    if (currentProfile && collection.profileId === currentProfile.id) {
-         return res.json({collection});
-    
-    }
-    if (!collection.isPrivate) {
-      return res.json({collection});
-    }
-  
-    if (!currentProfile && collection.isPrivate) {
-      return res.status(403).json({ error: 'Access denied: private collection' });
+    const sightArr = ['reader', 'commenter', 'editor', 'writer'];
+
+    // ---------- OWNER ----------
+    if (collection.profileId === currentProfile.id) {
+      return res.json({ collection });
     }
 
-    if (currentProfile && collection.roles) {
-      const found = collection.roles.find(r => r?.profileId === currentProfile.id);
+    // ---------- ROLE ----------
+    if (collection.roles?.length) {
+      const found = collection.roles.find(
+        (r) => r?.profileId === currentProfile.id
+      );
+
       if (found && sightArr.includes(found.role)) {
-        return res.json({collection});
+        return res.json({ collection });
       }
     }
 
-    // Check parent collections
-    if (collection.parentCollections?.length > 0) {
+    // ---------- PUBLIC ----------
+    if (!collection.isPrivate) {
+      return res.json({ collection });
+    }
+
+    // ---------- PARENT ----------
+    if (collection.parentCollections?.length) {
       for (const cTc of collection.parentCollections) {
         const parent = cTc.parentCollection;
         if (!parent) continue;
 
-        // Public parent allows view
+        if (parent.profileId === currentProfile.id) {
+          return res.json({ collection });
+        }
+
         if (!parent.isPrivate) {
-          return res.json({collection});
+          return res.json({ collection });
         }
 
-        // Role inheritance
-        if (currentProfile && parent.roles) {
-          const found = parent.roles.find(r => r?.profileId === currentProfile.id);
-          if (found && sightArr.includes(found.role)) {
-            return res.json({collection});
-          }
-        }
+        const found = parent.roles?.find(
+          (r) => r?.profileId === currentProfile.id
+        );
 
-        // Parent ownership
-        if (parent.profileId === currentProfile?.id) {
-          return res.json({collection});
+        if (found && sightArr.includes(found.role)) {
+          return res.json({ collection });
         }
       }
     }
 
-    // ❌ No permission
-    return res.status(403).json({ error: 'Access denied: user cannot view this collection' });
+    // ---------- DENY ----------
+    return res.status(403).json({
+      error: 'Access denied: user cannot view this collection',
+    });
 
   } catch (error) {
     console.error('Error fetching collection:', error);
     res.status(500).json({ error: 'Failed to fetch collection' });
   }
 });
-
 router.get("/:id/collection/protected",authMiddleware,async (req,res)=>{
     const {id}=req.params
 try{
@@ -1200,6 +1264,7 @@ try{
                 childCollection:{
             
                     include:{
+                    
                         storyIdList:{
                             include:{
                                 story:{include:{
@@ -1236,41 +1301,7 @@ try{
     if(collection.isPrivate==false){
 
   
-    // let collections = await prisma.collectionToCollection.findMany(
-    //     {where:
-    //         {AND:
-    //             [{parentCollectionId:{equals:id}}
-               
 
-    //         ]}
-    //     ,include:{
-            
-    //         childCollection:{
-    //             include:{
-    //                 storyIdList:{
-    //                     include:{story:{include:{author:true}}}  
-    //                   },
-    //                   parentCollections:{
-    //                     include:{
-    //                         parentCollection:{
-    //                             include:{
-    //                                 roles:true                                }
-    //                         }
-    //                     }
-    //                   },
-    //                     childCollections:true,
-    //                     roles:{
-    //                         include:{
-    //                             profile:true,
-    //                         }
-    //                     },
-    //                     profile:true
-                    
-    //             }
-    //         },
-    //         parentCollection:true,
-    //         profile:true
-    //     }})
     res.json({list:collection.childCollections})
     }else{
         throw new Error("Private")
@@ -1689,86 +1720,335 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
             res.json({error})
         }
     })
-    router.get("/profile/protected",authMiddleware,async (req,res)=>{
+    // router.get("/profile/protected",authMiddleware,async (req,res)=>{
   
-        try{
-        const profile = await prisma.profile.findFirst({where:{
-            userId:{
-                equals: req.user.id
-            }
-        },include:{likedStories:true,
-            historyStories:true,
-            collectionHistory:true,location:true}})
+    //     try{
+    //     const profile = await prisma.profile.findFirst({where:{
+    //         userId:{
+    //             equals: req.user.id
+    //         }
+    //     },include:{likedStories:true,
+    //         historyStories:true,
+    //         collectionHistory:true,location:true}})
 
-        let cols = await prisma.collection.findMany({where:{
-          profileId:{equals:profile.id}
-        },include:{
-            childCollections:{
-                include:{
-                    childCollection:true
-                }
-            },
-            storyIdList:{
-                include:{story:{include:{author:true}}}  
-              },
-            roles:{
-                include:{
-                    profile:true,
-                }
-            },
-            profile:true
-        }})
-        let cTcs = await prisma.roleToCollection.findMany({where:{
-            profileId:{
-                equals:profile.id
-            }
-        },include:{
-            collection:{
+    //     let cols = await prisma.collection.findMany({where:{
+    //       profileId:{equals:profile.id}
+    //     },include:{
+    //         childCollections:{
+    //             include:{
+    //                 childCollection:true
+    //             }
+    //         },
+    //         storyIdList:{
+    //             include:{story:{include:{author:true}}}  
+    //           },
+    //         roles:{
+    //             include:{
+    //                 profile:true,
+    //             }
+    //         },
+    //         profile:true
+    //     }})
+    //     let cTcs = await prisma.roleToCollection.findMany({where:{
+    //         profileId:{
+    //             equals:profile.id
+    //         }
+    //     },include:{
+    //         collection:{
                
-                include:{
-                    childCollections:true,
-                    storyIdList:{
-                        include:{story:{include:{author:true}}}  
-                      },
-                    roles:{
-                        include:{
-                            profile:true,
-                        }
-                    },
-                    profile:true
-                }
-            }
-        }})
-        let sTcs = await prisma.storyToCollection.findMany({where:{
-            story:{
-                authorId:{equals:profile.id}
-            },
-            collection:{
-                type:{equals:"feedback"}
-            }
-        },include:{
-            collection:{
-                include:{
-                    storyIdList:{
-                        include:{story:true}
-                    }
-                }
-            },profile:true
-        }})
-        let sTcList = sTcs.map(stc=>stc.collection)
-        let list = cTcs.map(cTc=>cTc.collection)
-        const colList =[...cols,...list,...sTcList]
-        const uniqueById = colList.filter((obj, index, self) => 
-            index === self.findIndex(item => item.id === obj.id)
-        );
+    //             include:{
+    //                 childCollections:true,
+    //                 storyIdList:{
+    //                     include:{story:{include:{author:true}}}  
+    //                   },
+    //                 roles:{
+    //                     include:{
+    //                         profile:true,
+    //                     }
+    //                 },
+    //                 profile:true
+    //             }
+    //         }
+    //     }})
+    //     let sTcs = await prisma.storyToCollection.findMany({where:{
+    //         story:{
+    //             authorId:{equals:profile.id}
+    //         },
+    //         collection:{
+    //             type:{equals:"feedback"}
+    //         }
+    //     },include:{
+    //         collection:{
+    //             include:{
+    //                 storyIdList:{
+    //                     include:{story:true}
+    //                 }
+    //             }
+    //         },profile:true
+    //     }})
+    //     let sTcList = sTcs.map(stc=>stc.collection)
+    //     let list = cTcs.map(cTc=>cTc.collection)
+    //     const colList =[...cols,...list,...sTcList]
+    //     const uniqueById = colList.filter((obj, index, self) => 
+    //         index === self.findIndex(item => item.id === obj.id)
+    //     );
         
-        res.json({collections:uniqueById})
-    }catch(error){
-        console.log(error)
-        res.json({error})
-    }
-    })
+    //     res.json({collections:uniqueById})
+    // }catch(error){
+    //     console.log(error)
+    //     res.json({error})
+    // }
+    // })
+// router.get("/profile/protected", authMiddleware, async (req, res) => {
+//   try {
+//     const skip = parseInt(req.query.skip) || 0;
+//     const take = parseInt(req.query.take) || 20;
+// const type = req.query.type;
+//     const profile = await prisma.profile.findFirst({
+//       where: {
+//         userId: req.user.id,
+//       },
+//     });
 
+//     const profileId = profile.id;
+
+//     const [cols, cTcs, sTcs] = await Promise.all([
+//       prisma.collection.findMany({
+//         where: { profileId },
+//         select: { id: true },
+//       }),
+
+//       prisma.roleToCollection.findMany({
+//         where: { profileId },
+//         select: { collectionId: true },
+//       }),
+
+//       prisma.storyToCollection.findMany({
+//         where: {
+//           story: { authorId: profileId },
+//           collection: { type: "feedback" },
+//         },
+//         select: { collectionId: true },
+//       }),
+//     ]);
+
+// const uniqueIds = [
+//   ...new Set([
+//     ...cols.map(c => c.id),
+//     ...cTcs.map(c => c.collectionId),
+//     ...sTcs.map(s => s.collectionId),
+//   ]),
+// ];
+
+// // const totalCount = uniqueIds.length;
+
+// // const collections = await prisma.collection.findMany({
+// //   where: {
+// //     id: { in: uniqueIds },
+// //   },
+// //   include: {
+// //     childCollections: {
+// //       include: { childCollection: true },
+// //     },
+// //     storyIdList: {
+// //       include: {
+// //         story: { include: { author: true } },
+// //       },
+// //     },
+// //     roles: {
+// //       include: { profile: true },
+// //     },
+// //     profile: true,
+// //   },
+// //   orderBy: {
+// //     updated: "desc",
+// //   },
+// //   skip,
+// //   take,
+// // });
+// const allCollections = await prisma.collection.findMany({
+//   where: {
+//     id: { in: uniqueIds },
+//   },
+//   orderBy: { updated: "desc" },
+//   select: {
+//     id: true,
+//   },
+// });
+// const totalCount = allCollections.length;
+
+// const pagedIds = allCollections
+//   .slice(skip, skip + take)
+//   .map(c => c.id);
+//   const collections = await prisma.collection.findMany({
+//   where: {
+//     id: { in: uniqueIds },
+//     ...(type ? { type } : {}), // 👈 filter here
+//   },
+//   include: {
+//     childCollections: {
+//       include: { childCollection: true },
+//     },
+//     storyIdList: {
+//       include: {
+//         story: { include: { author: true } },
+//       },
+//     },
+//     roles: {
+//       include: { profile: true },
+//     },
+//     profile: true,
+//   },
+//   orderBy: {
+//     updated: "desc",
+//   },
+//   skip,
+//   take,
+// });
+// res.json({
+//   collections,
+//   skip,
+//   take,
+//   totalCount,
+//   hasMore: skip + take < totalCount,
+// });
+
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json({ error });
+//   }
+// });
+router.get("/profile/protected", authMiddleware, async (req, res) => {
+  try {
+    const skip = parseInt(req.query.skip) || 0;
+    const take = parseInt(req.query.take) || 20;
+    const type = req.query.type;
+
+    const profile = await prisma.profile.findFirst({
+      where: { userId: req.user.id },
+    });
+
+    const profileId = profile.id;
+
+    const [cols, cTcs, sTcs] = await Promise.all([
+      prisma.collection.findMany({
+        where: { profileId },
+        select: { id: true },
+      }),
+
+      prisma.roleToCollection.findMany({
+        where: { profileId },
+        select: { collectionId: true },
+      }),
+
+      prisma.storyToCollection.findMany({
+        where: {
+          story: { authorId: profileId },
+          collection: { type: "feedback" },
+        },
+        select: { collectionId: true },
+      }),
+    ]);
+
+    const uniqueIds = [
+      ...new Set([
+        ...cols.map(c => c.id),
+        ...cTcs.map(c => c.collectionId),
+        ...sTcs.map(s => s.collectionId),
+      ]),
+    ];
+
+    // -----------------------------
+    // STEP 1: base query + filter
+    // -----------------------------
+const baseCollections = await prisma.collection.findMany({
+  where: {
+    id: { in: uniqueIds },
+    ...(type && type !== "library" ? { type } : {}),
+  },
+  select: {
+    id: true,
+    updated: true,
+    _count: {
+      select: {
+        childCollections: true,
+      },
+    },
+  },
+  orderBy: {
+    updated: "desc",
+  },
+});
+
+// -----------------------------
+// APPLY "library" FILTER RULE
+// -----------------------------
+let filteredCollections = baseCollections;
+
+if (type === "library") {
+  filteredCollections = baseCollections.filter(
+    (c) => c._count.childCollections > 1
+  );
+}
+
+// -----------------------------
+// TOTAL COUNT AFTER FILTER
+// -----------------------------
+const totalCount = filteredCollections.length;
+
+// -----------------------------
+// PAGINATION
+// -----------------------------
+const pagedIds = filteredCollections
+  .slice(skip, skip + take)
+  .map((c) => c.id);
+
+// -----------------------------
+// FINAL FETCH (FULL DATA)
+// -----------------------------
+const collections = await prisma.collection.findMany({
+  where: {
+    id: { in: pagedIds },
+  },
+  include: {
+    childCollections: {
+      include: { childCollection: true },
+    },
+    storyIdList: {
+      include: {
+        story: { include: { author: true } },
+      },
+    },
+    roles: {
+      include: { profile: true },
+    },
+    profile: true,
+  },
+  orderBy: {
+    updated: "desc",
+  },
+});
+
+    // const totalCount = baseCollections.length;
+
+    // -----------------------------
+    // STEP 2: paginate IDs properly
+    // -----------------------------
+
+
+    res.json({
+      collections,
+      skip,
+      take,
+      totalCount,
+      hasMore: skip + take < totalCount,
+    });
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error });
+  }
+});
     router.put("/:id",async (req,res)=>{
         try{
      const {title,purpose,isPrivate,isOpenCollaboration}=req.body
@@ -1880,6 +2160,7 @@ async function getCollectionById(id) {
   const collection = await prisma.collection.findFirst({
     where: { id },
     include: {
+    
       storyIdList: {
         include: {
           story: { include: { author: true } },
@@ -1892,6 +2173,7 @@ async function getCollectionById(id) {
           },
         },
       },
+      location:true,
       childCollections: {
         include: {
           parentCollection: true,

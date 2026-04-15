@@ -2,9 +2,14 @@ const express = require('express');
 const prisma = require("../db");
 const generateMongoId = require("./generateMongoId");
 const router = express.Router()
+const admin = require('../google/firebaseAdmin.js')
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs")
+// const admin = require('./firebaseAdmin'); // Firebase Admin SDK
+const authMiddleware = require("../middleware/authMiddleware"); // your auth
+const { select } = require('firebase-functions/params');
 const deleteCol =async()=>{
+    
     await prisma.roleToCollection.deleteMany({where:{
         collectionId:{
             equals:id
@@ -107,7 +112,7 @@ module.exports = function (authMiddleware){
                 }
             },
             profilePic:profilePicture,
-             username:username,
+             username:username?.toLowerCase(),
             selfStatement:selfStatement,
             isPrivate:privacy
         },include:{
@@ -137,26 +142,73 @@ module.exports = function (authMiddleware){
     
     
     })
-    router.get("/:id/protected",async (req,res)=>{
+    router.get("/:id/protected",authMiddleware,async (req,res)=>{
         try{
+        const currentUserId = req.user.profiles[0].id
+const profile = await prisma.profile.findFirst({
+  where: {
+    id: req.params.id
+  },
+  include: {
+    followers:{
+        where:{
+            followerId:{equals:currentUserId}
+        }
+    },
+    following:{
+        where:{
+            followingId:{equals: currentUserId}
+        }
+    },
+    location: true,
+stories:{
+    orderBy:{
+        updated:"desc"
+    },
+    where:{
         
-        const profile = await prisma.profile.findFirst({where:{
-            id: req.params.id
-        },include:{
-        
-           
-            followers:{
-                include:{
-                    follower:true
+        OR:[{isPrivate:{equals:false}},{
+            betaReaders:{
+                some:{
+                    profileId:req.params.id
                 }
-            },
+            }
+        }]
+    },take:100
+
+},
+    collections: {
+      where: {
+        
+        OR: [
+          { isPrivate:false },
+          {
+            roles: {
+              some: {
+                profileId: {equals:currentUserId}
+              }
+            }
+          }
+        ]},take:100,
+      orderBy:{
+        updated:"desc"
+      }
+    },
+    
+    _count:{
+        select:{
+            followers:true,
             following:true
-         
-        }})
+        }
+    }
+   
+  }
+});
+
         res.status(200).json({profile:profile})
 
     }catch(err){
-     
+     console.log(err)
         res.status(409).json({error:err})
     }
     })
@@ -166,18 +218,22 @@ module.exports = function (authMiddleware){
         const profile = await prisma.profile.findFirst({where:{
             id: req.params.id
         },include:{
+            location:true,
+            _count:{
+                select:{
+                    followers:true,
+                    following:true,
+                }
+            },
             stories:{
                 where:{isPrivate:{equals:false}}
             },
             collections:{
                 where:{isPrivate:{equals:false}}
-            },
-           
-            followers:{
-                include:{
-                    follower:true
+  
                 }
-            },
+            
+           
            
         }})
         res.status(200).json({profile:profile})
@@ -189,16 +245,49 @@ module.exports = function (authMiddleware){
     })
 
     router.put("/:id",authMiddleware,async (req,res)=>{
-        const {username,profilePicture,selfStatement,privacy} = req.body
+        const {username,profilePicture,selfStatement,privacy,location} = req.body
+      
+      
+        // console.log(location)
       try{
-        const profile = await prisma.profile.update({where:{
+       let  city =""
+       if(location && location.address && location.address.length>0){
+      const parts = location.address.split(',').map(p => p.trim());
+      city = `${parts[2]}, ${parts[-1]}` || "";
+       }
+       let  locale = location && location.latitude?await prisma.location.upsert({
+  where: {
+    location_coords: {
+      latitude: location.latitude,
+      longitude: location.longitude
+    }
+  },
+  update: { city: location.city,
+    latitude: location.latitude,
+    longitude: location.longitude},
+  create: {
+    city: location.city,
+    latitude: location.latitude,
+    longitude: location.longitude
+    
+  }
+}):null
+let profile = null
+       if(locale && locale.latitude && locale.longitude){
+        profile = await prisma.profile.update({where:{
             id: req.params.id
         },data:{
-            username: username,
+            username: username.toLowerCase(),
             profilePic:profilePicture,
             selfStatement:selfStatement,
-            isPrivate:privacy
+            isPrivate:privacy,
+            location:{
+                connect:{
+                    id:locale.id
+                }
+            }
         },include:{
+            location:true,
             likedStories:true,
             historyStories:true,
             collectionHistory:true,
@@ -206,9 +295,29 @@ module.exports = function (authMiddleware){
             stories:true,
             followers:true
         }})
-        res.json({profile})
-
+    }else{profile =prisma.profile.update({where:{
+            id: req.params.id
+        },data:{
+            username: username?.toLowerCase(),
+            profilePic:profilePicture,
+            selfStatement:selfStatement,
+            isPrivate:privacy,
+           
+            
+        },include:{
+             location:true,
+            likedStories:true,
+            historyStories:true,
+            collectionHistory:true,
+            collections:true,
+            stories:true,
+            followers:true
+        }})
+      
+    }
+      res.json({profile})
     }catch(e){
+        
         res.status(409).json({error:e})
     }
     })
@@ -225,7 +334,6 @@ module.exports = function (authMiddleware){
             }
         }
        }})
-   
 
 res.json({profiles})
 }catch(err){
@@ -274,219 +382,521 @@ id:true
     }
 
 })
-router.get("/:id/alert",authMiddleware,async(req,res)=>{
-try{
-    const profId =req.user.profiles[0].id
 
-   let collections =  await prisma.collection.findMany({where:{
-        roles:{
-            some:{
-                profileId:{
-                    equals:profId
-                }
+
+// Send FCM notifications
+async function sendNotification(profileId, title, body) {
+  const tokens = await prisma.deviceToken.findMany({
+    where: { profileId },
+    select: { token: true }
+  });
+  if (!tokens.length) return;
+
+  const message = {
+    notification: { title, body },
+    tokens: tokens.map(t => t.token)
+  };
+
+  const response = await admin.messaging().sendMulticast(message);
+  console.log('Sent notifications:', response.successCount);
+}
+
+router.get("/:id/alert", authMiddleware, async (req, res) => {
+  try {
+    const profId = req.user.profiles[0].id;
+    const profile = req.user.profiles[0];
+    console.log("PROFFDID",profId)
+    const lastNotified = profile.lastNotified || new Date(0); // fallback if null
+
+    // --- COLLECTIONS ---
+    let collections = await prisma.collection.findMany({
+      where: {
+        roles: { some: { profileId: { equals: profId } } },
+        type: { not: "feedback" }
+      },
+      include: {
+        profile: true,
+        roles: { where: { profileId: { equals: profId } } },
+        childCollections: {
+          include: {
+            childCollection: { include: { profile: true } }
+          },
+          where: {
+            childCollection: {
+              OR: [
+                { isPrivate: { equals: false } },
+                { roles: { some: { profileId: { equals: profId } } } }
+              ]
             }
+          }
         },
-        type:{
-            not:"feedback"
+        storyIdList: {
+          where: {
+            story: { updated: { gte: new Date(lastNotified) } }
+          },
+          include: { story: { include: { author: true } } }
         }
-    
-    },
-            include:{
-                profile:true,
-                roles:{
-                    where:{
-                        profileId:{
-                            equals:profId
-                        }
-                    }
-                },
-                childCollections:{
-                    include:{
-                        childCollection:{
-                            include:{
-                                profile:true
-                            }
-                        }
-                    },
+      }
+    });
+
+    // --- FOLLOWING ---
+    const following = await prisma.follow.findMany({
+      where: { followerId: { equals: profId } },
+      include: {
+        following: {
+          include: {
+            stories: {
+              where: {
+                AND: [
+                  {
+                    OR: [
+                      { betaReaders: { some: { profileId: { equals: profId } } } },
+                      { isPrivate: false }
+                    ]
+                  },
+                  { created: { gte: new Date("1-1-2025") } }
+                ]
+              },
+              include: {
+                collections:{
                    where:{
-                    
-                    childCollection:{
-                      
-                        OR:[{isPrivate:{
-                            equals:false
-                        }},{roles:{
+                    OR:[{
+                      collection:{
+                        OR:[{
+                        roles:{
+                        
                             some:{
                                 profileId:{
                                     equals:profId
                                 }
                             }
-                        }}]
-
-                    }
+                        }},{isPrivate:{equals:false}}]
+                      }
+                    }]
+                 
+                    
                    }
-                },
-                storyIdList:{
-                    where:{
-                        story:{
-                            updated:{
-                                gte:new Date(req.user.profiles[0].lastNotified)
-                            }
-                        }
-                    },
-                    include:{
-                        story:{
-                            include:{
-                                author:true
-                            }
-                        }
-                    }
                 }
-            
-    }})
-    const following = await prisma.follow.findMany({where:{
-        followerId:{
-            equals:profId
-        }
-    },include:{
-    following:{
-        include:{
-            stories:{where:{
-               AND:[{OR:[{
-                betaReaders:{
-                    some:{
-                        profileId:{
-                            equals:profId
-                        }
-                    }
-                }},{isPrivate:false}]
-            },{
-                created:{gte:new Date("1-1-2025")}
-            }],
-            collections:{
-                every:{
-                    collection:{
-                        OR:[
-                            {
-                                roles:{
-                                    some:{
-                                        profileId:{
-                                            equals:profId
-                                        }
-                                    }  
-                                }
-                            },
-                            {isPrivate:{
-                                equals:false
-                            }}
-                        ]
-                       
-                    }
-                
-            }
-    }}}}}}})
-   let followers= await prisma.follow.findMany({where:{
-        followingId:{
-            equals:profId
-        }
-    },include:{
-        follower:true
-    }})
-    let comments = await prisma.comment.findMany({where:{
-        AND:[{story:{
-            authorId:{
-                equals:profId
-            }
-        }},{updated:{
-            gte:new Date("1-1-2025")
-        }}]
-    },include:{
-        profile:true,
-        story:{
-            include:{
-                author:true
-            }
-        }
-    }})
-
-            
      
- 
-
-   
-    res.json({collections,comments,following,followers})
-    }catch(err){
-        console.log(err)
-        res.json({error:err})
-    }
-    })
-    router.get("/protected",authMiddleware,async (req,res)=>{
-        try{
-         
-            const profile = await prisma.profile.findFirst({where:{
-                id:{
-                   equals: req.user.profiles[0].id
-                }
-            },include:{
-                rolesToCollection:{
-                    include:{
-                        collection:true
-                    }
-                },
-                rolesToStory:{
-                    include:{
-                        story:true
-                    }
-                },
-                profileToCollections:{
-                
-                    include:{
-                        
-                        collection:{
-                            include:{
-storyIdList:true,
-                                childCollections:{
-                                    include:{
-                                        childCollection:{
-                                            include:{
-                                                storyIdList:{
-                                                    include:{
-                                                        story:{
-                                                            include:{
-                                                                author:true
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                
-                            }
-                        },
-                    }
-                       
-                
-        }}},likedStories:true,
-        historyStories:true,
-        collections:true,
-        stories:true,
-        location:true,
-        followers:{
-            include:{
-                follower:true
+              }
             }
-        },
-        following:true}})
+          }
+        }
+      }
+    });
+
+    // --- FOLLOWERS ---
+    let followers = await prisma.follow.findMany({
+      where: { followingId: { equals: profId } },
+      include: { follower: true }
+    });
+
+    // --- COMMENTS ---
+    let comments = await prisma.comment.findMany({
+      where: {
+        AND: [
+          { story: { authorId: { equals: profId } } },
+          { updated: { gte: new Date("1-1-2025") } }
+        ]
+      },
+      include: {
+        profile: true,
+        story: { include: { author: true } }
+      }
+    });
+
+    // --- NOTIFICATIONS ARRAY ---
+    const notifications = [];
+
+    // Collections updates
+    collections.forEach(col => {
+      if (col.storyIdList.length > 0) {
+        col.storyIdList.forEach(storyItem => {
+          const story = storyItem.story;
+          if (new Date(story.updated) > new Date(lastNotified)) {
+            if (!notifications.find(n => n.itemId === story.id)) {
+              notifications.push({
+                profileId: profId,
+                title: `Collection Updated: ${col.profile.name}`,
+                body: story.title,
+                itemId: story.id
+              });
+            }
+          }
+        });
+      }
+    });
+
+    // New comments
+    comments.forEach(com => {
+      if (new Date(com.updated) > new Date(lastNotified)) {
+        if (!notifications.find(n => n.itemId === com.id)) {
+          notifications.push({
+            profileId: profId,
+            title: `New comment from ${com.profile.name}`,
+            body: com.story.title,
+            itemId: com.id
+          });
+        }
+      }
+    });
+
+    // New followers
+    followers.forEach(fol => {
+      if (!notifications.find(n => n.itemId === fol.id)) {
+        notifications.push({
+          profileId: profId,
+          title: `New follower: ${fol.follower.name}`,
+          body: `You have a new follower!`,
+          itemId: fol.id
+        });
+      }
+    });
+
+    // Following users' new stories
+    following.forEach(fol => {
+      fol.following.stories.forEach(story => {
+        if (new Date(story.created) > new Date(lastNotified)) {
+          if (!notifications.find(n => n.itemId === story.id)) {
+            notifications.push({
+              profileId: profId,
+              title: `New story from ${fol.following.name}`,
+              body: story.title,
+              itemId: story.id
+            });
+          }
+        }
+      });
+    });
+
+    // --- SEND NOTIFICATIONS ---
+    await Promise.all(
+      notifications.map(n => sendNotification(n.profileId, n.title, n.body))
+    );
+
+    // --- UPDATE lastNotified ---
+    await prisma.profile.update({
+      where: { id: profId },
+      data: { lastNotified: new Date() }
+    });
+
+    // --- RETURN DATA ---
+    res.json({ collections, comments, following, followers });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
+
+async function sendPush(tokens, payload) {
+  if (!tokens.length) return;
+
+  const message = {
+    notification: {
+      title: payload.title,
+      body: payload.body
+    },
+    data: payload.data,
+    tokens
+  };
+
+  const response = await admin.messaging().sendMulticast(message);
+  console.log('Sent notifications:', response.successCount);
+}
+
+router.get("/:id/alert", authMiddleware, async (req, res) => {
+  try {
+    const profId = req.user.profiles[0].id;
+    const profile = req.user.profiles[0];
+    const lastNotified = profile.lastNotified || new Date(0); // fallback if null
+
+    // --- FETCH DATA ---
+    let collections = await prisma.collection.findMany({
+      where: { /* your existing collection query */ },
+      include: { /* your existing include */ }
+    });
+
+    const following = await prisma.follow.findMany({ /* your existing query */ });
+    const followers = await prisma.follow.findMany({ /* your existing query */ });
+    const comments = await prisma.comment.findMany({ /* your existing query */ });
+
+    // --- PREPARE NOTIFICATIONS ---
+    const notifications = [];
+
+    // Collections updates
+    collections.forEach(col => {
+      if (col.storyIdList.length > 0) {
+        col.storyIdList.forEach(storyItem => {
+          const story = storyItem.story;
+          if (new Date(story.updated) > new Date(lastNotified)) {
+            // prevent duplicates by story ID
+            if (!notifications.find(n => n.itemId === story.id)) {
+              notifications.push({
+                profileId: profId,
+                title: `Collection Updated: ${col.profile.name}`,
+                body: story.title,
+                itemId: story.id
+              });
+            }
+          }
+        });
+      }
+    });
+
+    // New comments
+    comments.forEach(com => {
+      if (new Date(com.updated) > new Date(lastNotified)) {
+        if (!notifications.find(n => n.itemId === com.id)) {
+          notifications.push({
+            profileId: profId,
+            title: `New comment from ${com.profile.name}`,
+            body: com.story.title,
+            itemId: com.id
+          });
+        }
+      }
+    });
+
+    // New followers
+    followers.forEach(fol => {
+      if (new Date(fol.createdAt) > new Date(lastNotified)) {
+        if (!notifications.find(n => n.itemId === fol.id)) {
+          notifications.push({
+            profileId: profId,
+            title: `New follower: ${fol.follower.name}`,
+            body: `You have a new follower!`,
+            itemId: fol.id
+          });
+        }
+      }
+    });
+
+    // Following users' new stories
+    following.forEach(fol => {
+      fol.following.stories.forEach(story => {
+        if (new Date(story.created) > new Date(lastNotified)) {
+          if (!notifications.find(n => n.itemId === story.id)) {
+            notifications.push({
+              profileId: profId,
+              title: `New story from ${fol.following.name}`,
+              body: story.title,
+              itemId: story.id
+            });
+          }
+        }
+      });
+    });
+
+    // --- SEND NOTIFICATIONS ---
+    await Promise.all(
+      notifications.map(n =>
+        sendNotification(n.profileId, n.title, n.body)
+      )
+    );
+
+    // --- UPDATE lastNotified ---
+    await prisma.profile.update({
+      where: { id: profId },
+      data: { lastNotified: new Date() }
+    });
+
+    // --- RETURN DATA ---
+    res.json({ collections, comments, following, followers });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+    router.post('/save-token', authMiddleware, async (req, res) => {
+  try {
+    const { profileId, token } = req.body;
+    await prisma.deviceToken.upsert({
+      where: { token },
+      update: { profileId },
+      create: { profileId, token },
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+router.get("/protected", authMiddleware, async (req, res) => {
+  try {
+    if (!req?.user) {
+      return res.status(403).json({ message: "No profile found." });
+    }
+
+    const currentProfile = req.user?.profiles?.[0];
+
+    if (!currentProfile?.id) {
+      return res.status(403).json({ message: "No profile found." });
+    }
+
+    const profileId = currentProfile.id;
+
+    // Run queries in parallel
+    const profile = await
+      prisma.profile.findFirst({
+        where: { id: profileId },
+        include: 
+          { location:true,
           
-             
-                res.status(200).json({profile:profile})
-    
+            
+            
+          profileToCollections: {
+            include: {
+              
+              collection:{
+                
+                include:{
+                  childCollections:{
+                    select:{
+                      childCollection:{
+                        select:{
+                          id:true,
+                          title:true,
+                          type:true,
+                          
+                        }
+                      }
+                    }
+                  },
+                 storyIdList:{
+                  select:{
+                    story:{
+                      select:{
+                        id:true,
+                        title:true,
+                        description:true,
+                        type:true
+                      }
+                    }
+                    
+                  }
+                 },
+            }
+              
+              
+            }
+            }}}
+      })
+    // location: true,
+         
+    //       _count: {
+    //         select: {
+    //           followers: true,
+    //           following: true,
+    //         },
+    //       },
+
+
+
+
+
+    return res.status(200).json({
+     profile
+       
+      
+    });
+
+  } catch (error) {
+    console.error("PROTECTED ERROR:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+//     router.get("/protected",authMiddleware,async (req,res)=>{
+//         try{
+//                if(!req?.user){
+//     return res.status(403).json({ message: "No profile found. " });
+//   }
+//   const currentProfile = req.user.profiles[0]
+//   const profile = await prisma.profile.findUnique({
+//   where: { id: currentProfile.id},
+//   include: {
+//     profileToCollections:{
+//         include:{
+//             collection:{
+                
+//                 include:{
+//                     childCollections:{
+//                         select:{
+//                             childCollection:true
+//                         }
+//                     },
+//                     storyIdList:
+//                     {
+//                         select:{story:true}
+//                     }
+//                 }
+//             }
+//         }
+//     },
+//     location:true,
+//     rolesToCollection: true,
+//     rolesToStory:true,
+// _count: {
+//       select: {
+//         followers: true,
+//         following: true
+//       }
+//     }
+ 
+//   }
+// });
+// const stories = await prisma.story.findMany({
+//   where: {
+//     OR: [
+//       { authorId: profile.id },
+//       {
+//         betaReaders: {
+//           some: { profileId: profile.id }
+//         }
+//       }
+//     ]
+//   },
+//   orderBy: {
+//     updated: "desc" // most recently updated first
+//   },
+//   take: 100 // limit to 100
+// });
+
+
+// const collections = await prisma.collection.findMany({
+//   where: {
+//     AND: [
+//       { type: "feedback" },
+//       { OR: [
+//           { profileId: profile.id },
+//           { roles: { some: { profileId: profile.id } } }
+//         ]
+//       }
+//     ]
+//   },  orderBy: {
+//     updated: "desc" // most recently updated first
+//   },
+//   take: 100 // limit to 100
+
+// });
+
+// res.status(200).json({
+//   profile: { ...profile, collections: [ ...collections],stories:[...stories] }
+// });
+
      
+    // }catch(error){
+    //     console.log(
+    //         "GET WHAT",error)
+    //     res.status(404).json({message:"User not found"})
+    // }
      
-    }catch(error){
-        console.log({error})
-        res.status(404).json({message:"User not found"})
-    }
-    })
+    // })
     router.get("/:id/collection",async (req,res)=>{
 try{
         let bookmarks = await prisma.profileToCollection.findMany({
@@ -529,3 +939,18 @@ try{
     return router
     
 }
+// async function sendNotification(profileId, title, body) {
+//   const tokens = await prisma.deviceToken.findMany({
+//     where: { profileId },
+//     select: { token: true }
+//   });
+//   if (!tokens.length) return;
+
+//   const message = {
+//     notification: { title, body },
+//     tokens: tokens.map(t => t.token)
+//   };
+
+//   const response = await admin.messaging().sendMulticast(message);
+//   console.log('Sent notifications:', response.successCount);
+// }

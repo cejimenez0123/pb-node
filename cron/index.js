@@ -7,9 +7,13 @@ const sleep = require("../utils/sleep")
 const sendEmail = require("../newsletter/sendEmail")
 const fetchAlerts = require("../newsletter/fetchAlerts")
 
-const dailyJob = cron.schedule('0 9 * * *', async () => {
 
-})
+
+const dailyJob = cron.schedule("0 9 * * *", async () => {
+
+  // await dailyTask();
+});
+
 const dailyTask=async ()=>{
   const users = await prisma.user.findMany({include:{
     profiles:true
@@ -28,7 +32,7 @@ const dailyTask=async ()=>{
       await sleep(1000)
 if(comments.length>0||roles.length>0||following.length>0||followers.length>0||collections.length>0||events.length>0){
       await sendEmail(template)
-        console.log(i,profile.username)
+  
  await prisma.user.update({where:{id:user.id},data:{
           lastEmailed: new Date()
         }})
@@ -44,47 +48,99 @@ if(comments.length>0||roles.length>0||following.length>0||followers.length>0||co
 }
   }
 }
-const weeklyJob = cron.schedule('0 9 * * 0', async () => {
-  try{
-weeklyEmail()
-}catch(err){
-  console.err("WEEKLY JOB ERROR"+err.message)
-    
-  }
+const weeklyJob = cron.schedule('0 9 * * 6,0', async () => {
+  try {
+    const today = new Date().getDay();
 
-})
-const weeklyEmail=async()=>{
-  const days = 7
-  let users = await prisma.user.findMany({
+    // Saturday → batch 0, Sunday → batch 1
+    const batchIndex = today === 6 ? 0 : 1;
+
+    await weeklyEmail(batchIndex);
+  } catch (err) {
+    console.error("WEEKLY JOB ERROR: " + err.message);
+  }
+});
+
+// const weeklyJob = cron.schedule('0 9 * * 0,1', async () => {
+//   try{
+// weeklyEmail()
+// }catch(err){
+//   console.err("WEEKLY JOB ERROR"+err.message)
+    
+//   }
+
+// })
+const WEEKLY_BATCH_SIZE = 100;
+
+const weeklyEmail = async (batchIndex = 0) => {
+  const days = 7;
+
+  const users = await prisma.user.findMany({
     where: {
-      emailFrequency: {
-       not:0
+      emailFrequency: { not: 0 }
+    },
+    orderBy: { id: "asc" } // IMPORTANT: deterministic order
+  });
+
+  const start = batchIndex * WEEKLY_BATCH_SIZE;
+  const end = start + WEEKLY_BATCH_SIZE;
+  const batchUsers = users.slice(start, end);
+
+  const events = await fetchEvents();
+
+  for (let i = 0; i < batchUsers.length; i++) {
+    const user = batchUsers[i];
+    await sleep(1000);
+
+    try {
+      const res = await sendEventNewsletterEmail(user, events, days);
+
+      if (!res?.data?.error) {
+        console.log(`${start + i} Success: ${user.email}`);
+      } else {
+        console.log(`${start + i} Error: ${user.email}`);
       }
+    } catch (err) {
+      console.log(`ERROR SEND WEEKLY EMAIL TO ${user.email}: ${err.message}`);
     }
-  })
-
-  const events = await fetchEvents()
-  for (let i = 0; i < users.length; i++) {
-    const user = users[i]
-    await sleep(1000)
-  sendEventNewsletterEmail(user,events,days).then(res=>{
-    if(!res.data.error){
-      console.log(i,"Success: "+user.email)
-    }else{
-      console.log(i,"Error "+user.email)
-    }
-    
-  }).catch(err=>{
-console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
-  })}}
-
-  function shouldSendEmail(lastEmailTime, frequencyDays) {
-    const currentTime = Date.now();
-    const elapsedTimeMs = currentTime - lastEmailTime;
-    const elapsedTimeDays = elapsedTimeMs / (1000 * 60 * 60 * 24);
-  
-    return elapsedTimeDays >= frequencyDays;
   }
-  
+};
+
+// const weeklyEmail=async()=>{
+//   const days = 7
+//   let users = await prisma.user.findMany({
+//     where: {
+//       emailFrequency: {
+//        not:0
+//       }
+//     }
+//   })
+
+//   const events = await fetchEvents()
+//   for (let i = 0; i < users.length; i++) {
+//     const user = users[i]
+//     await sleep(1000)
+//   sendEventNewsletterEmail(user,events,days).then(res=>{
+//     if(!res.data.error){
+//       console.log(i,"Success: "+user.email)
+//     }else{
+//       console.log(i,"Error "+user.email)
+//     }
+    
+//   }).catch(err=>{
+// console.log("ERROR SEND WEEKLY EMAIL TO "+user.email+":"+err.message)
+//   })}}
+
+function shouldSendEmail(lastEmailTime, frequencyDays) {
+  if (!lastEmailTime) return true; // allow first-time emails
+
+  const currentTime = Date.now();
+  const previousTime = new Date(lastEmailTime).getTime();
+  const elapsedMs = currentTime - previousTime;
+  const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+
+  return elapsedDays >= frequencyDays;
+}
+
 
 module.exports = {weeklyJob,dailyJob}

@@ -21,6 +21,7 @@ const passport = require("passport")
 const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const { Server } = require('socket.io');
+require('dotenv').config();
 const activeUsers = new Map()
 const docs = require("./utils/docs.js")
 const app = express();
@@ -35,7 +36,7 @@ Sentry.init({
 }catch(err){
   
 }
-// const { initializeApp } = require("firebase/app");
+
 const { getDownloadURL,ref } = require("firebase/storage")
 app.use(bodyParser.urlencoded({ extended: false }))
 
@@ -64,15 +65,28 @@ const io = new Server(server,{    cors: {
     methods: ["GET", "POST", "PATCH","PUT", "DELETE", "OPTIONS"],
 },});
 
-
-
-function authMiddleware(req, res, next) {
-  passport.authenticate('bearer', { session: false }, (err, user, info) => {
-
-    if (err) return next(err); // Handle errors gracefully
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
   
-    req.user = user; 
+
+// function authMiddleware(req, res, next) {
+//   passport.authenticate('bearer', { session: false }, (err, user, info) => {
+
+//     if (err) return next(err); // Handle errors gracefully
+//     if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  
+//     req.user = user; 
+//     next();
+//   })(req, res, next);
+// }
+function authMiddleware(req, res, next) {
+  console.log("AUTH MIDDLEWARE HIT");
+
+  passport.authenticate('bearer', { session: false }, (err, user, info) => {
+  
+
+    if (err) return next(err);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    req.user = user;
     next();
   })(req, res, next);
 }
@@ -81,8 +95,6 @@ setUpPassportLocal(passport);
 app.use(cors({ origin: "*" }));
 
 const imageCache = new NodeCache({ stdTTL: 60 * 60 }); // 1 hour = 3600 seconds
-
-
 
 app.get("/image", async (req, res) => {
   try {
@@ -106,7 +118,6 @@ app.get("/image", async (req, res) => {
 
     // 🧠 Convert to Buffer
     const bufferData = Buffer.from(response.data);
-
     // 💾 Cache the image
     imageCache.set(path, {
       buffer: bufferData,
@@ -148,68 +159,90 @@ app.use(
 
 
 io.on('connection', (socket) => {
+  socket.on("register", async ({ profileId, location }) => {
+  try {
+    let localeId;
 
+    if (location) {
+      const locale = await findOrCreateLocation(location.latitude, location.longitude,location.city);
+      localeId = locale.id;
+    }
 
+    const updatedProfile = await updateProfileWithRetry(profileId, localeId);
 
-  // Register user
-  socket.on('register', async ({ profileId, location }) => {
+    activeUsers.set(socket.id, updatedProfile);
+  } catch (error) {
+    console.error("Socket register error:", error);
+  }
+});
+async function findOrCreateLocation(latitude, longitude,city="") {
+  // 1. Try to find existing location
+  let locale = await prisma.location.findFirst({
+    where: { latitude, longitude },
+  });
+
+  // 2. If not found, try to create it
+  if (!locale) {
     try {
-      let locale= null
-    if(location){
-        locale = await  prisma.location.findFirst({where:{
-        latitude:{
-            equals:location.latitude
-        },
-        longitude:{
-            equals:location.longitude
-        }
-      }})
-      if(!locale){
-        locale = await prisma.location.create({data:{
-              latitude:location.latitude,
-              longitude:location.longitude
-           }})
-        }else{
-            locale = await prisma.location.findFirst()
-           
-         }
-try{
-      const updatedProfile = await prisma.profile.update({
-        where: { id: profileId },
-        data: {
-          isActive: true,
-          location:{
-            connect:{
-                id:locale.id
-            }
+      locale = await prisma.location.upsert({
+        where:{
+          location_coords:{
+            latitude:latitude,
+            longitude:longitude
           }
-        },include:{
-            location:true
-        }
+        },
+       create:{ latitude, longitude,city },
+       update:{ latitude, longitude,city },
       });
-      
-     
-      activeUsers.set(socket.id, updatedProfile);
-    }catch(error){
-        console.error( error); 
-    }}else{
+      console.log(locale)
+    } catch (err) {
+      // 3. Handle race condition (unique constraint)
+      if (err.code === "P2002") {
+        locale = await prisma.location.findFirst({
+          where: { latitude, longitude },
+        });
+        if (!locale) {
+          throw new Error(
+            "Failed to fetch location after P2002 – this should never happen"
+          );
+        }
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  return locale;
+}
+async function updateProfileWithRetry(profileId, localeId) {
+  let retries = 2;
+
+  while (retries--) {
+    try {
+      // Single-document update — no transaction needed
       const updatedProfile = await prisma.profile.update({
         where: { id: profileId },
         data: {
           isActive: true,
-        },include:{
-            location:true
-        }
+          ...(localeId ? { location: { connect: { id: localeId } } } : {}),
+        },
+        include: { location: true },
       });
 
-      console.log(`User ${updatedProfile.id}:${updatedProfile.username} connected`);
-     
-      activeUsers.set(socket.id, updatedProfile);
-    }}catch(error){
-        console.log("Socket registration",error.message)
-    }})
+      return updatedProfile;
+    } catch (err) {
+      // Retry only if it's a transaction abort (P2028)
+      if (err.code === "P2028" && retries > 0) {
+        console.log("Update aborted, retrying after delay...");
+        await new Promise((res) => setTimeout(res, 100)); // short delay
+        continue; // retry
+      }
+      // Throw other errors immediately
+      throw err;
+    }
+  }
+}
 
-  // Handle user disconnection
   socket.on('disconnect', async () => {
     const profile = activeUsers.get(socket.id); // Lookup profileId
    if(profile){
