@@ -81,7 +81,7 @@ module.exports = function applicationConfirmationTemplate(user = {}, opts = {}) 
   const manageUrl = `${process.env.DOMAIN}/subscribe?token=${encodeURIComponent(token)}`;
   const unsubscribeUrl = `${process.env.BASEPATH}/auth/unsubscribe?token=${encodeURIComponent(token)}`;
   const dashboardUrl = `${process.env.DOMAIN}`;
-  const slackInvite = "https://join.slack.com/t/plumbumwriters/shared_invite/zt-2zvkzyi02-dRlhqb0wvHAaU~~dUgh7hQ";
+  // const slackInvite = "https://join.slack.com/t/plumbumwriters/shared_invite/zt-2zvkzyi02-dRlhqb0wvHAaU~~dUgh7hQ";
   const calendarUrl = `${process.env.DOMAIN}/events`;
 
   const html = `
@@ -91,10 +91,10 @@ module.exports = function applicationConfirmationTemplate(user = {}, opts = {}) 
 <body style="${baseStyles()}">
 
   ${cardTableOpen()}
-    ${h1(`Thanks for Applying, ${name}!`)}
+    ${h1(`Thanks for Applying, ${user.preferredName}!`)}
     ${p(`We’re excited you applied to Plumbum. Our team reviews applications with care to keep the community thoughtful and supportive.`)}
     ${p(`While we’re processing your application, you can jump into our Slack to meet other writers, swap feedback, and catch live prompts and sprints.`)}
-    ${cta(slackInvite, "Join the Slack Community")}
+    
     ${h2("What to Expect Next")}
     <ul style="margin:0 0 14px 18px; color:#4A604A; font-size:16px; line-height:1.6; padding:0;">
       <li style="margin-bottom:8px;">Application review (you’ll get an email from us soon).</li>

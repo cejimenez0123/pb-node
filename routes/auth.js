@@ -347,110 +347,179 @@ router.post("/invite", authMiddleware, async (req, res) => {
     });
   }
 });
-    router.post("/apply",async (req,res)=>{
+  //       router.post("/apply",async (req,res)=>{
    
-        const {
-            idToken,
-            googleId,
-            igHandle,
-            fullName,
-            email,
-        } = req.body
+  //       const {
+  //           idToken,
+  //           googleId,
+  //           igHandle,
+  //           fullName,
+  //           email,
+  //       } = req.body
         
-        let user 
-    try{
-      let mail = email??""
-      if(idToken){
-        let payload = await verifyAppleIdentityToken(idToken)
-        mail = payload.email
+  //       let user 
+  //   try{
+  //     let mail = email??""
+  //     if(idToken){
+  //       let payload = await verifyAppleIdentityToken(idToken)
+  //       mail = payload.email
       
-      user = await prisma.user.findFirst({where:{
-        email:{equals:mail}
-      }})
-        if(!user||!user.id){
-          user = await prisma.user.create({data:{
-            email:mail,
-            preferredName:fullName??"",
-            igHandle:igHandle??"",
-        }})
+  //     user = await prisma.user.findFirst({where:{
+  //       email:{equals:mail}
+  //     }})
+  //       if(!user||!user.id){
+  //         user = await prisma.user.create({data:{
+  //           email:mail,
+  //           preferredName:fullName??"",
+  //           igHandle:igHandle??"",
+  //       }})
      
-          let mailOptions = applyTemplate(user,req.body,false)
-          let template = applicationConfirmationTemplate(user)
+  //         let mailOptions = applyTemplate(user,req.body,false)
+  //         let template = applicationConfirmationTemplate(user)
 
-         await resend.emails.send(template)
-       let response  =  await resend.emails.send(mailOptions)
-                const params = new URLSearchParams({
-          applicantId:user.id,
-          action:"approve",
-          email,
-        });
-        const parms = `/auth/review?`+params.toString()
+  //        await resend.emails.send(template)
+  //      let response  =  await resend.emails.send(mailOptions)
+  //               const params = new URLSearchParams({
+  //         applicantId:user.id,
+  //         action:"approve",
+  //         email,
+  //       });
+  //       const parms = `/auth/review?`+params.toString()
 
-         res.status(201).json({path:parms,user,message:'Applied Successfully!'});
+  //        res.status(201).json({path:parms,user,message:'Applied Successfully!'});
     
-      }else{
-        throw new Error("Not Unique")
-      }
-  }else if(googleId){
+  //     }else{
+  //       throw new Error("Not Unique")
+  //     }
+  // }else if(googleId){
 
-    user = await prisma.user.findFirst({where:{
-      googleId:{equals:googleId}
-    }})
-    if(!user){
-        user = await prisma.user.create({data:{
-          email:payload.email,
-          preferredName:fullName,
-          igHandle:igHandle,
-      }})
+  //   user = await prisma.user.findFirst({where:{
+  //     googleId:{equals:googleId}
+  //   }})
+  //   if(!user){
+  //       user = await prisma.user.create({data:{
+  //         email:payload.email,
+  //         preferredName:fullName,
+  //         igHandle:igHandle,
+  //     }})
    
-        let mailOptions = applyTemplate(user,req.body,false)
-        let template = applicationConfirmationTemplate(user)
+  //       let mailOptions = applyTemplate(user,req.body,false)
+  //       let template = applicationConfirmationTemplate(user)
 
-       await resend.emails.send(template)
-     let response  =  await resend.emails.send(mailOptions)
-              const params = new URLSearchParams({
-        applicantId:user.id,
-        action:"approve",
-        email,
-      });
-      const parms = `/auth/review?`+params.toString()
+  //      await resend.emails.send(template)
+  //    let response  =  await resend.emails.send(mailOptions)
+  //             const params = new URLSearchParams({
+  //       applicantId:user.id,
+  //       action:"approve",
+  //       email,
+  //     });
+  //     const parms = `/auth/review?`+params.toString()
 
-       res.status(201).json({path:parms,user,message:'Applied Successfully!'});
-    }
-  }else if(email){
+  //      res.status(201).json({path:parms,user,message:'Applied Successfully!'});
+  //   }
+  // }else if(email){
     
-        user = await prisma.user.create({data:{
-            email:email,
-            preferredName:fullName,
-            igHandle:igHandle,
-        }})
+  //       user = await prisma.user.create({data:{
+  //           email:email,
+  //           preferredName:fullName,
+  //           igHandle:igHandle,
+  //       }})
      
 
-          let mailOptions = applyTemplate(user,req.body,false)
-            let template = applicationConfirmationTemplate(user)
-           await resend.emails.send(template)
-         let response  =  await resend.emails.send(mailOptions)
-         if(response.error){
-          throw response.err
-         }else{
-         const params = new URLSearchParams({
-          applicantId:user.id,
-          action:"approve",
-          email,
-        });
-        const parms = `/auth/review?`+params.toString()
+  //         let mailOptions = applyTemplate(user,req.body,false)
+  //           let template = applicationConfirmationTemplate(user)
+  //          await resend.emails.send(template)
+  //        let response  =  await resend.emails.send(mailOptions)
+  //        if(response.error){
+  //         throw response.err
+  //        }else{
+  //        const params = new URLSearchParams({
+  //         applicantId:user.id,
+  //         action:"approve",
+  //         email,
+  //       });
+  //       const parms = `/auth/review?`+params.toString()
 
-         res.status(201).json({path:parms,user,message:'Applied Successfully!'});
-      }}
+  //        res.status(201).json({path:parms,user,message:'Applied Successfully!'});
+  //     }}
   
-            }catch(error){
+    //         }catch(error){
       
-              console.log(error)
-                  res.status(403).json({user,error,message:error.message})
+    //           console.log(error)
+    //               res.status(403).json({user,error,message:error.message})
                 
-            }
+    //         }
 
-    })
+    // })
+router.post("/apply", async (req, res) => {
+  console.log("APPLY BODY:", req.body);
+
+  const {
+    idToken,
+  igHandle,
+  fullName,
+  email,
+  whyApply,
+  howFindOut,
+  otherGenre,
+  communityNeeds,
+  workshopPreference,
+  feedbackFrequency,
+  selectedGenres,
+  comfortLevel,
+  platformFeatures,
+  genres,
+  } = req.body;
+
+  // let user;
+
+ 
+  try {
+ const cleanEmail = (email && email.trim()) ? email.trim().toLowerCase() : null;
+  const user = await prisma.user.create({data:{email:cleanEmail,preferredName:fullName}})
+  
+
+
+    const mailOptions = applyTemplate(user, req.body, false);
+    const template = applicationConfirmationTemplate(user);
+
+    const confirmRes = await resend.emails.send(template);
+    if (confirmRes?.error) {
+      console.error("CONFIRM EMAIL ERROR:", confirmRes.error);
+    }
+    console.log(confirmRes)
+
+    const applyRes = await resend.emails.send(mailOptions);
+    if (applyRes?.error) {
+      console.error("APPLY EMAIL ERROR:", applyRes.error);
+      throw new Error(applyRes.error.message);
+    }
+
+    const params = new URLSearchParams({
+      applicantId: user.id,
+      action: "approve",
+      email: user.email,
+    });
+
+    const path = `/auth/review?${params.toString()}`;
+
+    return res.status(201).json({
+      path,
+      user,
+      message: "Applied Successfully!",
+    });
+
+  } catch (error) {
+    console.log("APPLY ERROR:", error);
+
+    return res.status(403).json({
+      user,
+      error: error.message,
+    });
+  }
+});
+
+
     router.post("/reset-password",async(req,res)=>{
       
       try{
@@ -1746,3 +1815,14 @@ router.post("/register", async (req, res) => {
     return router
 }
 
+
+async function sendEmailSafe(options, label) {
+  const res = await resend.emails.send(options)
+
+  if (res.error) {
+    console.error(`${label} failed:`, res.error)
+    throw new Error(res.error.message)
+  }
+
+  return res
+}
