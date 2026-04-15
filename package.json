@@ -10,8 +10,8 @@
   "author": "plumbum",
   "license": "ISC",
   "devDependencies": {
-    "@types/node": "^22.5.0",
-    "prisma": "^5.22.0",
+    "@types/node": "^22.19.17",
+    "prisma": "6.19",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   },
@@ -20,7 +20,7 @@
     "@google-cloud/local-auth": "^2.1.0",
     "@googleapis/calendar": "^9.8.0",
     "@googleapis/docs": "^3.3.0",
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "6.19",
     "@sentry/node": "^10.22.0",
     "algoliasearch": "^5.41.0",
     "axios": "^1.12.2",
@@ -29,7 +29,7 @@
     "cookie-session": "^2.1.0",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.6.1",
     "express": "^4.19.2",
     "express-async-handler": "^1.2.0",
     "firebase": "^12.4.0",

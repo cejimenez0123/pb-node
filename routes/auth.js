@@ -777,134 +777,301 @@ router.post('/use-referral', async (req, res) => {
     res.status(400).json({ message: 'Error processing referral' });
   }
 });
-
 router.post("/session", async (req, res) => {
   const { email, password, uId, identityToken } = req.body;
 
   try {
     let user = null;
 
-   
+    // ---------------------------
+    // 🍎 Apple login
+    // ---------------------------
     if (identityToken) {
       const payload = await verifyAppleIdentityToken(identityToken);
+
       user = await prisma.user.findFirst({
         where: { email: payload.email },
         include: {
-          profiles: {
-            select:{
-              id:true
-            }
-              
-              
-          
-          }
-        }
+          profiles: { select: { id: true } },
+        },
       });
     }
-    // --- Google OAuth login ---
+
+    // ---------------------------
+    // 🔵 Google login
+    // ---------------------------
     else if (uId) {
+      // Try find by Google ID
       user = await prisma.user.findFirst({
-        where: { uId:uId },
+        where: { uId },
         include: {
-          profiles: {
-            select:{
-              id:true
-            }
-              
-            }}
+          profiles: { select: { id: true } },
+        },
       });
 
-      // If user not found by googleId, link account by email
-      
-      if(email){
-        try{
-       user = await  prisma.user.findFirstOrThrow({where:{email:{equals:email}}})
-        }catch{
-       return res.status(403).json({ message: "No profile found. Apply Today." });
+      // Fallback: find by email if not found
+      if (!user && email) {
+        try {
+          user = await prisma.user.findFirstOrThrow({
+            where: { email },
+            include: {
+              profiles: { select: { id: true } },
+            },
+          });
+
+          // Link Google ID if missing
+          if (!user.uId) {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: { uId },
+              include: {
+                profiles: { select: { id: true } },
+              },
+            });
+          }
+        } catch {
+          return res.status(403).json({
+            message: "No profile found. Apply Today.",
+          });
         }
       }
-      if (!user && email) {
-        user = await prisma.user.update({
-          where: { email },
-          data: { googleId: uId },
-          include: {
-            profiles: {
-              select:{
-                id:true
-              }
-            
-            }
-        //  }
-          }
-        });
-      }
     }
-    // --- Email/password login ---
+
+    // ---------------------------
+    // 📧 Email/password login
+    // ---------------------------
     else if (email) {
       user = await prisma.user.findFirst({
         where: { email },
         include: {
-         profiles: {
-            select: {
-             id:true
-              },
+          profiles: { select: { id: true } },
+        },
+      });
+
+      // No user
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // No profiles
+      if (!user.profiles?.length) {
+        return res.status(403).json({
+          message: "No profile found. Please create one.",
+        });
+      }
+
+      // Password check
+      if (!user.password || !bcrypt.compareSync(password, user.password)) {
+        return res.status(409).json({
+          message: "Invalid email or password",
+        });
+      }
+    }
+
+    // ---------------------------
+    // 🚫 Final safety check
+    // ---------------------------
+    if (!user || !user.id) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!user.profiles?.length) {
+      return res.status(403).json({
+        message: "No profile found. Please create one.",
+      });
+    }
+
+    // ---------------------------
+    // 🟢 Update activity (SAFE)
+    // ---------------------------
+    await prisma.profile.updateMany({
+      where: { userId: user.id },
+      data: {
+        lastActive: new Date(),
+        isActive: true,
+      },
+    });
+
+    // ---------------------------
+    // 🔄 Reload fresh user
+    // ---------------------------
+    const freshUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: {
+        profiles: { select: { id: true } },
+      },
+    });
+
+    const profileId = freshUser?.profiles?.[0]?.id;
+
+    if (!profileId) {
+      return res.status(403).json({
+        message: "Profile missing.",
+      });
+    }
+
+    // ---------------------------
+    // 📦 Load profile
+    // ---------------------------
+    const profile = await prisma.profile.findUnique({
+      where: { id: profileId },
+      include: {
+        profileToCollections: true,
+      },
+    });
+
+    // ---------------------------
+    // 🔐 Token
+    // ---------------------------
+    const token = jwt.sign(
+      { userId: freshUser.id },
+      process.env.JWT_SECRET
+    );
+
+    return res.json({ token, profile });
+
+  } catch (error) {
+    console.error("SESSION ERROR:", error);
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+});
+// router.post("/session", async (req, res) => {
+//   const { email, password, uId, identityToken } = req.body;
+
+//   try {
+//     let user = null;
+
+   
+//     if (identityToken) {
+//       const payload = await verifyAppleIdentityToken(identityToken);
+//       user = await prisma.user.findFirst({
+//         where: { email: payload.email },
+//         include: {
+//           profiles: {
+//             select:{
+//               id:true
+//             }
+              
+              
+          
+//           }
+//         }
+//       });
+//     }
+//     // --- Google OAuth login ---
+//     else if (uId) {
+//       user = await prisma.user.findFirst({
+//         where: { uId:uId },
+//         include: {
+//           profiles: {
+//             select:{
+//               id:true
+//             }
+              
+//             }}
+//       });
+
+//     try {   // If user not found by googleId, link account by email
+//       // if (!user && email) {
+ 
+//     if (user && email && !user.googleId) {
+//   user = await prisma.user.update({
+//     where: { id: user.id },
+//     data: { googleId: uId },
+//     include: { profiles: { select: { id: true } } }
+//   });
+// }
+//     user = await prisma.user.findFirstOrThrow({ where: { email } });
+//   } catch {
+//     return res.status(403).json({ message: "No profile found. Apply Today." });
+//   }
+
+    
+//       }
+//       if (!user && email) {
+//         user = await prisma.user.update({
+//           where: { email },
+//           data: { googleId: uId },
+//           include: {
+//             profiles: {
+//               select:{
+//                 id:true
+//               }
+            
+//             }
+//         //  }
+//           }
+//         });
+//       }
+    
+//     else if (email) {
+//       user = await prisma.user.findFirst({
+//         where: { email },
+//         include: {
+//          profiles: {
+//             select: {
+//              id:true
+//               },
               
                   
                 
               
             
-          }
-        }
-      });
+//           }
+//         }
+//       });
 
 
-  // ✅ NEW: user exists but no profiles
-  if (!user.profiles || user.profiles.length === 0) {
-    return res.status(403).json({ message: "No profile found. Please create one." });
-  }
-      // Check password only for email login
-      if (!user || !user.password || !bcrypt.compareSync(password, user.password)) {
-        return res.status(409).json({ message: "Invalid email or password" });
-      }
-    }
-// If user still not found
-    if (!user&&!user.id) {
-      return res.status(404).json({ message: "User not found" });
-    }
+//   // ✅ NEW: user exists but no profiles
+//   if (!user.profiles || user.profiles.length === 0) {
+//     return res.status(403).json({ message: "No profile found. Please create one." });
+//   }
+//       // Check password only for email login
+//       if (!user || !user.password || !bcrypt.compareSync(password, user.password)) {
+//         return res.status(409).json({ message: "Invalid email or password" });
+//       }
+//     }
+// // If user still not found
+//  if (!user || !user.id) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
     
-    // Update profile activity
-     await prisma.profile.updateMany({
-      where: { userId: user.id},
-      data: { lastActive: new Date(), isActive: true }
-    });
-   user =  await prisma.user.findFirst({where:{
-      id:{
-        equals:user.id
+//     // Update profile activity
+//      await prisma.profile.updateMany({
+//       where: { userId: user.id},
+//       data: { lastActive: new Date(), isActive: true }
+//     });
+//    user =  await prisma.user.findFirst({where:{
+//       id:{
+//         equals:user.id
         
-      },
-    },include:{
-      profiles:{
-        select:{
-          id:true
-        }
-      }
-    }})
-    let profile = await prisma.profile.findFirst({where:{id:{
-      equals:user.profiles[0].id,}},include:{
-      profileToCollections:true,
-      // collections:true,
-      // stories:true
-    }
-    })
-    console.log("X",user)
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-console.log("Y",profile)
-    res.json({ token, profile });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+//       },
+//     },include:{
+//       profiles:{
+//         select:{
+//           id:true
+//         }
+//       }
+//     }})
+//     if (!user.profiles?.length) {
+//   return res.status(403).json({ message: "No profile found. Please create one." });
+// }
+//   let profile = await prisma.profile.findFirst({
+//   where: {
+//     id: { equals: user.profiles[0].id }
+//   }
+// })
+//     console.log("X",user)
+//     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+// console.log("Y",profile)
+//     res.json({ token, profile });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
 
 
     router.post("/newsletter",async (req,res)=>{

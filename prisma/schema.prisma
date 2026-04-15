@@ -47,8 +47,14 @@ model Story{
     hashtags HashtagStory[]
     type StoryType @default(html)
     collections StoryToCollection[]
-    updated DateTime? @default(now())
-    created DateTime? @default(now())
+    updated DateTime @default(now())
+  created DateTime @default(now())
+
+  @@index([updated])
+  @@index([created])
+  @@index([authorId, updated(sort: Desc)])
+
+
 }
 model Location {
   id    String @id @default(auto()) @map("_id") @db.ObjectId

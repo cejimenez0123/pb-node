@@ -10,7 +10,7 @@ module.exports = function newsletterSurveyTemplate({ params }) {
       writingRole,
       otherInputs
     } = params;
-  console.log(process.env.PBEMAIL)
+
     return {
       from:`Plumbum <${process.env.pbEmail}>`,// Sender address
       to: process.env.PBEMAIL, // Recipient's email

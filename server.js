@@ -67,13 +67,26 @@ const io = new Server(server,{    cors: {
 
   
 
-function authMiddleware(req, res, next) {
-  passport.authenticate('bearer', { session: false }, (err, user, info) => {
+// function authMiddleware(req, res, next) {
+//   passport.authenticate('bearer', { session: false }, (err, user, info) => {
 
-    if (err) return next(err); // Handle errors gracefully
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+//     if (err) return next(err); // Handle errors gracefully
+//     if (!user) return res.status(401).json({ error: 'Unauthorized' });
   
-    req.user = user; 
+//     req.user = user; 
+//     next();
+//   })(req, res, next);
+// }
+function authMiddleware(req, res, next) {
+  console.log("AUTH MIDDLEWARE HIT");
+
+  passport.authenticate('bearer', { session: false }, (err, user, info) => {
+  
+
+    if (err) return next(err);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    req.user = user;
     next();
   })(req, res, next);
 }

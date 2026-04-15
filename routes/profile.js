@@ -6,7 +6,8 @@ const admin = require('../google/firebaseAdmin.js')
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs")
 // const admin = require('./firebaseAdmin'); // Firebase Admin SDK
-const authMiddleware = require("../middleware/authMiddleware") // your auth
+const authMiddleware = require("../middleware/authMiddleware"); // your auth
+const { select } = require('firebase-functions/params');
 const deleteCol =async()=>{
     
     await prisma.roleToCollection.deleteMany({where:{
@@ -144,7 +145,6 @@ module.exports = function (authMiddleware){
     router.get("/:id/protected",authMiddleware,async (req,res)=>{
         try{
         const currentUserId = req.user.profiles[0].id
-console.log(currentUserId)
 const profile = await prisma.profile.findFirst({
   where: {
     id: req.params.id
@@ -334,7 +334,7 @@ let profile = null
             }
         }
        }})
-console.log(profiles)
+
 res.json({profiles})
 }catch(err){
 console.log(err)
@@ -727,92 +727,183 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-    router.get("/protected",authMiddleware,async (req,res)=>{
-        try{
-               if(!req?.user){
-    return res.status(403).json({ message: "No profile found. " });
-  }
-  const currentProfile = req.user.profiles[0]
-  const profile = await prisma.profile.findUnique({
-  where: { id: currentProfile.id},
-  include: {
-    profileToCollections:{
-        include:{
-            collection:{
+router.get("/protected", authMiddleware, async (req, res) => {
+  try {
+    if (!req?.user) {
+      return res.status(403).json({ message: "No profile found." });
+    }
+
+    const currentProfile = req.user?.profiles?.[0];
+
+    if (!currentProfile?.id) {
+      return res.status(403).json({ message: "No profile found." });
+    }
+
+    const profileId = currentProfile.id;
+
+    // Run queries in parallel
+    const profile = await
+      prisma.profile.findUnique({
+        where: { id: profileId },
+        include: 
+          { location:true,
+            _count:{
+         select:{
+              followers: true,
+              following: true,
+          }
+            
+            },
+            stories:{
+              take:50
+            },
+          profileToCollections: {
+            include: {
+              
+              collection:{
                 
                 include:{
-                    childCollections:{
+                  childCollections:{
+                    select:{
+                      childCollection:{
                         select:{
-                            childCollection:true
+                          id:true,
+                          title:true,
+                          type:true,
+                          
                         }
-                    },
-                    storyIdList:
-                    {
-                        select:{story:true}
+                      }
                     }
-                }
+                  },
+                 storyIdList:{
+                  select:{
+                    story:{
+                      select:{
+                        id:true,
+                        title:true,
+                        description:true,
+                        type:true
+                      }
+                    }
+                    
+                  }
+                 }
+              }
+              
+              
             }
-        }
-    },
-    location:true,
-    rolesToCollection: true,
-    rolesToStory:true,
-_count: {
-      select: {
-        followers: true,
-        following: true
-      }
-    }
- 
+            }}}
+      })
+    // location: true,
+         
+    //       _count: {
+    //         select: {
+    //           followers: true,
+    //           following: true,
+    //         },
+    //       },
+
+
+
+
+
+    return res.status(200).json({
+     profile
+       
+      
+    });
+
+  } catch (error) {
+    console.error("PROTECTED ERROR:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
-const stories = await prisma.story.findMany({
-  where: {
-    OR: [
-      { authorId: profile.id },
-      {
-        betaReaders: {
-          some: { profileId: profile.id }
-        }
-      }
-    ]
-  },
-  orderBy: {
-    updated: "desc" // most recently updated first
-  },
-  take: 100 // limit to 100
-});
+//     router.get("/protected",authMiddleware,async (req,res)=>{
+//         try{
+//                if(!req?.user){
+//     return res.status(403).json({ message: "No profile found. " });
+//   }
+//   const currentProfile = req.user.profiles[0]
+//   const profile = await prisma.profile.findUnique({
+//   where: { id: currentProfile.id},
+//   include: {
+//     profileToCollections:{
+//         include:{
+//             collection:{
+                
+//                 include:{
+//                     childCollections:{
+//                         select:{
+//                             childCollection:true
+//                         }
+//                     },
+//                     storyIdList:
+//                     {
+//                         select:{story:true}
+//                     }
+//                 }
+//             }
+//         }
+//     },
+//     location:true,
+//     rolesToCollection: true,
+//     rolesToStory:true,
+// _count: {
+//       select: {
+//         followers: true,
+//         following: true
+//       }
+//     }
+ 
+//   }
+// });
+// const stories = await prisma.story.findMany({
+//   where: {
+//     OR: [
+//       { authorId: profile.id },
+//       {
+//         betaReaders: {
+//           some: { profileId: profile.id }
+//         }
+//       }
+//     ]
+//   },
+//   orderBy: {
+//     updated: "desc" // most recently updated first
+//   },
+//   take: 100 // limit to 100
+// });
 
 
-const collections = await prisma.collection.findMany({
-  where: {
-    AND: [
-      { type: "feedback" },
-      { OR: [
-          { profileId: profile.id },
-          { roles: { some: { profileId: profile.id } } }
-        ]
-      }
-    ]
-  },  orderBy: {
-    updated: "desc" // most recently updated first
-  },
-  take: 100 // limit to 100
+// const collections = await prisma.collection.findMany({
+//   where: {
+//     AND: [
+//       { type: "feedback" },
+//       { OR: [
+//           { profileId: profile.id },
+//           { roles: { some: { profileId: profile.id } } }
+//         ]
+//       }
+//     ]
+//   },  orderBy: {
+//     updated: "desc" // most recently updated first
+//   },
+//   take: 100 // limit to 100
 
-});
+// });
 
-res.status(200).json({
-  profile: { ...profile, collections: [ ...collections],stories:[...stories] }
-});
+// res.status(200).json({
+//   profile: { ...profile, collections: [ ...collections],stories:[...stories] }
+// });
 
      
-    }catch(error){
-        console.log(
-            "GET WHAT",error)
-        res.status(404).json({message:"User not found"})
-    }
+    // }catch(error){
+    //     console.log(
+    //         "GET WHAT",error)
+    //     res.status(404).json({message:"User not found"})
+    // }
      
-    })
+    // })
     router.get("/:id/collection",async (req,res)=>{
 try{
         let bookmarks = await prisma.profileToCollection.findMany({
