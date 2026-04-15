@@ -743,20 +743,13 @@ router.get("/protected", authMiddleware, async (req, res) => {
 
     // Run queries in parallel
     const profile = await
-      prisma.profile.findUnique({
+      prisma.profile.findFirst({
         where: { id: profileId },
         include: 
           { location:true,
-            _count:{
-         select:{
-              followers: true,
-              following: true,
-          }
+          
             
-            },
-            stories:{
-              take:50
-            },
+            
           profileToCollections: {
             include: {
               
@@ -787,8 +780,8 @@ router.get("/protected", authMiddleware, async (req, res) => {
                     }
                     
                   }
-                 }
-              }
+                 },
+            }
               
               
             }

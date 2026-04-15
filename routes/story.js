@@ -340,21 +340,30 @@ const getRecommendations = async (profileId) => {
 
     const skip = parseInt(req.query.skip) || 0;
     const take = parseInt(req.query.take) || 50;
-console.log("BEFORE QUERY");
-    const stories = await prisma.story.findMany({
-      where: {
-        authorId:{equals:profileId}
-      },
 
-    
-      take:100,
-    });
-console.log("AFTER QUERY");
+    const [stories, totalCount] = await Promise.all([
+      prisma.story.findMany({
+        where: {
+          authorId: profileId,
+        },
+        take,
+        skip,
+        
+      }),
+
+      prisma.story.count({
+        where: {
+          authorId: profileId,
+        },
+      }),
+    ])
+
     res.status(200).json({
       stories,
       skip,
       take,
-      hasMore: stories.length === take, // 👈 useful for frontend
+      totalCount,
+      hasMore: skip + take < totalCount,
     });
 
   } catch (error) {
@@ -362,129 +371,8 @@ console.log("AFTER QUERY");
     res.status(500).json({ error: "Internal server error" });
   }
 });
-    //     router.get("/profile/protected",authMiddleware,async (req,res)=>{
-    
-    //      try{ 
-    //         const stories = await prisma.story.findMany({where:{
-    //           author:{
-    //                 id:{equals:req?.user?.profiles[0]?.id}
-    //             }
-                  
-    //         },include:{
-    //             author:true,
-    //             collections:{
-    //                 include:{
-    //                     collection:{
-    //                         select:{
-    //                             id:true,
-    //                             isPrivate:true,
-    //                             title:true
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         },take:50})
-       
-    //         res.status(200).json({stories})
-    //       }catch(error){
-    //         console.log("/profile/protected",error)
-    //         res.json({error})
-    //       }
- 
-    // })
-//     router.get("/profile/protected", authMiddleware, async (req, res) => {
-//   try {
-//     const profileId = req.user?.profiles?.[0]?.id;
 
-// if(profileId){
- 
-// const stories = await prisma.story.findMany({
-//       where: {
-//         authorId:{equals:profileId},
-//       },  
-//     });
-//        return res.status(200).json({ stories });
-// }else{
-//   return res.status(404).json({message:"Profile not found"})
-// }
-    
-  
 
- 
-//   } catch (error) {
-//     console.error("story/profile/protected",error);
-//     return res.status(500).json({ error: "Internal server error" });
-//   }
-// });
-// //     router.get("/profile/protected", authMiddleware, async (req, res) => {
-//   try {
-//     console.log("HIT story/profile/protected");
-
-//     const profileId = req?.user?.profiles?.[0]?.id;
-
-//     console.log("PROFILE ID:", profileId);
-
-//     if (!profileId) {
-//       return res.status(403).json({ message: "No profile found." });
-//     }
-
-//     const stories = await prisma.story.findMany({
-//       where: {
-//         authorId: profileId,
-//       },
-//       select: {
-//         id: true,
-//         title: true,
-//         updated: true,
-//         data: true, // ⚠️ ensure this is always string-safe on frontend
-//       },
-//       orderBy: {
-//         updated: "desc",
-//       },
-//       take: 50,
-//     });
-
-//     return res.status(200).json({ stories });
-
-//   } catch (error) {
-//     console.error("/profile/protected ERROR:", error);
-//     return res.status(500).json({ error: "Internal server error" });
-//   }
-// });
-//     router.get("/profile/protected", authMiddleware, async (req, res) => {
-//   try {
-//     const profileId = req?.user?.profiles?.[0]?.id;
-
-//     if (!profileId) {
-//       return res.status(403).json({ message: "No profile found." });
-//     }
-
-//     const stories = await prisma.story.findMany({
-//       where: {
-//         authorId: profileId, // ✅ direct FK (FAST)
-//       },
-//       select: {
-//         id: true,
-//         title: true,
-//         updated: true,
-//         data:true,
-//         // only include what you need
-      
-   
-//       },
-//       orderBy: {
-//         updated: "desc", // ✅ helps UX + DB optimization
-//       },
-//       take: 50, // 🔥 CRITICAL: LIMIT RESULTS
-//     });
-
-//     return res.status(200).json({ stories });
-
-//   } catch (error) {
-//     console.error("/profile/protected", error);
-//     return res.status(500).json({ error: "Internal server error" });
-//   }
-// });
     router.get("/collection/:id/protected",authMiddleware,async (req,res)=>{
        try{
         let list = await prisma.storyToCollection.findMany({where:{

@@ -1616,86 +1616,166 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
             res.json({error})
         }
     })
-    router.get("/profile/protected",authMiddleware,async (req,res)=>{
+    // router.get("/profile/protected",authMiddleware,async (req,res)=>{
   
-        try{
-        const profile = await prisma.profile.findFirst({where:{
-            userId:{
-                equals: req.user.id
-            }
-        },include:{likedStories:true,
-            historyStories:true,
-            collectionHistory:true,location:true}})
+    //     try{
+    //     const profile = await prisma.profile.findFirst({where:{
+    //         userId:{
+    //             equals: req.user.id
+    //         }
+    //     },include:{likedStories:true,
+    //         historyStories:true,
+    //         collectionHistory:true,location:true}})
 
-        let cols = await prisma.collection.findMany({where:{
-          profileId:{equals:profile.id}
-        },include:{
-            childCollections:{
-                include:{
-                    childCollection:true
-                }
-            },
-            storyIdList:{
-                include:{story:{include:{author:true}}}  
-              },
-            roles:{
-                include:{
-                    profile:true,
-                }
-            },
-            profile:true
-        }})
-        let cTcs = await prisma.roleToCollection.findMany({where:{
-            profileId:{
-                equals:profile.id
-            }
-        },include:{
-            collection:{
+    //     let cols = await prisma.collection.findMany({where:{
+    //       profileId:{equals:profile.id}
+    //     },include:{
+    //         childCollections:{
+    //             include:{
+    //                 childCollection:true
+    //             }
+    //         },
+    //         storyIdList:{
+    //             include:{story:{include:{author:true}}}  
+    //           },
+    //         roles:{
+    //             include:{
+    //                 profile:true,
+    //             }
+    //         },
+    //         profile:true
+    //     }})
+    //     let cTcs = await prisma.roleToCollection.findMany({where:{
+    //         profileId:{
+    //             equals:profile.id
+    //         }
+    //     },include:{
+    //         collection:{
                
-                include:{
-                    childCollections:true,
-                    storyIdList:{
-                        include:{story:{include:{author:true}}}  
-                      },
-                    roles:{
-                        include:{
-                            profile:true,
-                        }
-                    },
-                    profile:true
-                }
-            }
-        }})
-        let sTcs = await prisma.storyToCollection.findMany({where:{
-            story:{
-                authorId:{equals:profile.id}
-            },
-            collection:{
-                type:{equals:"feedback"}
-            }
-        },include:{
-            collection:{
-                include:{
-                    storyIdList:{
-                        include:{story:true}
-                    }
-                }
-            },profile:true
-        }})
-        let sTcList = sTcs.map(stc=>stc.collection)
-        let list = cTcs.map(cTc=>cTc.collection)
-        const colList =[...cols,...list,...sTcList]
-        const uniqueById = colList.filter((obj, index, self) => 
-            index === self.findIndex(item => item.id === obj.id)
-        );
+    //             include:{
+    //                 childCollections:true,
+    //                 storyIdList:{
+    //                     include:{story:{include:{author:true}}}  
+    //                   },
+    //                 roles:{
+    //                     include:{
+    //                         profile:true,
+    //                     }
+    //                 },
+    //                 profile:true
+    //             }
+    //         }
+    //     }})
+    //     let sTcs = await prisma.storyToCollection.findMany({where:{
+    //         story:{
+    //             authorId:{equals:profile.id}
+    //         },
+    //         collection:{
+    //             type:{equals:"feedback"}
+    //         }
+    //     },include:{
+    //         collection:{
+    //             include:{
+    //                 storyIdList:{
+    //                     include:{story:true}
+    //                 }
+    //             }
+    //         },profile:true
+    //     }})
+    //     let sTcList = sTcs.map(stc=>stc.collection)
+    //     let list = cTcs.map(cTc=>cTc.collection)
+    //     const colList =[...cols,...list,...sTcList]
+    //     const uniqueById = colList.filter((obj, index, self) => 
+    //         index === self.findIndex(item => item.id === obj.id)
+    //     );
         
-        res.json({collections:uniqueById})
-    }catch(error){
-        console.log(error)
-        res.json({error})
-    }
-    })
+    //     res.json({collections:uniqueById})
+    // }catch(error){
+    //     console.log(error)
+    //     res.json({error})
+    // }
+    // })
+router.get("/profile/protected", authMiddleware, async (req, res) => {
+  try {
+    const skip = parseInt(req.query.skip) || 0;
+    const take = parseInt(req.query.take) || 20;
 
+    const profile = await prisma.profile.findFirst({
+      where: {
+        userId: req.user.id,
+      },
+    });
+
+    const profileId = profile.id;
+
+    const [cols, cTcs, sTcs] = await Promise.all([
+      prisma.collection.findMany({
+        where: { profileId },
+        select: { id: true },
+      }),
+
+      prisma.roleToCollection.findMany({
+        where: { profileId },
+        select: { collectionId: true },
+      }),
+
+      prisma.storyToCollection.findMany({
+        where: {
+          story: { authorId: profileId },
+          collection: { type: "feedback" },
+        },
+        select: { collectionId: true },
+      }),
+    ]);
+
+   const uniqueIds = [
+  ...new Set([
+    ...cols.map(c => c.id),
+    ...cTcs.map(c => c.collectionId),
+    ...sTcs.map(s => s.collectionId),
+  ]),
+];
+
+const totalCount = uniqueIds.length;
+
+const collections = await prisma.collection.findMany({
+  where: {
+    id: { in: uniqueIds },
+  },
+  include: {
+    childCollections: {
+      include: { childCollection: true },
+    },
+    storyIdList: {
+      include: {
+        story: { include: { author: true } },
+      },
+    },
+    roles: {
+      include: { profile: true },
+    },
+    profile: true,
+  },
+  orderBy: {
+    updated: "desc",
+  },
+  skip,
+  take,
+});
+
+res.json({
+  collections,
+  skip,
+  take,
+  totalCount,
+  hasMore: skip + take < totalCount,
+});
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error });
+  }
+});
     router.put("/:id",async (req,res)=>{
         try{
      const {title,purpose,isPrivate,isOpenCollaboration}=req.body
