@@ -586,7 +586,7 @@ router.post("/apply", async (req, res) => {
                 id:archCol.id
             }
         },type:"archive",
-        profile:{
+           profile:{
             connect:{
                 id:profile.id
             }
