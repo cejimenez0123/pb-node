@@ -384,23 +384,39 @@ const getRecommendations = async (profileId) => {
 
     const skip = parseInt(req.query.skip) || 0;
     const take = parseInt(req.query.take) || 50;
+    const search = req.query.search?.trim() || "";
+
+const where = {
+  authorId: profileId,
+  ...(search
+    ? {
+        OR: [
+          {
+            title: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+      
+        ],
+      }
+    : {}),
+};
 
     const [stories, totalCount] = await Promise.all([
       prisma.story.findMany({
-        where: {
-          authorId: profileId,
-        },
+        where,
         take,
         skip,
-        
+        orderBy: {
+          updated: "desc",
+        },
       }),
 
       prisma.story.count({
-        where: {
-          authorId: profileId,
-        },
+        where,
       }),
-    ])
+    ]);
 
     res.status(200).json({
       stories,
@@ -409,12 +425,52 @@ const getRecommendations = async (profileId) => {
       totalCount,
       hasMore: skip + take < totalCount,
     });
-
   } catch (error) {
     console.log("/profile/protected", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+//     router.get("/profile/protected", authMiddleware, async (req, res) => {
+//   try {
+//     const profileId = req?.user?.profiles?.[0]?.id;
+
+//     if (!profileId) {
+//       return res.status(404).json({ message: "Profile not found" });
+//     }
+
+//     const skip = parseInt(req.query.skip) || 0;
+//     const take = parseInt(req.query.take) || 50;
+    
+//     const [stories, totalCount] = await Promise.all([
+//       prisma.story.findMany({
+//         where: {
+//           authorId: profileId,
+//         },
+//         take,
+//         skip,
+        
+//       }),
+
+//       prisma.story.count({
+//         where: {
+//           authorId: profileId,
+//         },
+//       }),
+//     ])
+
+//     res.status(200).json({
+//       stories,
+//       skip,
+//       take,
+//       totalCount,
+//       hasMore: skip + take < totalCount,
+//     });
+
+//   } catch (error) {
+//     console.log("/profile/protected", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
 
 
     router.get("/collection/:id/protected",authMiddleware,async (req,res)=>{
