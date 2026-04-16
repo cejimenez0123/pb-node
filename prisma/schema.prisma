@@ -392,6 +392,8 @@ model UserStoryHistory{
 enum CollectionType{
   feedback
   book
+  home
+  archive
   library
 }
 enum StoryType {
