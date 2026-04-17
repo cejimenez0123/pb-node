@@ -348,88 +348,6 @@ const getRecommendations = async (profileId) => {
 
   return recommendations;
 };
-    // router.get("/profile/protected/draft",authMiddleware,async (req,res)=>{
-    
-       
-    //         const profId = req.user.profiles[0].id
-    //         const stories = await prisma.story.findMany({where:{
-    //             AND:[{author:{
-    //                 id:{equals:profId}
-    //             }},{
-    //               OR:[{status:{equals:"workshop"}},{status:{equals:"draft"}}]}]
-    //         },include:{
-    //             author:true,
-    //             collections:{
-    //                 include:{
-    //                     collection:{
-    //                         select:{
-    //                             id:true,
-    //                             isPrivate:true,
-    //                             title:true
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }})
-    //         res.status(200).json({stories})
- 
-    // })
-    router.get("/profile/protected", authMiddleware, async (req, res) => {
-  try {
-    const profileId = req?.user?.profiles?.[0]?.id;
-
-    if (!profileId) {
-      return res.status(404).json({ message: "Profile not found" });
-    }
-
-    const skip = parseInt(req.query.skip) || 0;
-    const take = parseInt(req.query.take) || 50;
-    const search = req.query.search?.trim() || "";
-
-const where = {
-  authorId: profileId,
-  ...(search
-    ? {
-        OR: [
-          {
-            title: {
-              contains: search,
-              mode: "insensitive",
-            },
-          },
-      
-        ],
-      }
-    : {}),
-};
-
-    const [stories, totalCount] = await Promise.all([
-      prisma.story.findMany({
-        where,
-        take,
-        skip,
-        orderBy: {
-          updated: "desc",
-        },
-      }),
-
-      prisma.story.count({
-        where,
-      }),
-    ]);
-
-    res.status(200).json({
-      stories,
-      skip,
-      take,
-      totalCount,
-      hasMore: skip + take < totalCount,
-    });
-  } catch (error) {
-    console.log("/profile/protected", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
 //     router.get("/profile/protected", authMiddleware, async (req, res) => {
 //   try {
 //     const profileId = req?.user?.profiles?.[0]?.id;
@@ -440,23 +358,39 @@ const where = {
 
 //     const skip = parseInt(req.query.skip) || 0;
 //     const take = parseInt(req.query.take) || 50;
-    
+//     const search = req.query.search?.trim().toLowerCase() || "";
+
+// const where = {
+//   authorId: profileId,
+//   ...(search.length>0
+//     ? {
+//         OR: [
+//           {
+//             title: {
+//               contains: search,
+//               mode: "insensitive",
+//             },
+//           },
+      
+//         ],
+//       }
+//     : {}),
+// };
+
 //     const [stories, totalCount] = await Promise.all([
 //       prisma.story.findMany({
-//         where: {
-//           authorId: profileId,
-//         },
+//         where,
 //         take,
 //         skip,
-        
+//         orderBy: {
+//           updated: "desc",
+//         },
 //       }),
 
 //       prisma.story.count({
-//         where: {
-//           authorId: profileId,
-//         },
+//         where,
 //       }),
-//     ])
+//     ]);
 
 //     res.status(200).json({
 //       stories,
@@ -465,12 +399,53 @@ const where = {
 //       totalCount,
 //       hasMore: skip + take < totalCount,
 //     });
-
 //   } catch (error) {
 //     console.log("/profile/protected", error);
 //     res.status(500).json({ error: "Internal server error" });
 //   }
 // });
+ router.get("/profile/protected", authMiddleware, async (req, res) => {
+  try {
+    const profileId = req?.user?.profiles?.[0]?.id;
+
+    if (!profileId) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    const skip = parseInt(req.query.skip) || 0;
+    const take = parseInt(req.query.take) || 50;
+
+    const [stories, totalCount] = await Promise.all([
+      prisma.story.findMany({
+        where: {
+          authorId: profileId,
+        },
+        take,
+        skip,
+        
+      }),
+
+      prisma.story.count({
+        where: {
+          authorId: profileId,
+        },
+      }),
+    ])
+
+    res.status(200).json({
+      stories,
+      skip,
+      take,
+      totalCount,
+      hasMore: skip + take < totalCount,
+    });
+
+  } catch (error) {
+    console.log("/profile/protected", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 
 
     router.get("/collection/:id/protected",authMiddleware,async (req,res)=>{
@@ -539,55 +514,8 @@ const where = {
         res.status(404).json({error})
     }
     })
-    router.get("/profile/protected",authMiddleware,async (req,res)=>{
-        try{
-        
-        const profile = await prisma.profile.findFirst({where:{
-            userId:{
-                equals:req.user.id
-            } 
-        }})
-        const stories = await prisma.story.findMany({where:{
-            author:{
-                id:{equals:profile.id}
-            }
-        },include:{
-            author:true
-        }})
-   
-        res.status(200).json({stories})
-
-    }catch(error){
-        console.log(error)
-        res.json({error})
-    }
-    })
-
-    // router.get("/profile/:id/public",async (req,res)=>{
-    //     try{
-    //     const stories = await prisma.story.findMany({where:{
-    //         AND:{
-    //            author:{
-    //             id:{
-    //                 equals: req.params.id
-    //             }
-    //            },
-    //         isPrivate:{
-    //             equals:false
-                
-    //         }
-                
-    //         }
-    //     },include:{
-    //         author:true,
-    //         comments:true
-    //     }})
-      
-    //     res.status(200).json({stories})
-    // }catch(error){
-    //     res.json({error})
-    // }
-    // })
+    
+    
     router.get("/profile/:id/public", async (req, res) => {
   try {
     const skip = parseInt(req.query.skip) || 0;
@@ -631,26 +559,7 @@ const where = {
     res.status(500).json({ error });
   }
 });
-    // router.get("/profile/:id/protected",authMiddleware,async (req,res)=>{
-    //     try{
-    //     const stories = await prisma.story.findMany({where:{
-    //         AND:{
-    //            author:{
-    //             id:{
-    //                 equals: req.params.id
-    //             }
-    //            },
-                
-    //         }
-    //     },include:{
-    //         author:true,
-    //         comments:true
-    //     }})
-    //     res.status(200).json({stories})
-    // }catch(error){
-    //     res.json({error})
-    // }
-    // })
+   
     router.get("/profile/:id/protected", authMiddleware, async (req, res) => {
   try {
     const skip = parseInt(req.query.skip) || 0;
