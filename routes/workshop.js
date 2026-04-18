@@ -1072,7 +1072,7 @@ router.post('/group/join', authMiddleware, async (req, res) => {
     });
   }
 });
-// router.post('/group/join', authMiddleware, async (req, res) => {
+
 //   try {
 //     const { story, profile, location } = req.body;
 //     const radius = parseFloat(req.query.radius) || 50;
