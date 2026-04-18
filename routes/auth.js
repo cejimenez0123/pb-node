@@ -350,7 +350,7 @@ router.post("/invite", authMiddleware, async (req, res) => {
 
 
 router.post("/apply", async (req, res) => {
-  console.log("APPLY BODY:", req.body);
+
 
   const {
     email,
@@ -754,111 +754,86 @@ router.post('/use-referral', async (req, res) => {
   }
 });
 router.post("/session", async (req, res) => {
-  const { email, password, uId, identityToken } = req.body;
+  const { email, password, uId, identityToken, idToken } = req.body;
 
   try {
     let user = null;
 
     // ---------------------------
-    // 🍎 Apple login
+    // 🔵 GOOGLE LOGIN (FIXED)
     // ---------------------------
-    if (identityToken) {
-      const payload = await verifyAppleIdentityToken(identityToken);
+    if (idToken) {
+      const googleUser = await verifyGoogleIdToken(idToken); 
+      // should return: { email, sub, name }
+
+      if (!googleUser?.email || !googleUser?.sub) {
+        return res.status(401).json({ message: "Invalid Google token" });
+      }
 
       user = await prisma.user.findFirst({
-        where: { email: payload.email },
-        include: {
-          profiles: { select: { id: true } },
-        },
-      });
-    }
-
-    // ---------------------------
-    // 🔵 Google login
-    // ---------------------------
-    else if (uId) {
-      // Try find by Google ID
-      user = await prisma.user.findFirst({
-        where: { uId },
-        include: {
-          profiles: { select: { id: true } },
-        },
+        where: { uId: googleUser.sub },
+        include: { profiles: { select: { id: true } } },
       });
 
-      // Fallback: find by email if not found
-      if (!user && email) {
-        try {
-          user = await prisma.user.findFirstOrThrow({
-            where: { email },
-            include: {
-              profiles: { select: { id: true } },
-            },
-          });
+      if (!user) {
+        user = await prisma.user.findFirst({
+          where: { email: googleUser.email },
+          include: { profiles: { select: { id: true } } },
+        });
 
-          // Link Google ID if missing
-          if (!user.uId) {
-            user = await prisma.user.update({
-              where: { id: user.id },
-              data: { uId },
-              include: {
-                profiles: { select: { id: true } },
-              },
-            });
-          }
-        } catch {
-          return res.status(403).json({
-            message: "No profile found. Apply Today.",
+        if (user && !user.uId) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { uId: googleUser.sub },
+            include: { profiles: { select: { id: true } } },
           });
         }
       }
     }
 
     // ---------------------------
-    // 📧 Email/password login
+    // 🍎 APPLE LOGIN
+    // ---------------------------
+    else if (identityToken) {
+      const payload = await verifyAppleIdentityToken(identityToken);
+
+      user = await prisma.user.findFirst({
+        where: { email: payload.email },
+        include: { profiles: { select: { id: true } } },
+      });
+    }
+
+    // ---------------------------
+    // 📧 EMAIL / PASSWORD
     // ---------------------------
     else if (email) {
       user = await prisma.user.findFirst({
         where: { email },
-        include: {
-          profiles: { select: { id: true } },
-        },
+        include: { profiles: { select: { id: true } } },
       });
 
-      // No user
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // No profiles
-      if (!user.profiles?.length) {
-        return res.status(403).json({
-          message: "No profile found. Please create one.",
-        });
-      }
-
-      // Password check
-      if (!user.password || !bcrypt.compareSync(password, user.password)) {
-        return res.status(409).json({
-          message: "Invalid email or password",
-        });
+      if (!bcrypt.compareSync(password, user.password)) {
+        return res.status(409).json({ message: "Invalid password" });
       }
     }
 
     // ---------------------------
-    // 🚫 Final safety check
+    // 🚫 SAFETY CHECK
     // ---------------------------
-    if (!user || !user.id) {
+    if (!user?.id) {
       return res.status(404).json({ message: "User not found" });
     }
 
     if (!user.profiles?.length) {
-      return res.status(403).json({
-        message: "No profile found. Please create one.",
-      });
+      return res.status(403).json({ message: "No profile found" });
     }
 
     // ---------------------------
-    // 🟢 Update activity (SAFE)
+    // 🟢 UPDATE ACTIVITY
     // ---------------------------
     await prisma.profile.updateMany({
       where: { userId: user.id },
@@ -869,50 +844,195 @@ router.post("/session", async (req, res) => {
     });
 
     // ---------------------------
-    // 🔄 Reload fresh user
+    // 🔄 REFRESH USER
     // ---------------------------
     const freshUser = await prisma.user.findUnique({
       where: { id: user.id },
-      include: {
-        profiles: { select: { id: true } },
-      },
+      include: { profiles: { select: { id: true } } },
     });
 
     const profileId = freshUser?.profiles?.[0]?.id;
 
     if (!profileId) {
-      return res.status(403).json({
-        message: "Profile missing.",
-      });
+      return res.status(403).json({ message: "Profile missing" });
     }
 
-    // ---------------------------
-    // 📦 Load profile
-    // ---------------------------
     const profile = await prisma.profile.findUnique({
       where: { id: profileId },
-      include: {
-        profileToCollections: true,
-      },
+      include: { profileToCollections: true },
     });
 
-    // ---------------------------
-    // 🔐 Token
-    // ---------------------------
     const token = jwt.sign(
       { userId: freshUser.id },
       process.env.JWT_SECRET
     );
 
     return res.json({ token, profile });
-
   } catch (error) {
     console.error("SESSION ERROR:", error);
-    return res.status(500).json({
-      error: "Internal server error",
-    });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
+// router.post("/session", async (req, res) => {
+//   const { email, password, uId, identityToken } = req.body;
+
+//   try {
+//     let user = null;
+
+//     // ---------------------------
+//     // 🍎 Apple login
+//     // ---------------------------
+//     if (identityToken) {
+//       const payload = await verifyAppleIdentityToken(identityToken);
+
+//       user = await prisma.user.findFirst({
+//         where: { email: payload.email },
+//         include: {
+//           profiles: { select: { id: true } },
+//         },
+//       });
+//     }
+
+//     // ---------------------------
+//     // 🔵 Google login
+//     // ---------------------------
+//     else if (uId) {
+//       // Try find by Google ID
+//       user = await prisma.user.findFirst({
+//         where: { uId },
+//         include: {
+//           profiles: { select: { id: true } },
+//         },
+//       });
+
+//       // Fallback: find by email if not found
+//       if (!user && email) {
+//         try {
+//           user = await prisma.user.findFirstOrThrow({
+//             where: { email },
+//             include: {
+//               profiles: { select: { id: true } },
+//             },
+//           });
+
+//           // Link Google ID if missing
+//           if (!user.uId) {
+//             user = await prisma.user.update({
+//               where: { id: user.id },
+//               data: { uId },
+//               include: {
+//                 profiles: { select: { id: true } },
+//               },
+//             });
+//           }
+//         } catch {
+//           return res.status(403).json({
+//             message: "No profile found. Apply Today.",
+//           });
+//         }
+//       }
+//     }
+
+//     // ---------------------------
+//     // 📧 Email/password login
+//     // ---------------------------
+//     else if (email) {
+//       user = await prisma.user.findFirst({
+//         where: { email },
+//         include: {
+//           profiles: { select: { id: true } },
+//         },
+//       });
+
+//       // No user
+//       if (!user) {
+//         return res.status(404).json({ message: "User not found" });
+//       }
+
+//       // No profiles
+//       if (!user.profiles?.length) {
+//         return res.status(403).json({
+//           message: "No profile found. Please create one.",
+//         });
+//       }
+
+//       // Password check
+//       if (!user.password || !bcrypt.compareSync(password, user.password)) {
+//         return res.status(409).json({
+//           message: "Invalid email or password",
+//         });
+//       }
+//     }
+
+//     // ---------------------------
+//     // 🚫 Final safety check
+//     // ---------------------------
+//     if (!user || !user.id) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+
+//     if (!user.profiles?.length) {
+//       return res.status(403).json({
+//         message: "No profile found. Please create one.",
+//       });
+//     }
+
+//     // ---------------------------
+//     // 🟢 Update activity (SAFE)
+//     // ---------------------------
+//     await prisma.profile.updateMany({
+//       where: { userId: user.id },
+//       data: {
+//         lastActive: new Date(),
+//         isActive: true,
+//       },
+//     });
+
+//     // ---------------------------
+//     // 🔄 Reload fresh user
+//     // ---------------------------
+//     const freshUser = await prisma.user.findUnique({
+//       where: { id: user.id },
+//       include: {
+//         profiles: { select: { id: true } },
+//       },
+//     });
+
+//     const profileId = freshUser?.profiles?.[0]?.id;
+
+//     if (!profileId) {
+//       return res.status(403).json({
+//         message: "Profile missing.",
+//       });
+//     }
+
+//     // ---------------------------
+//     // 📦 Load profile
+//     // ---------------------------
+//     const profile = await prisma.profile.findUnique({
+//       where: { id: profileId },
+//       include: {
+//         profileToCollections: true,
+//       },
+//     });
+
+//     // ---------------------------
+//     // 🔐 Token
+//     // ---------------------------
+//     const token = jwt.sign(
+//       { userId: freshUser.id },
+//       process.env.JWT_SECRET
+//     );
+
+//     return res.json({ token, profile });
+
+//   } catch (error) {
+//     console.error("SESSION ERROR:", error);
+//     return res.status(500).json({
+//       error: "Internal server error",
+//     });
+//   }
+// });
 
 
     router.post("/newsletter",async (req,res)=>{
