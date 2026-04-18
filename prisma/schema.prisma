@@ -233,16 +233,22 @@ profile Profile @relation(fields: [profileId], references: [id],onDelete:Cascade
   route        String?
   highlightId  String?
 }
-model RoleToCollection{
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-  profileId String  @db.ObjectId
-  profile Profile @relation(fields: [profileId], references: [id])
-  collectionId String? @db.ObjectId
-  approved Boolean @default(true)
-  collection Collection? @relation(fields: [collectionId], references: [id])
-  role Role @default(reader)
-  updated DateTime? @default(now())
-  created DateTime? @default(now())
+model RoleToCollection {
+  id           String      @id @default(auto()) @map("_id") @db.ObjectId
+
+  profileId    String      @db.ObjectId
+  profile      Profile     @relation(fields: [profileId], references: [id])
+
+  collectionId String?     @db.ObjectId
+  collection   Collection? @relation(fields: [collectionId], references: [id])
+
+  approved     Boolean     @default(true)
+  role         Role        @default(reader)
+
+  updated      DateTime    @updatedAt
+  created      DateTime    @default(now())
+
+  @@unique([profileId, collectionId])
 }
 model Chat {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
@@ -285,6 +291,7 @@ model DeviceToken {
   createdAt DateTime @default(now())
 }
 enum Role {
+  owner
   reader
   editor
   commenter

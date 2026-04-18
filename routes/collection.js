@@ -609,6 +609,7 @@ module.exports = function (authMiddleware){
     router.get("/:id/recommendations",async (req,res)=>{
         try{
         if(req.params.id){
+            console.log(req)
 const recommendations = await getRecommendedCollections(req.params.id)
       let collections= await prisma.collection.findMany({where:{
         id:{
