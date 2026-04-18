@@ -523,6 +523,83 @@ router.post("/invite", authMiddleware, async (req, res) => {
 //     });
 //   }
 // });
+// router.post("/apply", async (req, res) => {
+//   console.log("APPLY BODY:", req.body);
+
+//   const {
+//     email,
+//     igHandle,
+//     fullName,
+//     whyApply,
+//     howFindOut,
+//     communityNeeds,
+//     writingOutcome,
+//     events,
+//     selectedEvents,
+//     otherEvent,
+//     eventPain,
+//     workshopPreference,
+//     feedbackFrequency,
+//     comfortLevel,
+//     platformFeatures,
+//   } = req.body;
+
+//   try {
+//     console.log("APPLY DEBUG:", {
+//       email,
+//       howFindOut,
+//       whyApply,
+//       events,
+//       selectedEvents,
+//     });
+
+//     const cleanEmail =
+//       email && email.trim() ? email.trim().toLowerCase() : null;
+
+//     const user = await prisma.user.create({
+//       data: {
+//         email: cleanEmail,
+//         preferredName: fullName,
+//       },
+//     });
+
+//     const mailOptions = applyTemplate(user, req.body, false);
+//     const template = applicationConfirmationTemplate(user);
+
+//     const confirmRes = await resend.emails.send(template);
+//     if (confirmRes?.error) {
+//       console.error("CONFIRM EMAIL ERROR:", confirmRes.error);
+//     }
+
+//     const applyRes = await resend.emails.send(mailOptions);
+//     if (applyRes?.error) {
+//       console.error("APPLY EMAIL ERROR:", applyRes.error);
+//       throw new Error(applyRes.error.message);
+//     }
+
+//     const params = new URLSearchParams({
+//       applicantId: user.id,
+//       action: "approve",
+//       email: user.email,
+//     });
+
+//     const path = `/auth/review?${params.toString()}`;
+
+//     return res.status(201).json({
+//       path,
+//       user,
+//       message: "Applied Successfully!",
+//     });
+
+//   } catch (error) {
+//     console.log("APPLY ERROR:", error);
+
+//     return res.status(403).json({
+//       error: error.message,
+//     });
+//   }
+// });
+
 router.post("/apply", async (req, res) => {
   console.log("APPLY BODY:", req.body);
 
@@ -538,21 +615,9 @@ router.post("/apply", async (req, res) => {
     selectedEvents,
     otherEvent,
     eventPain,
-    workshopPreference,
-    feedbackFrequency,
-    comfortLevel,
-    platformFeatures,
   } = req.body;
 
   try {
-    console.log("APPLY DEBUG:", {
-      email,
-      howFindOut,
-      whyApply,
-      events,
-      selectedEvents,
-    });
-
     const cleanEmail =
       email && email.trim() ? email.trim().toLowerCase() : null;
 
@@ -563,7 +628,21 @@ router.post("/apply", async (req, res) => {
       },
     });
 
-    const mailOptions = applyTemplate(user, req.body, false);
+    // IMPORTANT: ensure full payload goes into template
+    const mailOptions = applyTemplate(user, {
+      email: cleanEmail,
+      igHandle,
+      fullName,
+      whyApply,
+      howFindOut,
+      communityNeeds,
+      writingOutcome,
+      events,
+      selectedEvents,
+      otherEvent,
+      eventPain,
+    });
+
     const template = applicationConfirmationTemplate(user);
 
     const confirmRes = await resend.emails.send(template);
@@ -599,7 +678,6 @@ router.post("/apply", async (req, res) => {
     });
   }
 });
-
     router.post("/reset-password",async(req,res)=>{
       
       try{
