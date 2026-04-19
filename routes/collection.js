@@ -1138,9 +1138,13 @@ const otherCols = libraries.filter(book=>book.priority<90)
 
 
 router.get('/col/:id/protected', authMiddleware, async (req, res) => {
+ 
   try {
     const { id } = req.params;
 
+    if (!id || id === "undefined") {
+      return res.status(400).json({ error: "Invalid collection id" });
+    }
     if (!req.user || !req.user.profiles?.length) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -1980,7 +1984,10 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
 }
 async function getCollectionById(id) {
   // Fetch the collection with all relations
-  
+
+  if (!id || id === "undefined") return null;
+
+
   const collection = await prisma.collection.findFirst({
     where: { id },
     include: {
