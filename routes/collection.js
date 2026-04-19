@@ -1721,8 +1721,7 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
             res.json({error})
         }
     })
-
-router.get("/profile/protected", authMiddleware, async (req, res) => {
+    router.get("/profile/protected", authMiddleware, async (req, res) => {
   try {
     const skip = parseInt(req.query.skip) || 0;
     const take = parseInt(req.query.take) || 20;
@@ -1872,6 +1871,7 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
     res.status(500).json({ error });
   }
 });
+
 
     router.put("/:id",async (req,res)=>{
         try{
