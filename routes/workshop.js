@@ -438,11 +438,7 @@ router.post("/group/join", authMiddleware, async (req, res) => {
     const radius = parseFloat(req.query.radius) || 50;
     const isGlobal = req.query.global == 'true';
 
-    console.log("JOIN GROUP:", {
-      profileId: profile?.id,
-      hasStory: !!story?.id,
-      isGlobal
-    });
+ 
 
     if (!profile?.id) {
       return res.status(400).json({ error: "Profile required" });
@@ -668,16 +664,19 @@ const stories = await prisma.story.findMany({
    
   },
   include: {
-    author: {
-      include: { location: true },
-    },
+    author:{
+      include:{
+        location:true
+      }
+    }
+    
   },orderBy: {
   updated: "desc",
 },
 });
 const shuffled = shuffle(stories);
 const selectedStories = pickUniqueAuthors(shuffled, 6);
-      // const selectedStories = pickUniqueByAuthor(stories, 6);
+      
 
 let addedCount = 0;
 
@@ -690,6 +689,10 @@ for (const s of selectedStories) {
       collectionId: newCollection.id,
     },
   });
+  await prisma.roleToCollection.create({data:{
+   collectionId:newCollection.id,
+  profileId:s.authorId,
+role:"writer"}})
 
   if (existing) continue;
 
