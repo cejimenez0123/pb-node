@@ -1111,7 +1111,7 @@ router.get('/col/:id/protected', authMiddleware, async (req, res) => {
     const currentProfile = req.user.profiles[0];
 
     const collection = await getCollectionById(id);
-    console.log(collection)
+
     if (!collection) {
       return res.status(404).json({ error: 'Collection not found' });
     }
@@ -1736,30 +1736,61 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
     // -----------------------------
     // BASE QUERY (NO ORDERING HERE)
     // -----------------------------
-    const baseCollections = await prisma.collection.findMany({
+//     const baseCollections = await prisma.collection.findMany({
+//       where: {
+//         id: { in: uniqueIds },
+//         ...(type && type !== "library" ? { type } : {}),
+//       },
+//       select: {
+//         id: true,
+//         title: true,
+//         updated: true,
+//         _count: {
+//           select: {
+//             childCollections: true,
+//           },
+//         },
+//         userHistory:{
+//               where: {
+//     profileId: profileId,
+//   },take:1
+     
+//         }
+        
+//       },orderBy:{
+//         updated:"desc"
+//       }
+//     });
+const baseCollections = await prisma.collection.findMany({
+  where: {
+    id: { in: uniqueIds },
+    ...(type && type !== "library" ? { type } : {}),
+  },
+  select: {
+    id: true,
+    title: true,
+    updated: true,
+    _count: {
+      select: {
+        childCollections: true,
+        userHistory:{where:{profileId:profileId}}
+      },
+    },
+    userHistory: {
       where: {
-        id: { in: uniqueIds },
-        ...(type && type !== "library" ? { type } : {}),
+        profileId: profileId,
       },
       select: {
         id: true,
-        title: true,
-        updated: true,
-        _count: {
-          select: {
-            childCollections: true,
-          },
-        },
-        userHistory:{
-            where:{
-                profileId:profileId
-            },take:1,
-        }
-        
-      },orderBy:{
-        updated:"desc"
-      }
-    });
+        created:true,
+      },
+      take: 1,
+    },
+  },
+  orderBy: {
+    updated: "desc",
+  },
+});
 
     // -----------------------------
     // FILTERING PIPELINE
@@ -1818,25 +1849,56 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
     // -----------------------------
     // FINAL DATA FETCH
     // -----------------------------
+    // const collections = await prisma.collection.findMany({
+    //   where: {
+    //     id: { in: pagedIds },
+    //   },
+    //   include: {
+    //     childCollections: {
+    //       include: { childCollection: true },
+    //     },
+    //     storyIdList: {
+    //       include: {
+    //         story: { include: { author: true } },
+    //       },
+    //     },
+    //     roles: {
+    //       include: { profile: true },
+    //     },
+    //     profile: true,
+    //   },
+    // });
     const collections = await prisma.collection.findMany({
-      where: {
-        id: { in: pagedIds },
-      },
+  where: {
+    id: { in: pagedIds },
+  },
+  include: {
+    childCollections: {
+      include: { childCollection: true },
+    },
+    storyIdList: {
       include: {
-        childCollections: {
-          include: { childCollection: true },
-        },
-        storyIdList: {
-          include: {
-            story: { include: { author: true } },
-          },
-        },
-        roles: {
-          include: { profile: true },
-        },
-        profile: true,
+        story: { include: { author: true } },
       },
-    });
+    },
+    roles: {
+      include: { profile: true },
+    },
+    profile: true,
+
+    // ✅ ADD THIS
+    userHistory: {
+      where: {
+        profileId: profileId, // make sure this exists in scope
+      },
+      select: {
+        id: true,
+      created:true,
+      },
+      take: 1,
+    },
+  },
+});
 const orderMap = new Map(
   pagedIds.map((id, index) => [id, index])
 );
