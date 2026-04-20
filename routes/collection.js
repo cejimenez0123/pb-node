@@ -1109,8 +1109,9 @@ router.get('/col/:id/protected', authMiddleware, async (req, res) => {
     }
 
     const currentProfile = req.user.profiles[0];
-    const collection = await getCollectionById(id);
 
+    const collection = await getCollectionById(id);
+    console.log(collection)
     if (!collection) {
       return res.status(404).json({ error: 'Collection not found' });
     }
@@ -1691,9 +1692,7 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
    const type = req.query.type;
     const isWorkshop = req.query.isWorkshop
     const search = (req.query.search || "").trim().toLowerCase();
-    // if(search=="workshop"||search=="feedback"){
-    //     type = "feedback"
-    // }
+   
     const profile = await prisma.profile.findFirst({
       where: { userId: req.user.id },
     });
@@ -1704,7 +1703,7 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
 
     const profileId = profile.id;
 
-    const [cols, cTcs, sTcs] = await Promise.all([
+    const [cols, cTcs] = await Promise.all([
       prisma.collection.findMany({
         where: {OR:[{ profileId },{roles:{
             some:{
@@ -1723,20 +1722,14 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
         select: { collectionId: true },
       }),
 
-      prisma.storyToCollection.findMany({
-        where: {
-          AND:[{story: { authorId: {equals:profileId }}},{
-          collection: { type:{equals: "feedback"} }},]
-        },
-        select: { collectionId: true },
-      }),
+  
     ]);
 
     const uniqueIds = [
       ...new Set([
         ...cols.map((c) => c.id),
         ...cTcs.map((c) => c.collectionId),
-        ...sTcs.map((s) => s.collectionId),
+        // ...sTcs.map((s) => s.collectionId),
       ]),
     ];
 
@@ -1757,6 +1750,11 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
             childCollections: true,
           },
         },
+        userHistory:{
+            where:{
+                profileId:profileId
+            },take:1,
+        }
         
       },orderBy:{
         updated:"desc"

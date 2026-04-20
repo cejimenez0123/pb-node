@@ -890,13 +890,22 @@ router.post("/session", async (req, res) => {
           }
         },
         profileToCollections:{
-          select:{id:true,collection:{
-            select:{
-              id:true,
-              title:true,
-              type:true
+         include:{
+          collection:{
+            include:{
+              storyIdList:{select:{story:{
+                select:{id:true,title:true}
+              }}},
+              childCollections:{
+                select:{
+                  childCollection:{
+                    select:{id:true,title:true}
+                  }
+                }
+              }
             }
-          }}
+          }
+         }
         }
       },
       

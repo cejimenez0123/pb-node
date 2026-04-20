@@ -486,7 +486,7 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
       where: {
         AND: [
           { story: { authorId: { equals: profId } } },
-          { updated: { gte: new Date("1-1-2025") } }
+          { updated: { gte: lastNotified} }
         ]
       },
       include: {
@@ -565,7 +565,7 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
     );
   const {seen }= req.query
     // --- UPDATE lastNotified ---
-
+    
     if(seen == "true"){
   await prisma.profile.update({
       where: { id: profId },
@@ -750,11 +750,8 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
       )
     );
 
-    // --- UPDATE lastNotified ---
-    await prisma.profile.update({
-      where: { id: profId },
-      data: { lastNotified: new Date() }
-    });
+    
+
 
     // --- RETURN DATA ---
     res.json({ collections, comments, following, followers });
@@ -792,7 +789,7 @@ router.get("/protected", authMiddleware, async (req, res) => {
 
     const profileId = currentProfile.id;
 
-    // Run queries in parallel
+
     const profile = await
       prisma.profile.findFirst({
         where: { id: profileId },
@@ -852,14 +849,6 @@ router.get("/protected", authMiddleware, async (req, res) => {
             }
             }}}
       })
-    // location: true,
-         
-    //       _count: {
-    //         select: {
-    //           followers: true,
-    //           following: true,
-    //         },
-    //       },
 
 
 

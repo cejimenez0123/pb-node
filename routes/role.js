@@ -39,73 +39,165 @@ try{
             res.json({error})
         }
     })
-      router.put("/collection",authMiddleware,async(req,res)=>{
-        try{
-            const {roles}=req.body
+    router.put("/collection", authMiddleware, async (req, res) => {
+  try {
+    const { roles = [] } = req.body;
+
+    const ops = roles.map((role) => {
+      // DELETE
+      if (role.role === "none" && role.id) {
+      return prisma.roleToCollection.deleteMany({
+  where: { id: role.id },
+});
+      }
+
+      // UPDATE (existing role)
+      if (role.id) {
+       
+        return prisma.roleToCollection.upsert({
+          where: { id: role.id },
+          update: {
+            role: role.role,
+          },
+          create: {
+            role: role.role,
+            profileId: role.profile.id,
+            collectionId: role.item.id,
+          },
+          include: {
+            collection: true,
+            profile: true,
+          },
+        });
+      }
+
+      // CREATE (new role)
+   if(role.role!="none"){
+    
+    return prisma.roleToCollection.upsert({
+  where: {
+    profileId_collectionId: {
+      profileId: role.profile.id,
+      collectionId: role.item.id,
+    },
+  },
+  update: {
+    role: role.role,
+  },
+  create: {
+    role: role.role,
+    profile: {
+      connect: { id: role.profile.id },
+    },
+    collection: {
+      connect: { id: role.item.id },
+    },
+  },
+  include: {
+    collection: true,
+    profile: true,
+  },
+});}
+    });
+
+    const newRoles = (await Promise.all(ops)).filter(Boolean);
+
+    const collectionId = roles?.[0]?.item?.id;
+
+    const collection = collectionId
+      ? getCollectionById(collectionId)
+      : null;
+
+    // const col = collectionId
+    //   ? await getCollectionById(collectionId)
+    //   : null;
+// await prisma.collection.findFirst({
+//           where: { id: collectionId },
+//           include: {
+//             storyIdList: true,
+//             childCollections: true,
+//             roles: {
+//               include: { profile: true },
+//             },
+//             profile: true,
+//           },
+//         })
+    return res.json({
+      collection: collection,
+      roles: newRoles,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error });
+  }
+});
+    //   router.put("/collection",authMiddleware,async(req,res)=>{
+    //     try{
+    //         const {roles}=req.body
           
-            let updated= roles.map(role=>{
+    //         let updated= roles.map(role=>{
 
-                if(role.role=="role"){
-                    if(role.id){
-                    return prisma.roleToCollection.delete({where:{id:role.id}})
-                    }
-                }else{
-                    if(roles.role && roles.id.length>10){
-                return prisma.roleToCollection.upsert({
-                    where:{
-                        id:role.id
-                    },
-                    update:{
-                        role:role.role,
-                    },
-                    create:{
-                        role:role.role,
-                        profileId:role.profile.id,
-                        collectionId:role.item.id
-                    }
-                   , include:{
-                        collection:true,
-                        profile:true
-                    }})
-                }else{
-                    return prisma.roleToCollection.create({data:{
-                        role:role.role,
-                        profile:{
-                            connect:{
-                                id:role.profile.id
-                            }
-                        },
-                        collection:{
-                            connect:{
-                                id:role.item.id
-                            }
-                        }
-                    },include:{
-                        collection:true,
-                        profile:true
-                    }})
-                }}
-                })
-        let newRoles = await Promise.all(updated)
-        let collection = await prisma.collection.findFirst({where:{id:{equals:roles[0].item.id}}
-            ,include:{
-                storyIdList:true,
-                childCollections:true,
-                roles:{
-                    include:{
-                        profile:true,
-                    }
-                },
-                profile:true
-            }})
-         let col =await getCollectionById(roles[0].item.id)
-        res.json({collection:col,roles:newRoles.filter(role=>!!role)})
+    //             if(role.role=="role"){
+    //                 if(role.id){
+    //                 return prisma.roleToCollection.delete({where:{id:role.id}})
+    //                 }
+    //             }else{
+    //                 if(roles.role && roles.id.length>10){
+    //             return prisma.roleToCollection.upsert({
+    //                 where:{
+    //                     id:role.id
+    //                 },
+    //                 update:{
+    //                     role:role.role,
+    //                 },
+    //                 create:{
+    //                     role:role.role,
+    //                     profileId:role.profile.id,
+    //                     collectionId:role.item.id
+    //                 }
+    //                , include:{
+    //                     collection:true,
+    //                     profile:true
+    //                 }})
+    //             }else{
+    //                 return prisma.roleToCollection.create({data:{
+    //                     role:role.role,
+    //                     profile:{
+    //                         connect:{
+    //                             id:role.profile.id
+    //                         }
+    //                     },
+    //                     collection:{
+    //                         connect:{
+    //                             id:role.item.id
+    //                         }
+    //                     }
+    //                 },include:{
+    //                     collection:true,
+    //                     profile:true
+    //                 }})
+    //             }}
+    //             })
+    //     let newRoles = await Promise.all(updated)
+    //     let collection = await prisma.collection.findFirst({where:{id:{equals:roles[0].item.id}}
+    //         ,include:{
+    //             storyIdList:true,
+    //             childCollections:true,
+    //             roles:{
+    //                 include:{
+    //                     profile:true,
+    //                 }
+    //             },
+    //             profile:true
+    //         }})
+    //      let col =await getCollectionById(roles[0].item.id)
+    //     res.json({collection:col,roles:newRoles.filter(role=>!!role)})
 
-            }catch(error){
-                console.log(error)
-                res.json({error})
-            }
-    })
+    //         }catch(error){
+    //             console.log(error)
+    //             res.json({error})
+    //         }
+    // })
 
 router.put("/story", authMiddleware, async (req, res) => {
   try {
