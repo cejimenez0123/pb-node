@@ -190,27 +190,7 @@ module.exports = function ({authMiddleware}){
     res.status(500).json({ error: "Internal server error" });
   }
 });
-    // router.get("/",async (req,res)=>{
-    //     try{
-    //    let stories = await prisma.story.findMany({orderBy:{
-    //     updated:"desc"
-    //    }, where:{
-    //     isPrivate:{equals: false}
-    //    },include:{
-        
-    //     hashtags:{
-    //       include:{
-    //         hashtag:true
-    //       }
-    //     },author:true
-        
-    //    }})
-    //     res.json({stories})
-    // }catch(error){
- 
-    //     res.json({error})
-    // }
-    // })
+   
     router.get("/collection/:id/public",async (req,res)=>{  
     try{
         const {id}=req.params

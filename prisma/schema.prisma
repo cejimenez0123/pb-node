@@ -24,6 +24,7 @@ model User{
   referrals Referral[]  @relation(name: "UserReferrals") 
   lastEmailed   DateTime?  @default(now())
   profiles Profile[]
+  lastLogin  DateTime?  @default(now())
   verified Boolean @default(false)
   created DateTime? @default(now())
 
@@ -130,6 +131,7 @@ model Profile{
     collectionHistory UserCollectionHistory[]
     rolesToCollection RoleToCollection[]
     comments Comment[] 
+  
     devices DeviceToken[] 
     followers             Follow[]    @relation(name: "Followers")
     following             Follow[]   @relation(name: "Following")

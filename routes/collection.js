@@ -934,47 +934,6 @@ router.get("/profile/:id/public", async (req, res) => {
     res.status(400).send({ error: err });
   }
 });
-//     router.get("/profile/:id/public", async (req, res) => {
-//   try {
-//     const skip = parseInt(req.query.skip) || 0;
-//     const take = parseInt(req.query.take) || 20;
-
-//     const profileId = req.params.id;
-
-//     const where = {
-//       profile: { id: profileId },
-//       isPrivate: false,
-//     };
-
-//     const [collections, totalCount] = await Promise.all([
-//       prisma.collection.findMany({
-//         where,
-//         include: {
-//           storyIdList: {
-//             include: {
-//               story: { include: { author: true } },
-//             },
-//           },
-//         },
-//         orderBy: { updated: "desc" },
-//         skip,
-//         take,
-//       }),
-
-//       prisma.collection.count({ where }),
-//     ]);
-
-//     res.status(200).json({
-//       collections,
-//       totalCount,
-//       skip,
-//       take,
-//       hasMore: skip + take < totalCount,
-//     });
-//   } catch (err) {
-//     res.status(400).send({ error: err });
-//   }
-// });
     router.get("/public/library",async (req,res)=>{
         try{
             const libraries = await prisma.collection.findMany({
@@ -1729,9 +1688,12 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
   try {
     const skip = parseInt(req.query.skip) || 0;
     const take = parseInt(req.query.take) || 20;
-    const type = req.query.type;
+   const type = req.query.type;
+    const isWorkshop = req.query.isWorkshop
     const search = (req.query.search || "").trim().toLowerCase();
-
+    // if(search=="workshop"||search=="feedback"){
+    //     type = "feedback"
+    // }
     const profile = await prisma.profile.findFirst({
       where: { userId: req.user.id },
     });
@@ -1744,19 +1706,27 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
 
     const [cols, cTcs, sTcs] = await Promise.all([
       prisma.collection.findMany({
-        where: { profileId },
-        select: { id: true },
+        where: {OR:[{ profileId },{roles:{
+            some:{
+                profileId:{
+                    equals:profile.id
+                }
+            }
+        }}],
+              },        select: { id: true },
       }),
 
       prisma.roleToCollection.findMany({
-        where: { profileId },
+        where: { profileId:{
+            equals:profileId
+        } },
         select: { collectionId: true },
       }),
 
       prisma.storyToCollection.findMany({
         where: {
-          story: { authorId: profileId },
-          collection: { type: "feedback" },
+          AND:[{story: { authorId: {equals:profileId }}},{
+          collection: { type:{equals: "feedback"} }},]
         },
         select: { collectionId: true },
       }),
@@ -1787,7 +1757,10 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
             childCollections: true,
           },
         },
-      },
+        
+      },orderBy:{
+        updated:"desc"
+      }
     });
 
     // -----------------------------
@@ -1801,6 +1774,10 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
         (c) => c._count.childCollections > 1
       );
     }
+    if(isWorkshop=="true"){
+        filteredCollections = filteredCollections.filter(c=>c.type=="feedback")
+    }
+
 
     // 2. search + ranking
     if (search.length > 0) {
@@ -1862,9 +1839,16 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
         profile: true,
       },
     });
+const orderMap = new Map(
+  pagedIds.map((id, index) => [id, index])
+);
+
+let items = collections.sort((a, b) => 
+  orderMap.get(a.id) - orderMap.get(b.id)
+);
 
     res.json({
-      collections,
+      collections:items,
       skip,
       take,
       totalCount,

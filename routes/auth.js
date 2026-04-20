@@ -867,8 +867,11 @@ router.post("/session", async (req, res) => {
     // =====================================================
     // 🔄 REFRESH USER
     // =====================================================
-    const freshUser = await prisma.user.findUnique({
+    const freshUser = await prisma.user.update({
       where: { id: user.id },
+      data:{
+       lastLogin:  new Date()
+      },
       include: { profiles: { select: { id: true } } },
     });
 
@@ -880,7 +883,23 @@ router.post("/session", async (req, res) => {
 
     const profile = await prisma.profile.findUnique({
       where: { id: profileId },
-      include: { profileToCollections: true },
+      include:{
+        user:{
+          select:{
+            lastLogin:true,
+          }
+        },
+        profileToCollections:{
+          select:{id:true,collection:{
+            select:{
+              id:true,
+              title:true,
+              type:true
+            }
+          }}
+        }
+      },
+      
     });
 
     const token = jwt.sign(

@@ -81,7 +81,10 @@ await Promise.all(promises)
 }
 module.exports = function (authMiddleware){
     router.get("/",async (req,res)=>{
-        const profiles = await prisma.profile.findMany()
+        const profiles = await prisma.profile.findMany({include:{
+         
+         
+        }})
         res.status(200).json({profiles:profiles})
     })
     router.post("/",async(req,res)=>{
@@ -392,7 +395,7 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
   try {
     const profId = req.user.profiles[0].id;
     const profile = req.user.profiles[0];
-    console.log("PROFFDID",profId)
+
     const lastNotified = profile.lastNotified || new Date(0); // fallback if null
 
     // --- COLLECTIONS ---
@@ -560,12 +563,16 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
     await Promise.all(
       notifications.map(n => sendNotification(n.profileId, n.title, n.body))
     );
-
+  const {seen }= req.query
     // --- UPDATE lastNotified ---
-    await prisma.profile.update({
+
+    if(seen == "true"){
+  await prisma.profile.update({
       where: { id: profId },
       data: { lastNotified: new Date() }
     });
+    }
+  
 
     // --- RETURN DATA ---
     res.json({ collections, comments, following, followers });
@@ -792,7 +799,11 @@ router.get("/protected", authMiddleware, async (req, res) => {
         include: 
           { location:true,
           
-            
+            user:{
+              select:{
+                lastLogin:true
+              }
+            },
           hashtag:{
             select:{
              hashtag:{
