@@ -136,6 +136,39 @@ where:{
     res.json({error})
 }
 })
+router.post("/follow", authMiddleware, async (req, res) => {
+  try {
+    const { hashtagId } = req.body;
+    const followerId = req.user?.profiles[0].id; // from authMiddleware
+
+    if (!hashtagId || !followerId) {
+      return res.status(400).json({ error: "Missing hashtagId or followerId" });
+    }
+
+    const follow = await prisma.hashtagFollower.upsert({
+      where: {
+        hashtagId_followerId: {
+          hashtagId,
+          followerId,
+        },
+      },
+      update: {}, // nothing to update
+      create: {
+        hashtagId,
+        followerId,
+      },
+      include: {
+        hashtag: true,
+        follower: true,
+      },
+    });
+
+    return res.json({ follow });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error });
+  }
+});
     router.post("/story/:storyId",authMiddleware,async(req,res)=>{
             const {name,profile}=req.body
             const story = await prisma.story.findFirst({where:{

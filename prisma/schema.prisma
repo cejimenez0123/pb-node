@@ -180,6 +180,7 @@ model HashtagFollower{
  hashtag Hashtag  @relation(fields: [hashtagId], references: [id])
   followerId String @db.ObjectId
   follower Profile @relation(fields: [followerId], references: [id])
+  @@unique([hashtagId, followerId])
 }
 model UserCollectionHistory{
   id String @id @default(auto()) @map("_id") @db.ObjectId
