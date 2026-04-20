@@ -46,11 +46,7 @@ router.delete("/delete/:id", async (req, res) => {
 });
 router.get("/search", async (req, res) => {
    const { q = "", profileId } = req.query;
-  // const userId = req.user?.id;
 
-  // if (!q) {
-  //   return res.status(400).json({ error: "Query parameter 'q' is required" });
-  // }
   const defaultIndexes = ["profile", "story", "collection", "hashtag"];
 
   let mine = false

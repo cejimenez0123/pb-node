@@ -780,35 +780,7 @@ router.get("/profile/:id/public", async (req, res) => {
     res.status(400).send({ error: err });
   }
 });
-    // router.get("/profile/:id/private",authMiddleware,async (req,res)=>{
-    //     try{
-    //         let collections = await prisma.collection.findMany({where:{
-    //             profile:{
-    //                 id:{
-    //                     equals:req.params.id
-    //                 }
-    //             }
-    //         },include:{
-                
-    //             storyIdList:{
-    //                 include:{story:{include:{author:true}}}  
-    //               },
-    //            childCollections:true,
-    //            roles:{
-    //             include:{
-    //                 profile:true,
-    //             }
-    //         },
-    //         profile:true
-            
-                
-    //         }})
-           
-    //         res.status(200).json({collections})
-    //     }catch(err){
-    //         res.status(400).send({error:err})
-    //     }
-    // })
+
     router.get("/profile/:id/protected", authMiddleware, async (req, res) => {
   try {
     const skip = parseInt(req.query.skip) || 0;
@@ -1695,6 +1667,13 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
    
     const profile = await prisma.profile.findFirst({
       where: { userId: req.user.id },
+      include:{
+        profileToCollections:{
+            select:{
+                collectionId:true
+            }
+        }
+      }
     });
 
     if (!profile) {
@@ -1769,13 +1748,13 @@ const baseCollections = await prisma.collection.findMany({
     // FILTERING PIPELINE
     // -----------------------------
     let filteredCollections = baseCollections;
-// console.log("LIBAR ",baseCollections[0])
-    // 1. library filter first
+console.log(profile.profileToCollections)
     if (type === "library") {
       filteredCollections = filteredCollections.filter(
-        (c) => c._count.childCollections > 1
+        (c) => (c._count.childCollections > 0 || c.type == "feedback" || c.type == "library") && !profile.profileToCollections.some(p=>p.collectionId==c.id)
       );
     }
+    console.log("LIBAR ",filteredCollections.length)
     if(isWorkshop=="true"){
         filteredCollections = filteredCollections.filter(c=>c.type=="feedback")
     }

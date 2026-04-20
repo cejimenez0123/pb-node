@@ -158,10 +158,7 @@ const lastEmailed = user.lastEmailed
             }
         }},
       
-        // {
-        //     updated:{
-        //     gt:lastEmailed
-        // }}
+       
     ]
     },include:{
         profile:true,

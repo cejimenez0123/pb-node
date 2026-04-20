@@ -25,17 +25,7 @@ const updateWriterLevelMiddleware = asyncHandler(async (req, res, next) => {
         },
         
       });
-  
-      // Calculate current engagement metrics
-      // const reviewCount = await prisma.story.count({
-      //   where: { 
-      //     comments:{
-      //       some:{
-      //         profileId:userId
-      //       }
-      //     }
-      //      },
-      // });
+
   
       const commentCount = userProfile.comments.length;
       const helpfulCommentCount = userProfile.comments.filter(c => c.isHelpful).length;
