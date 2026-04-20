@@ -1733,34 +1733,7 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
       ]),
     ];
 
-    // -----------------------------
-    // BASE QUERY (NO ORDERING HERE)
-    // -----------------------------
-//     const baseCollections = await prisma.collection.findMany({
-//       where: {
-//         id: { in: uniqueIds },
-//         ...(type && type !== "library" ? { type } : {}),
-//       },
-//       select: {
-//         id: true,
-//         title: true,
-//         updated: true,
-//         _count: {
-//           select: {
-//             childCollections: true,
-//           },
-//         },
-//         userHistory:{
-//               where: {
-//     profileId: profileId,
-//   },take:1
-     
-//         }
-        
-//       },orderBy:{
-//         updated:"desc"
-//       }
-//     });
+
 const baseCollections = await prisma.collection.findMany({
   where: {
     id: { in: uniqueIds },
@@ -1796,7 +1769,7 @@ const baseCollections = await prisma.collection.findMany({
     // FILTERING PIPELINE
     // -----------------------------
     let filteredCollections = baseCollections;
-
+// console.log("LIBAR ",baseCollections[0])
     // 1. library filter first
     if (type === "library") {
       filteredCollections = filteredCollections.filter(
@@ -1846,28 +1819,7 @@ const baseCollections = await prisma.collection.findMany({
       .slice(skip, skip + take)
       .map((c) => c.id);
 
-    // -----------------------------
-    // FINAL DATA FETCH
-    // -----------------------------
-    // const collections = await prisma.collection.findMany({
-    //   where: {
-    //     id: { in: pagedIds },
-    //   },
-    //   include: {
-    //     childCollections: {
-    //       include: { childCollection: true },
-    //     },
-    //     storyIdList: {
-    //       include: {
-    //         story: { include: { author: true } },
-    //       },
-    //     },
-    //     roles: {
-    //       include: { profile: true },
-    //     },
-    //     profile: true,
-    //   },
-    // });
+
     const collections = await prisma.collection.findMany({
   where: {
     id: { in: pagedIds },
