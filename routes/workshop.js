@@ -689,6 +689,23 @@ for (const s of selectedStories) {
       collectionId: newCollection.id,
     },
   });
+  await prisma.roleToStory.upsert({
+    where:{
+      profileId_storyId:{
+        profileId:prof.id,
+        storyId:s.id
+      }
+    },create:{
+      role:"commenter",
+      storyId:s.id,
+      profileId:prof.id
+      
+    },update:{
+        storyId:s.id,
+      profileId:prof.id,
+      role:"commenter"
+    }
+  })
   await prisma.roleToCollection.create({data:{
    collectionId:newCollection.id,
   profileId:s.authorId,
