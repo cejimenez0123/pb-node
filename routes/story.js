@@ -329,7 +329,6 @@ const getRecommendations = async (profileId) => {
 
   return recommendations;
 };
-
 router.get("/profile/protected", authMiddleware, async (req, res) => {
   try {
     const profileId = req?.user?.profiles?.[0]?.id;
@@ -338,40 +337,98 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Profile not found" });
     }
 
-const skip = Number.parseInt(req.query.skip, 10) || 0;
-const take = Math.min(Number.parseInt(req.query.take, 10) || 50, 100);
+    const skip = Number.parseInt(req.query.skip, 10) || 0;
+    const take = Math.min(Number.parseInt(req.query.take, 10) || 50, 100);
+
+    const rawSearch = req.query.search || "";
+    const search = rawSearch?.trim();
+
+    const where = {
+      authorId: profileId,
+      ...(search
+        ? {
+            title: {
+              contains: search,
+              mode: "insensitive",
+            },
+          }
+        : {}),
+    };
 
     const [stories, totalCount] = await Promise.all([
       prisma.story.findMany({
-        where: {
-          authorId: profileId,
-        },
+        where,
         take,
         skip,
-        
+        orderBy: {
+          updated: "desc", // optional but recommended
+        },
       }),
 
       prisma.story.count({
-        where: {
-          authorId: profileId,
-        },
+        where,
       }),
-    ])
+    ]);
 
-  return res.status(200).json({
-  items: stories,
-  stories, // 👈 ADD THIS ONLY (backward compatibility)
-  skip,
-  take,
-  totalCount,
-
-});
-
+    return res.status(200).json({
+      items: stories,
+      stories,
+      skip,
+      take,
+      totalCount,
+    });
   } catch (error) {
     console.log("/profile/protected", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// router.get("/profile/protected", authMiddleware, async (req, res) => {
+//   try {
+//     const profileId = req?.user?.profiles?.[0]?.id;
+
+//     if (!profileId) {
+//       return res.status(404).json({ message: "Profile not found" });
+//     }
+
+// const skip = Number.parseInt(req.query.skip, 10) || 0;
+// const take = Math.min(Number.parseInt(req.query.take, 10) || 50, 100);
+// const search = req.query.search
+//     const [stories, totalCount] = await Promise.all([
+//       prisma.story.findMany({
+//         where: {
+//           authorId: profileId,
+//           title:{
+//             contains:search,
+//             mode:"insensitive"
+//           }
+//         },
+//         take,
+//         skip,
+        
+//       }),
+
+//       prisma.story.count({
+//         where: {
+//           authorId: profileId,
+//         },
+//       }),
+//     ])
+
+//   return res.status(200).json({
+//   items: stories,
+//   stories, // 👈 ADD THIS ONLY (backward compatibility)
+//   skip,
+//   take,
+//   totalCount,
+
+// });
+
+//   } catch (error) {
+//     console.log("/profile/protected", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
     router.get("/collection/:id/protected",authMiddleware,async (req,res)=>{
        try{
         let list = await prisma.storyToCollection.findMany({where:{
@@ -784,34 +841,38 @@ await Promise.all(promises)
     })
     router.get("/prompts",async (req,res)=>{
     try{
-        // let hashtags = await prisma.hashtag.findMany({where:{
-        //   name:"prompt",
-        
-        // },include:{
-        //   stories:{
-        //     include:{
-        //       story:true
-        //     }
-        //   }
-        // }})
-        let hashtags = await prisma.hashtag.findMany({
-  where: {
-    name: "prompt",
-  },
-  include: {
-    stories: {
+console.log("prompt tocuh")
+        let stories = await prisma.story.findMany({where:{
+          hashtags:{
+            some:{
+              hashtag:{
+                name:{
+                  contains:"prompt"
+                }
+              }
+            }
+          }
+        }})
+//         let hashtags = await prisma.hashtag.findMany({
+//   where: {
+//     name: {contains:"prompt"},
+//   },
+//   include: {
+//     stories: {
      
-      include: {
-        story: true,
-      },
-    },
-  },
-});
+//       include: {
+//         story: true,
+//       },
+//     },
+//   },
+// });
   
-      let prompts = hashtags.flatMap(hashtag=>hashtag.stories.flatMap(story=>story)).slice(0,6)
-    
-        res.status(201).json({prompts})
+console.log("prompt tocL",stories)
+      // let prompts = hashtags.flatMap(hashtag=>hashtag.stories.flatMap(story=>story)).slice(0,6)
+    // console.log("STOP PROMPTS",prompts)
+        res.status(201).json({prompts:[]})
     }catch(error){
+      console.log("STOP PROMPTS e",error)
         console.log({error})
         res.json({error})
     }

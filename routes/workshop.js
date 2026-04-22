@@ -3,6 +3,7 @@ const prisma = require("../db");
 const router = express.Router()
 const{ generate} =require("random-words");
 const { user } = require('firebase-functions/v1/auth');
+const shuffle = require('../utils/shuffle');
 const haversineDistance = (loc1, loc2) => {
   const toRad = value => (value * Math.PI) / 180;
   const R = 6371; // Earth radius in km
@@ -976,16 +977,7 @@ async function createStoryToCollection({ storyId, collectionId, profileId }) {
     },
   });
 }
-function shuffle(array) {
-  const arr = [...array]; // avoid mutating input
 
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-
-  return arr;
-}
 function pickUniqueAuthors(items = [], limit = 6) {
   const result = [];
   const seenAuthors = new Set();

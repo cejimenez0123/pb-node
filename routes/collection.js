@@ -1754,7 +1754,7 @@ console.log(profile.profileToCollections)
         (c) => (c._count.childCollections > 0 || c.type == "feedback" || c.type == "library") && !profile.profileToCollections.some(p=>p.collectionId==c.id)
       );
     }
-    console.log("LIBAR ",filteredCollections.length)
+   
     if(isWorkshop=="true"){
         filteredCollections = filteredCollections.filter(c=>c.type=="feedback")
     }
