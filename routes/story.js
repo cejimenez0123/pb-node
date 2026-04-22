@@ -843,36 +843,24 @@ await Promise.all(promises)
     try{
 console.log("prompt tocuh")
         let stories = await prisma.story.findMany({where:{
+          AND:[{isPrivate:false},{
           hashtags:{
             some:{
               hashtag:{
                 name:{
-                  contains:"prompt"
+                  contains:"prompt",
+                  mode:"insensitive"
                 }
               }
             }
-          }
+          }}]
         }})
-//         let hashtags = await prisma.hashtag.findMany({
-//   where: {
-//     name: {contains:"prompt"},
-//   },
-//   include: {
-//     stories: {
-     
-//       include: {
-//         story: true,
-//       },
-//     },
-//   },
-// });
-  
-console.log("prompt tocL",stories)
-      // let prompts = hashtags.flatMap(hashtag=>hashtag.stories.flatMap(story=>story)).slice(0,6)
-    // console.log("STOP PROMPTS",prompts)
-        res.status(201).json({prompts:[]})
+
+
+
+        res.status(201).json({prompts:stories})
     }catch(error){
-      console.log("STOP PROMPTS e",error)
+    
         console.log({error})
         res.json({error})
     }
