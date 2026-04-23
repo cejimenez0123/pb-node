@@ -316,6 +316,7 @@ enum StoryStatus{
 model Comment {
      id      String  @id @default(auto()) @map("_id") @db.ObjectId
   content   String
+  anchorText String?
   profileId String? @db.ObjectId
   profile Profile? @relation(fields: [profileId], references: [id])
   storyId String    @db.ObjectId
