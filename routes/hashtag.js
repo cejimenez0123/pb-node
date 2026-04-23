@@ -136,6 +136,24 @@ where:{
     res.json({error})
 }
 })
+router.delete("/follow", authMiddleware, async (req, res) => {
+  try {
+    const { hashtagId } = req.body;
+    const followerId = req.user?.profiles[0].id;
+    if (!hashtagId || !followerId) {
+      return res.status(400).json({ error: "Missing hashtagId or followerId" });
+    }
+    await prisma.hashtagFollower.delete({
+      where: {
+        hashtagId_followerId: { hashtagId, followerId },
+      },
+    });
+    return res.json({ success: true });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error });
+  }
+});
 router.post("/follow", authMiddleware, async (req, res) => {
   try {
     const { hashtagId } = req.body;
