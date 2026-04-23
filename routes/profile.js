@@ -802,14 +802,9 @@ router.get("/protected", authMiddleware, async (req, res) => {
               }
             },
           hashtag:{
-            select:{
-             hashtag:{
-              select:{
-                name:true,
-                id:true
-              }
-             }
-            
+            include:{
+              hashtag:true
+            }
             }
           },
           profileToCollections: {
