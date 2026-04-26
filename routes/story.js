@@ -339,22 +339,18 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
 
     const skip = Number.parseInt(req.query.skip, 10) || 0;
     const take = Math.min(Number.parseInt(req.query.take, 10) || 50, 100);
-
+    const status = req.query.status
     const rawSearch = req.query.search || "";
     const search = rawSearch?.trim();
 
-    const where = {
-      authorId: profileId,
-      ...(search
-        ? {
-            title: {
-              contains: search,
-              mode: "insensitive",
-            },
-          }
-        : {}),
-    };
-
+const where = {
+  authorId: profileId,
+  ...(search ? {
+    title: { contains: search, mode: "insensitive" },
+  } : {}),
+  ...(status ? { status } : {}),  // add this
+};
+   
     const [stories, totalCount] = await Promise.all([
       prisma.story.findMany({
         where,
@@ -383,52 +379,7 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
   }
 });
 
-// router.get("/profile/protected", authMiddleware, async (req, res) => {
-//   try {
-//     const profileId = req?.user?.profiles?.[0]?.id;
 
-//     if (!profileId) {
-//       return res.status(404).json({ message: "Profile not found" });
-//     }
-
-// const skip = Number.parseInt(req.query.skip, 10) || 0;
-// const take = Math.min(Number.parseInt(req.query.take, 10) || 50, 100);
-// const search = req.query.search
-//     const [stories, totalCount] = await Promise.all([
-//       prisma.story.findMany({
-//         where: {
-//           authorId: profileId,
-//           title:{
-//             contains:search,
-//             mode:"insensitive"
-//           }
-//         },
-//         take,
-//         skip,
-        
-//       }),
-
-//       prisma.story.count({
-//         where: {
-//           authorId: profileId,
-//         },
-//       }),
-//     ])
-
-//   return res.status(200).json({
-//   items: stories,
-//   stories, // 👈 ADD THIS ONLY (backward compatibility)
-//   skip,
-//   take,
-//   totalCount,
-
-// });
-
-//   } catch (error) {
-//     console.log("/profile/protected", error);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// });
     router.get("/collection/:id/protected",authMiddleware,async (req,res)=>{
        try{
         let list = await prisma.storyToCollection.findMany({where:{

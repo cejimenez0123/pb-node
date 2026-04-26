@@ -31,20 +31,7 @@ const result = await client.saveObject({ indexName, objectID: object.objectID, b
 
 
 
-// router.delete("/delete/:id", async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     if (!id) {
-//       return res.status(400).json({ message: "Missing objectID in URL." });
-//     }
 
-//     const result = await index.deleteObject(id);
-//     res.json({ success: true, result });
-//   } catch (error) {
-//     console.error("Error deleting object:", error);
-//     res.status(500).json({ error: error.message });
-//   }
-// });
 router.delete("/delete", async (req, res) => {
   const { indexName, objectID } = req.body;
   if (!indexName || !objectID) {
