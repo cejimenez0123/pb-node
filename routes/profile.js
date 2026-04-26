@@ -795,7 +795,7 @@ router.get("/protected", authMiddleware, async (req, res) => {
         where: { id: profileId },
         include: 
           { location:true,
-          
+        
             user:{
               select:{
                 lastLogin:true
@@ -835,14 +835,19 @@ router.get("/protected", authMiddleware, async (req, res) => {
                         type:true
                       }
                     }
-                    
+                  
                   }
                  },
             }
               
               
             }
-            }}}
+            }},_count:{
+              select:{
+                followers:true,
+                following:true
+              }
+            }}
       })
 
 
