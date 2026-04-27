@@ -291,7 +291,7 @@ model DeviceToken {
   profile   Profile @relation(fields: [profileId], references: [id])
 
   token     String  @unique
-  platform  String  // "ios" | "android"
+  platform  Platform @default(ios)
 
   createdAt DateTime @default(now())
 }
@@ -301,6 +301,11 @@ enum Role {
   editor
   commenter
   writer
+}
+enum Platform {
+  ios
+  android
+  browser
 }
 enum Content{
   profile

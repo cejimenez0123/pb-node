@@ -9,7 +9,8 @@ const provider = new apn.Provider({
     },
     production: false
 });
-
+console.log(process.env.APPLE_KEY_ID)
+console.log(process.env.APPLE_TEAM_ID)
 async function notifyUser({
     profileId,
     type,

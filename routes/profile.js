@@ -604,13 +604,13 @@ async function sendPush(tokens, payload) {
 }
 router.post("/device-token", authMiddleware, async (req, res) => {
     try {
-        const { token } = req.body;
+        const { token,platform="ios" } = req.body;
         const profileId = req.user.profiles[0].id;
 
         await prisma.deviceToken.upsert({
             where: { token },
-            update: { profileId },
-            create: { token, profileId }
+            update: { profileId,platform },
+            create: { token, profileId,platform }
         });
 
         res.json({ success: true });
