@@ -55,14 +55,14 @@ console.log("COMMENT POST — profileId:", profileId, "storyId:", storyId, "pare
       story:      { connect: { id: storyId } },
       profile:    { connect: { id: profileId } },
     };
-
+console.log("COMMENT POST — profileId:X")
     const com = await prisma.comment.create({
       data: parentId
         ? { ...baseData, parent: { connect: { id: parentId } } }
-        : baseData,
+        :baseData,
       include: { profile: true },
     });
-
+console.log("COMMENT POST — profileId:L")
     const comment = await prisma.comment.findFirst({
       where: { id: com.id },
       include: {
@@ -70,7 +70,7 @@ console.log("COMMENT POST — profileId:", profileId, "storyId:", storyId, "pare
         children: { include: { profile: true } },
       },
     });
-
+console.log("COMMENT POST — profileId:C")
     // Notify story author about top-level comment
     if (!parentId) {
       const story = await prisma.story.findUnique({
