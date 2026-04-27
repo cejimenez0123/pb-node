@@ -182,85 +182,139 @@ module.exports = function (authMiddleware){
           
             return scores;
         }
-            
-        const getRecommendedCollections=async (colId)=>{
-            const scores = {};
-            const collection = await prisma.collection.findFirst({where:{
-                id:{
-                    equals:colId
-                }
-            },include:{
-                roles:{
-                    include:{
-                        profile:true
-                    }
-                },
-                hashtags:{
-                    include:{
-                        hashtag:true
-                    }
-                },
-                childCollections:{
-                    include:{
-                        parentCollection:true,
-                        childCollection:true,
-                    },
-                    where:{
-                        childCollection:{
-                            isPrivate:{
-                                equals:false
-                            }
-                        }
-                    }
-                },
-                parentCollections:{
-                    include:{
-                        parentCollection:true,
-                        childCollection:true
-                    },
-              where:{
-                parentCollection:{
-                    isPrivate:{
-                        equals:false
-                    }
-                }
-              }
-                    
-                
-                }
-            }})
-            let childIds = collection.childCollections.map(col=>col.id)
-            // .map(col=>col.id)
-            let parentIds = collection.childCollections.map(col=>col.id)
+        const getRecommendedCollections = async (colId, { skip = 0, take = 10, type } = {}) => {
+  const scores = {};
 
-           let collections = await prisma.collectionToCollection.findMany({where:{
-                OR:[{parentCollection:{
-                    id:{in:[...parentIds,...childIds]}
-                    ,isPrivate:true
-                },childCollection:{
-                    isPrivate:{
-                        equals:false
-                    }
-                }}]
-            }})
+  const collection = await prisma.collection.findFirst({
+    where: { id: { equals: colId } },
+    include: {
+      roles: { include: { profile: true } },
+      hashtags: { include: { hashtag: true } },
+      childCollections: {
+        include: { parentCollection: true, childCollection: true },
+        where: { childCollection: { isPrivate: { equals: false } } }
+      },
+      parentCollections: {
+        include: { parentCollection: true, childCollection: true },
+        where: { parentCollection: { isPrivate: { equals: false } } }
+      }
+    }
+  });
+
+  // Fixed: parentIds now correctly uses parentCollections
+  let childIds = collection.childCollections.map(col => col.childCollectionId);
+  let parentIds = collection.parentCollections.map(col => col.parentCollectionId);
+
+  const whereClause = {
+    OR: [
+      {
+        parentCollection: {
+          id: { in: [...parentIds, ...childIds] },
+          isPrivate: false,  // Fixed: was true
+          ...(type && { type }),  // type filter on parent
+        },
+        childCollection: { isPrivate: false }
+      }
+    ]
+  };
+
+  const collections = await prisma.collectionToCollection.findMany({ where: whereClause });
+
+  for (const cTc of collections) {  // Fixed: was sTc
+    if (!scores[cTc.childCollectionId]) {
+      scores[cTc.childCollectionId] = 0;  // Fixed: was sTc
+    }
+    scores[cTc.childCollectionId] += 1;  // Fixed: moved out of else, now always increments
+  }  // Fixed: closing brace was missing
+
+  const sorted = Object.entries(scores)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id]) => id);
+
+  // Pagination applied after scoring
+  const paginated = sorted.slice(skip, skip + take);
+  const totalCount = sorted.length;
+
+  return { ids: paginated, totalCount };
+};    
+        // const getRecommendedCollections=async (colId)=>{
+        //     const scores = {};
+        //     const collection = await prisma.collection.findFirst({where:{
+        //         id:{
+        //             equals:colId
+        //         }
+        //     },include:{
+        //         roles:{
+        //             include:{
+        //                 profile:true
+        //             }
+        //         },
+        //         hashtags:{
+        //             include:{
+        //                 hashtag:true
+        //             }
+        //         },
+        //         childCollections:{
+        //             include:{
+        //                 parentCollection:true,
+        //                 childCollection:true,
+        //             },
+        //             where:{
+        //                 childCollection:{
+        //                     isPrivate:{
+        //                         equals:false
+        //                     }
+        //                 }
+        //             }
+        //         },
+        //         parentCollections:{
+        //             include:{
+        //                 parentCollection:true,
+        //                 childCollection:true
+        //             },
+        //       where:{
+        //         parentCollection:{
+        //             isPrivate:{
+        //                 equals:false
+        //             }
+        //         }
+        //       }
+                    
+                
+        //         }
+        //     }})
+        //     let childIds = collection.childCollections.map(col=>col.id)
+        //     // .map(col=>col.id)
+        //     let parentIds = collection.childCollections.map(col=>col.id)
+
+        //    let collections = await prisma.collectionToCollection.findMany({where:{
+        //         OR:[{parentCollection:{
+        //             id:{in:[...parentIds,...childIds]}
+        //             ,isPrivate:true
+        //         },childCollection:{
+        //             isPrivate:{
+        //                 equals:false
+        //             }
+        //         }}]
+        //     }})
             
-            for(const cTc of collections){
+        //     for(const cTc of collections){
                 
                     
-                    if (!scores[cTc.childCollectionId]) { scores[sTc.childCollectionId] = 0;}
-                    else{
-                        scores[cTc.childCollectionId] += 1;
-                    }
+        //             if (!scores[cTc.childCollectionId]) { scores[sTc.childCollectionId] = 0;}
+        //             else{
+        //                 scores[cTc.childCollectionId] += 1;
+        //             }
             
     
          
    
-           return Object.entries(scores)
-             .sort((a, b) => b[1] - a[1]) // Sort by score
-             .map(([colId]) => colId); // Return sorted story IDs
-         };
+        //    return Object.entries(scores)
+        //      .sort((a, b) => b[1] - a[1]) // Sort by score
+        //      .map(([colId]) => colId); // Return sorted story IDs
+        //  };
           
-        }
+        // }
     
           const getCollectionCollaborativeScores = async (profileId,colId) => {
             const scores = {};
@@ -607,36 +661,65 @@ module.exports = function (authMiddleware){
 }catch(error){
     res.json({error})
 }})
-    router.get("/:id/recommendations",async (req,res)=>{
-        try{
-        if(req.params.id){
-            console.log(req)
-const recommendations = await getRecommendedCollections(req.params.id)
-      let collections= await prisma.collection.findMany({where:{
-        id:{
-            in:recommendations,
-            not:req.params.id
-            },isPrivate:{
-                equals:false
-            }},include:{
-                parentCollections:{
-                    include:{
-                        parentCollection:{
-                            select:{
-                                id:true
-                            }
-                        }
-                    }
-                }
-            },
-        })
+router.get("/:id/recommendations", async (req, res) => {
+  try {
+    if (req.params.id) {
+      const skip = parseInt(req.query.skip) || 0;
+      const take = parseInt(req.query.take) || 10;
+      const type = req.query.type || undefined;
 
-        res.json({collections:collections})}
-    }catch(err){
-        console.log(err)
-        res.json(err)
+      const { ids, totalCount } = await getRecommendedCollections(req.params.id, { skip, take, type });
+
+      let collections = await prisma.collection.findMany({
+        where: {
+          id: { in: ids, not: req.params.id },
+          isPrivate: { equals: false },
+          ...(type && { type }),  // type filter on result set too
+        },
+        include: {
+          parentCollections: {
+            include: { parentCollection: { select: { id: true } } }
+          }
+        }
+      });
+
+      res.json({ collections, totalCount });
     }
-    })
+  } catch (err) {
+    console.log(err);
+    res.json(err);
+  }
+});
+//     router.get("/:id/recommendations",async (req,res)=>{
+//         try{
+//         if(req.params.id){
+//             console.log(req)
+// const recommendations = await getRecommendedCollections(req.params.id)
+//       let collections= await prisma.collection.findMany({where:{
+//         id:{
+//             in:recommendations,
+//             not:req.params.id
+//             },isPrivate:{
+//                 equals:false
+//             }},include:{
+//                 parentCollections:{
+//                     include:{
+//                         parentCollection:{
+//                             select:{
+//                                 id:true
+//                             }
+//                         }
+//                     }
+//                 }
+//             },
+//         })
+
+//         res.json({collections:collections})}
+//     }catch(err){
+//         console.log(err)
+//         res.json(err)
+//     }
+//     })
     router.get("/:id/story/recommendations",authMiddleware,async(req,res)=>{
         try{
         let profile = req.user.profiles[0]
@@ -655,6 +738,169 @@ const recommendations = await getRecommendedCollections(req.params.id)
         res.json(err)
      }
     })
+    // ── PUBLIC: Recommend based on collection being viewed ─────────────────────
+router.get("/recommendations/collection/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const skip = parseInt(req.query.skip) || 0;
+        const take = parseInt(req.query.take) || 10;
+        const type = req.query.type || null;
+
+        const collection = await prisma.collection.findFirst({
+            where: { id },
+            include: {
+                hashtags: { include: { hashtag: true } },
+                roles: { include: { profile: true } },
+            }
+        });
+
+        if (!collection) return res.status(404).json({ error: "Collection not found" });
+
+        const hashtagIds = collection.hashtags.map(h => h.hashtagId);
+
+        // Score by matching hashtags and same type
+        const candidates = await prisma.collection.findMany({
+            where: {
+                id: { not: id },
+                isPrivate: false,
+                ...(type && { type }),
+                ...(hashtagIds.length > 0 && {
+                    hashtags: {
+                        some: {
+                            hashtagId: { in: hashtagIds }
+                        }
+                    }
+                })
+            },
+            include: {
+                hashtags: { include: { hashtag: true } },
+                roles: { include: { profile: true } },
+                profile: true,
+                storyIdList: {
+                    include: { story: { include: { author: true } } }
+                }
+            }
+        });
+
+        // Score each candidate
+        const scored = candidates.map(col => {
+            let score = 0;
+
+            // Hashtag overlap
+            const colHashtagIds = col.hashtags.map(h => h.hashtagId);
+            const overlap = colHashtagIds.filter(hId => hashtagIds.includes(hId)).length;
+            score += overlap * 2;
+
+            // Same type bonus
+            if (col.type === collection.type) score += 1;
+
+            // Role/member overlap
+            const colProfileIds = col.roles.map(r => r.profileId);
+            const memberOverlap = collection.roles
+                .filter(r => colProfileIds.includes(r.profileId)).length;
+            score += memberOverlap;
+
+            return { ...col, score };
+        });
+
+        const sorted = scored.sort((a, b) => b.score - a.score);
+        const totalCount = sorted.length;
+        const groups = sorted.slice(skip, skip + take);
+
+        return res.json({ groups, totalCount, hasMore: skip + take < totalCount });
+
+    } catch (error) {
+        console.error("RECOMMEND_COLLECTION_ERROR", error);
+        return res.status(500).json({ error: "Server error" });
+    }
+});
+
+// ── PROTECTED: Recommend communities for logged in user ────────────────────
+router.get("/recommendations/profile", authMiddleware, async (req, res) => {
+    try {
+        const skip = parseInt(req.query.skip) || 0;
+        const take = parseInt(req.query.take) || 10;
+        const type = req.query.type || null;
+
+        const profileId = req.user.profiles[0].id;
+
+        const profile = await prisma.profile.findFirst({
+            where: { id: profileId },
+            include: {
+                location: true,
+                rolesToCollection: {
+                    include: {
+                        collection: {
+                            include: {
+                                hashtags: { include: { hashtag: true } }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+        // Collect hashtags from collections user is already in
+        const myCollectionIds = profile.rolesToCollection.map(r => r.collectionId);
+        const myHashtagIds = profile.rolesToCollection
+            .flatMap(r => r.collection.hashtags.map(h => h.hashtagId));
+
+        const candidates = await prisma.collection.findMany({
+            where: {
+                isPrivate: false,
+                id: { notIn: myCollectionIds },
+                profileId: { not: profileId },
+                ...(type && { type }),
+            },
+            include: {
+                hashtags: { include: { hashtag: true } },
+                roles: { include: { profile: true } },
+                profile: true,
+                location: true,
+                storyIdList: {
+                    include: { story: { include: { author: true } } }
+                }
+            }
+        });
+
+        const scored = candidates.map(col => {
+            let score = 0;
+
+            // Hashtag overlap with user's existing collections
+            const colHashtagIds = col.hashtags.map(h => h.hashtagId);
+            const overlap = colHashtagIds.filter(hId => myHashtagIds.includes(hId)).length;
+            score += overlap * 2;
+
+            // Same type as collections user is already in
+            const myTypes = profile.rolesToCollection.map(r => r.collection.type);
+            if (myTypes.includes(col.type)) score += 1;
+
+            // Location proximity bonus
+            if (profile.location && col.location) {
+                const distance = haversineDistance(profile.location, col.location);
+                if (distance <= 50) score += 3;
+                else if (distance <= 100) score += 1;
+            }
+
+            // Activity bonus — more members = more active
+            score += Math.min(col.roles.length, 6) * 0.5;
+
+            return { ...col, score };
+        });
+
+        const sorted = scored.sort((a, b) => b.score - a.score);
+        const totalCount = sorted.length;
+        const groups = sorted.slice(skip, skip + take);
+
+        return res.json({ groups, totalCount, hasMore: skip + take < totalCount });
+
+    } catch (error) {
+        console.error("RECOMMEND_PROFILE_ERROR", error);
+        return res.status(500).json({ error: "Server error" });
+    }
+});
     router.get("/",async (req,res)=>{
         let {type} =req.query
         //GET ALL PUBLIC COLLECTIONS
