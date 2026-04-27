@@ -127,7 +127,9 @@ export async function sendPush({ tokens, title, body, data = {}, badge }) {
         notification.payload = { ...data };
 
         const result = await provider.send(notification, token);
+        console.log(JSON.stringify(result))
         if (result.failed.length) {
+            
             console.log('Failed:', result.failed[0].error);
             await prisma.deviceToken.delete({
                 where: { token }
