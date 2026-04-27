@@ -145,3 +145,5 @@ serviceAccountKey.json
 /src/generated/prisma
 
 /src/generated/prisma
+
+/generated/prisma

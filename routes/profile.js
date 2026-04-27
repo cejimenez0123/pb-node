@@ -587,21 +587,21 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
 
 
 
-async function sendPush(tokens, payload) {
-  if (!tokens.length) return;
+// async function sendPush(tokens, payload) {
+//   if (!tokens.length) return;
 
-  const message = {
-    notification: {
-      title: payload.title,
-      body: payload.body
-    },
-    data: payload.data,
-    tokens
-  };
+//   const message = {
+//     notification: {
+//       title: payload.title,
+//       body: payload.body
+//     },
+//     data: payload.data,
+//     tokens
+//   };
 
-  const response = await admin.messaging().sendMulticast(message);
-  console.log('Sent notifications:', response.successCount);
-}
+//   const response = await admin.messaging().sendMulticast(message);
+//   console.log('Sent notifications:', response.successCount);
+// }
 router.post("/device-token", authMiddleware, async (req, res) => {
     try {
         const { token,platform="ios" } = req.body;

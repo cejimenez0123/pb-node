@@ -11,7 +11,6 @@
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^22.19.17",
-    "prisma": "6.19",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   },
@@ -20,7 +19,7 @@
     "@google-cloud/local-auth": "^2.1.0",
     "@googleapis/calendar": "^9.8.0",
     "@googleapis/docs": "^3.3.0",
-    "@prisma/client": "6.19",
+    "@prisma/client": "^5.22.0",
     "@sentry/node": "^10.22.0",
     "algoliasearch": "^5.41.0",
     "apn": "^2.2.0",
@@ -50,6 +49,7 @@
     "passport": "^0.7.0",
     "passport-http-bearer": "^1.0.1",
     "passport-local": "^1.0.0",
+    "prisma": "^5.22.0",
     "random-words": "^2.0.1",
     "resend": "^4.2.0",
     "socket.io": "^4.8.1",

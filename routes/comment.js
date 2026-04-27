@@ -3,6 +3,7 @@ const prisma = require("../db");
 const updateWriterLevelMiddleware = require('../middleware/updateWriterLevelMiddleware');
 const { default: notifyUser } = require('../utils/notifyUser');
 
+
 const router = express.Router();
 
 module.exports = function (authMiddleware) {
@@ -45,7 +46,8 @@ router.post("/", ...protected, async (req, res) => {
   try {
     const { profileId, storyId, text, parentId, anchorText } = req.body;
     const currentuser = req.user.profiles[0];
-
+console.log("COMMENT POST — profileId:", profileId, "storyId:", storyId, "parentId:", parentId);
+console.log("currentuser:", currentuser?.id, currentuser?.username);
     const baseData = {
       content:    text,
       anchorText: anchorText ?? "",
@@ -76,6 +78,11 @@ router.post("/", ...protected, async (req, res) => {
       });
 
       if (story?.authorId && story.authorId !== profileId) {
+        // before the COMMENT notify
+console.log("NOTIFY COMMENT — story.authorId:", story?.authorId, "profileId:", profileId, "same?", story?.authorId === profileId);
+
+// before the REPLY notify  
+
         await notifyUser({
           profileId: story.authorId,
           type:      "COMMENT",
@@ -85,6 +92,7 @@ router.post("/", ...protected, async (req, res) => {
           actorId:   profileId,
           route:     `/story/${storyId}`,
         });
+        console.log("NOTIFY REPLY — parentComment.profileId:", parentComment?.profileId, "profileId:", profileId);
       }
     }
 

@@ -9,26 +9,145 @@ const provider = new apn.Provider({
     },
     production: true
 });
-console.log(process.env.APPLE_KEY_ID)
-console.log(process.env.APPLE_TEAM_ID)
-async function notifyUser({
-    profileId,
-    type,
-    title,
-    body,
-    entityId,
-    actorId,
-    route = '/notifications'
-}) {
-    // 1. Cooldown check
+// console.log(process.env.APPLE_KEY_ID)
+// console.log(process.env.APPLE_TEAM_ID)
+// async function notifyUser({
+//     profileId,
+//     type,
+//     title,
+//     body,
+//     entityId,
+//     actorId,
+//     route = '/notifications'
+// }) {
+//     // 1. Cooldown check
+//     const recent = await prisma.notification.findFirst({
+//         where: {
+//             profileId,
+//             type,
+//             entityId,
+//             createdAt: {
+//                 gte: new Date(Date.now() - 5 * 60 * 1000)
+//             }
+//         }
+//     });
+
+//     let notification;
+//     if (recent) {
+//         notification = await prisma.notification.update({
+//             where: { id: recent.id },
+//             data: {
+//                 count: { increment: 1 },
+//                 actorIds: { push: actorId }
+//             }
+//         });
+//     } else {
+//         notification = await prisma.notification.create({
+//             data: {
+//                 profileId,
+//                 type,
+//                 message: body,
+//                 entityId,
+//                 actorIds: actorId ? [actorId] : [],
+//                 route,
+//                 highlightId: entityId
+//             }
+//         });
+//     }
+
+//     // 2. Get device tokens
+//     const tokens = await prisma.deviceToken.findMany({
+//         where: { profileId },
+//         select: { token: true }
+//     });
+
+//     if (!tokens.length) return;
+
+//     // 3. Badge count
+//     const unreadCount = await prisma.notification.count({
+//         where: { profileId, readAt: null }
+//     });
+
+//     // 4. Send to each token
+//     await sendPush({
+//         tokens: tokens.map(t => t.token),
+//         title,
+//         body,
+//         data: {
+//             type,
+//             notificationId: notification.id,
+//             route,
+//             highlightId: notification.id
+//         },
+//         badge: unreadCount
+//     }).then(res=>console.log("DEVICE TOKEN",JSON.stringify(res)));
+// }
+
+// // export async function sendPush({ tokens, title, body, data = {}, badge }) {
+// //     for (const token of tokens) {
+// //         const notification = new apn.Notification();
+
+// //         notification.contentAvailable = 1;
+// //         notification.pushType = 'background';
+// //         notification.priority = 5;
+// //         notification.topic = 'com.plumbum.app';
+
+// //         // Payload — AppDelegate reads these to build local notification
+// //         notification.payload = {
+// //             title,
+// //             body,
+// //             badge,
+// //             ...data
+// //         };
+
+// //         const result = await provider.send(notification, token);
+
+// //         if (result.failed.length) {
+// //             console.log('Failed:', result.failed[0].error);
+// //             // Clean up invalid token
+// //             await prisma.deviceToken.delete({
+// //                 where: { token }
+// //             }).catch(() => {});
+// //         } else {
+// //             console.log('Sent successfully to:', token);
+// //         }
+// //     }
+// // }
+// export async function sendPush({ tokens, title, body, data = {}, badge }) {
+//     for (const token of tokens) {
+//         const notification = new apn.Notification();
+        
+//         // Alert push — shows immediately without AppDelegate
+//         notification.alert = { title, body };
+//         notification.sound = 'default';
+//         notification.badge = badge;
+//         notification.pushType = 'alert';
+//         notification.priority = 10;
+//         notification.topic = 'com.plumbum.app';
+//         notification.payload = { ...data };
+
+//         const result = await provider.send(notification, token);
+//         console.log("FAILED DEVICE",JSON.stringify(result))
+    
+//         if (result.failed.length) {
+            
+//             console.log('Failed:', result.failed[0].error);
+//             await prisma.deviceToken.delete({
+//                 where: { token }
+//             }).catch(() => {});
+//         } else {
+//             console.log('Sent successfully to:', token);
+//         }
+//     }
+// }
+
+async function notifyUser({ profileId, type, title, body, entityId, actorId, route = '/notifications' }) {
+    console.log("notifyUser called:", { profileId, type, title });
+
     const recent = await prisma.notification.findFirst({
         where: {
-            profileId,
-            type,
-            entityId,
-            createdAt: {
-                gte: new Date(Date.now() - 5 * 60 * 1000)
-            }
+            profileId, type, entityId,
+            createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) }
         }
     });
 
@@ -36,39 +155,36 @@ async function notifyUser({
     if (recent) {
         notification = await prisma.notification.update({
             where: { id: recent.id },
-            data: {
-                count: { increment: 1 },
-                actorIds: { push: actorId }
-            }
+            data: { count: { increment: 1 }, actorIds: { push: actorId } }
         });
     } else {
         notification = await prisma.notification.create({
             data: {
-                profileId,
-                type,
-                message: body,
-                entityId,
+                profileId, type, message: body, entityId,
                 actorIds: actorId ? [actorId] : [],
-                route,
-                highlightId: entityId
+                route, highlightId: entityId
             }
         });
     }
 
-    // 2. Get device tokens
     const tokens = await prisma.deviceToken.findMany({
         where: { profileId },
         select: { token: true }
     });
 
-    if (!tokens.length) return;
+    console.log("tokens found:", tokens.length, tokens.map(t => t.token.slice(0, 20) + "...")); // partial for security
 
-    // 3. Badge count
+    if (!tokens.length) {
+        console.log("No tokens found for profileId:", profileId);
+        return;
+    }
+
     const unreadCount = await prisma.notification.count({
         where: { profileId, readAt: null }
     });
 
-    // 4. Send to each token
+    console.log("unreadCount:", unreadCount);
+
     await sendPush({
         tokens: tokens.map(t => t.token),
         title,
@@ -83,41 +199,11 @@ async function notifyUser({
     });
 }
 
-// export async function sendPush({ tokens, title, body, data = {}, badge }) {
-//     for (const token of tokens) {
-//         const notification = new apn.Notification();
-
-//         notification.contentAvailable = 1;
-//         notification.pushType = 'background';
-//         notification.priority = 5;
-//         notification.topic = 'com.plumbum.app';
-
-//         // Payload — AppDelegate reads these to build local notification
-//         notification.payload = {
-//             title,
-//             body,
-//             badge,
-//             ...data
-//         };
-
-//         const result = await provider.send(notification, token);
-
-//         if (result.failed.length) {
-//             console.log('Failed:', result.failed[0].error);
-//             // Clean up invalid token
-//             await prisma.deviceToken.delete({
-//                 where: { token }
-//             }).catch(() => {});
-//         } else {
-//             console.log('Sent successfully to:', token);
-//         }
-//     }
-// }
 export async function sendPush({ tokens, title, body, data = {}, badge }) {
     for (const token of tokens) {
+        console.log("Sending to token:", token.slice(0, 20) + "...");
+
         const notification = new apn.Notification();
-        
-        // Alert push — shows immediately without AppDelegate
         notification.alert = { title, body };
         notification.sound = 'default';
         notification.badge = badge;
@@ -126,17 +212,17 @@ export async function sendPush({ tokens, title, body, data = {}, badge }) {
         notification.topic = 'com.plumbum.app';
         notification.payload = { ...data };
 
+        console.log("notification payload:", JSON.stringify(notification));
+
         const result = await provider.send(notification, token);
-        console.log("FAILED DEVICE",JSON.stringify(result))
-    
+
+        console.log("APNs result:", JSON.stringify(result));
+
         if (result.failed.length) {
-            
-            console.log('Failed:', result.failed[0].error);
-            await prisma.deviceToken.delete({
-                where: { token }
-            }).catch(() => {});
+            console.log('Failed reason:', result.failed[0].response ?? result.failed[0].error);
+            await prisma.deviceToken.delete({ where: { token } }).catch(() => {});
         } else {
-            console.log('Sent successfully to:', token);
+            console.log('Sent successfully to:', token.slice(0, 20) + "...");
         }
     }
 }
