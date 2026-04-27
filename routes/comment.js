@@ -73,7 +73,7 @@ module.exports = function (authMiddleware) {
     });
 
     // Notify story author about top-level comment
-    if (!parentId) {
+  
       const story = await prisma.story.findUnique({
         where:  { id: storyId },
         select: { authorId: true },
@@ -92,17 +92,17 @@ module.exports = function (authMiddleware) {
           route:     `/story/${storyId}`,
         });
       }
-    }
+    
 
     // Notify parent comment author about reply
     if (parentId) {
+      
       const parentComment = await prisma.comment.findUnique({
         where:  { id: parentId },
         select: { profileId: true },
       });
 
-      console.log("NOTIFY REPLY — parentComment.profileId:", parentComment?.profileId, "profileId:", profileId);
-
+      console.log("parentcomment",parentComment)
       if (parentComment?.profileId && parentComment.profileId !== profileId) {
         await notifyUser({
           profileId: parentComment.profileId,
