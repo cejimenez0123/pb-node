@@ -7,7 +7,7 @@ const provider = new apn.Provider({
         keyId: process.env.APPLE_KEY_ID,
         teamId: process.env.APPLE_TEAM_ID
     },
-    production: false
+    production: true
 });
 console.log(process.env.APPLE_KEY_ID)
 console.log(process.env.APPLE_TEAM_ID)
