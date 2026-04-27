@@ -83,28 +83,52 @@ async function notifyUser({
     });
 }
 
+// export async function sendPush({ tokens, title, body, data = {}, badge }) {
+//     for (const token of tokens) {
+//         const notification = new apn.Notification();
+
+//         notification.contentAvailable = 1;
+//         notification.pushType = 'background';
+//         notification.priority = 5;
+//         notification.topic = 'com.plumbum.app';
+
+//         // Payload — AppDelegate reads these to build local notification
+//         notification.payload = {
+//             title,
+//             body,
+//             badge,
+//             ...data
+//         };
+
+//         const result = await provider.send(notification, token);
+
+//         if (result.failed.length) {
+//             console.log('Failed:', result.failed[0].error);
+//             // Clean up invalid token
+//             await prisma.deviceToken.delete({
+//                 where: { token }
+//             }).catch(() => {});
+//         } else {
+//             console.log('Sent successfully to:', token);
+//         }
+//     }
+// }
 export async function sendPush({ tokens, title, body, data = {}, badge }) {
     for (const token of tokens) {
         const notification = new apn.Notification();
-
-        notification.contentAvailable = 1;
-        notification.pushType = 'background';
-        notification.priority = 5;
+        
+        // Alert push — shows immediately without AppDelegate
+        notification.alert = { title, body };
+        notification.sound = 'default';
+        notification.badge = badge;
+        notification.pushType = 'alert';
+        notification.priority = 10;
         notification.topic = 'com.plumbum.app';
-
-        // Payload — AppDelegate reads these to build local notification
-        notification.payload = {
-            title,
-            body,
-            badge,
-            ...data
-        };
+        notification.payload = { ...data };
 
         const result = await provider.send(notification, token);
-
         if (result.failed.length) {
             console.log('Failed:', result.failed[0].error);
-            // Clean up invalid token
             await prisma.deviceToken.delete({
                 where: { token }
             }).catch(() => {});
@@ -113,5 +137,4 @@ export async function sendPush({ tokens, title, body, data = {}, badge }) {
         }
     }
 }
-
 export default notifyUser;
