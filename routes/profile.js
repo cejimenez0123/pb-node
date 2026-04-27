@@ -606,16 +606,22 @@ router.post("/device-token", authMiddleware, async (req, res) => {
     try {
         const { token,platform="ios" } = req.body;
         const profileId = req.user.profiles[0].id;
+const existing = await prisma.deviceToken.findFirst({ where: { token } });
 
-        await prisma.deviceToken.upsert({
-            where: { token },
-            update: { profileId,platform },
-            create: { token, profileId,platform }
-        });
+if (existing) {
+    await prisma.deviceToken.update({
+        where: { id: existing.id },
+        data: { profileId, platform }
+    });
+} else {
+    await prisma.deviceToken.create({
+        data: { token, profileId, platform }
+    });
+}
 
         res.json({ success: true });
     } catch (error) {
-        console.error("DEVICE_TOKEN_ERROR", error);
+        console.error("DEVICE_TOKEN_ERROR", error.message);
         res.status(500).json({ error: "Server error" });
     }
 });
@@ -777,20 +783,20 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-    router.post('/save-token', authMiddleware, async (req, res) => {
-  try {
-    const { profileId, token } = req.body;
-    await prisma.deviceToken.upsert({
-      where: { token },
-      update: { profileId },
-      create: { profileId, token },
-    });
-    res.json({ success: true });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: err.message });
-  }
-});
+//     router.post('/save-token', authMiddleware, async (req, res) => {
+//   try {
+//     const { profileId, token ,platform} = req.body;
+//     await prisma.deviceToken.upsert({
+//       where: { token },
+//       update: { profileId },
+//       create: { profileId, token },
+//     });
+//     res.json({ success: true });
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 router.get("/protected", authMiddleware, async (req, res) => {
   try {
     if (!req?.user) {
