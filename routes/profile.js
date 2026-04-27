@@ -252,7 +252,7 @@ stories:{
         const {username,profilePicture,selfStatement,privacy,location} = req.body
       
       
-        // console.log(location)
+        
       try{
        let  city =""
        if(location && location.address && location.address.length>0){

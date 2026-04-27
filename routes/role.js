@@ -259,62 +259,6 @@ router.put("/story", authMiddleware, async (req, res) => {
     return res.status(500).json({ error });
   }
 });
-// router.put("/story", authMiddleware, async (req, res) => {
-//   try {
-//     const { roles} = req.body;
-
-//   console.log(roles)
-// let storyId 
-//     const operations = roles.map((role) => {
-//       const profileId = role.profile.id;
-//        storyId = role.item.id;
-
-//       // 🗑 DELETE
-//       if (role.role === "none") {
-//         return prisma.roleToStory.deleteMany({
-//           where: {
-//             profileId,
-//             storyId,
-//           },
-//         });
-//       }
-
-//       // 🔄 UPSERT by composite key (THE FIX)
-//       return prisma.roleToStory.upsert({
-//         where: {
-//           profileId_storyId: {
-//             profileId,
-//             storyId,
-//           },
-//         },
-//         update: {
-//           role: role.role,
-//         },
-//         create: {
-//           role: role.role,
-//           profileId,
-//           storyId,
-//         },
-//        include:{
-//         profile:true,
-//         story:true
-//        },
-      
-//       });
-//     });
-//     const story = await getStory(storyId)
-    
-//     const newRoles = await Promise.all(operations);
-
-//     res.json({
-//       roles: newRoles,story
-//     });
-//   } catch (error) {
-//     console.log(error);
-//     res.json({ error });
-//   }
-// });
-
 
     router.post("/story",authMiddleware,async(req,res)=>{
         let {type,profileId,storyId}=req.body
