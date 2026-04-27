@@ -41,51 +41,81 @@ module.exports = function (authMiddleware) {
       res.status(500).json({ error: err });
     }
   });
+router.post("/", ...protected, async (req, res) => {
+  try {
+    const { profileId, storyId, text, parentId, anchorText } = req.body;
+    const currentuser = req.user.profiles[0];
 
-  // ── POST /comments ────────────────────────────────────────────────────────
-  router.post("/", ...protected, async (req, res) => {
-    try {
-      const { profileId, storyId, text, parentId, anchorText } = req.body;
-      const currentuser = req.user.profiles[0];
+    const baseData = {
+      content:    text,
+      anchorText: anchorText ?? "",
+      story:      { connect: { id: storyId } },
+      profile:    { connect: { id: profileId } },
+    };
 
-      const baseData = {
-        content:    text,
-        anchorText: anchorText ?? "",
-        story:      { connect: { id: storyId } },
-        profile:    { connect: { id: profileId } },
-      };
+    const com = await prisma.comment.create({
+      data: parentId
+        ? { ...baseData, parent: { connect: { id: parentId } } }
+        : baseData,
+      include: { profile: true },
+    });
 
-      const com = await prisma.comment.create({
-        data: parentId
-          ? { ...baseData, parent: { connect: { id: parentId } } }
-          : baseData,
-        include: { profile: true },
+    const comment = await prisma.comment.findFirst({
+      where: { id: com.id },
+      include: {
+        profile:  true,
+        children: { include: { profile: true } },
+      },
+    });
+
+    // Notify story author about top-level comment
+    if (!parentId) {
+      const story = await prisma.story.findUnique({
+        where:  { id: storyId },
+        select: { profileId: true },
       });
 
-      // Re-fetch with children included so the client gets the full shape
-      const comment = await prisma.comment.findFirst({
-        where: { id: com.id },
-        include: {
-          profile:  true,
-          children: { include: { profile: true } },
-        },
-      });
-
-      await notifyUser({
-        profileId,
-        type:     "COMMENT",
-        title:    "New feedback on your piece",
-        body:     "Someone left a comment",
-        entityId: comment.id,
-        actorId:  currentuser.id,
-      });
-
-      res.json({ comment });
-    } catch (err) {
-      console.log(err);
-      res.status(409).json({ error: err });
+      if (story?.profileId && story.profileId !== profileId) {
+        await notifyUser({
+          profileId: story.profileId,
+          type:      "COMMENT",
+          title:     "New feedback on your piece",
+          body:      `${currentuser.username ?? "Someone"} left a comment`,
+          entityId:  storyId,
+          actorId:   profileId,
+          route:     `/story/${storyId}`,
+        });
+      }
     }
-  });
+
+    // Notify parent comment author about reply
+    if (parentId) {
+      const parentComment = await prisma.comment.findUnique({
+        where:  { id: parentId },
+        select: { profileId: true },
+      });
+
+      if (parentComment?.profileId && parentComment.profileId !== profileId) {
+        await notifyUser({
+          profileId: parentComment.profileId,
+          type:      "REPLY",
+          title:     "New reply to your comment",
+          body:      `${currentuser.username ?? "Someone"} replied to your comment`,
+          entityId:  storyId,
+          actorId:   profileId,
+          route:     `/story/${storyId}`,
+        });
+      }
+    }
+
+    res.json({ comment });
+  } catch (err) {
+    console.log(err);
+    res.status(409).json({ error: err });
+  }
+});
+  // ── POST /comments ────────────────────────────────────────────────────────
+
 
   // ── PATCH /comments/:id ───────────────────────────────────────────────────
   router.patch("/:id", authMiddleware, async (req, res) => {

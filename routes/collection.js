@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require("../db");
 const { createLocation } = require('../utils/locationUtil');
+const { default: notifyUser } = require('../utils/notifyUser');
 const router = express.Router()
 
 module.exports = function (authMiddleware){
@@ -929,12 +930,25 @@ const otherCols = libraries.filter(book=>book.priority<90)
         res.json({error:e})
         }
     })
-    router.patch("/:id/role",async (req,res)=>{
+    router.patch("/:id/role",authMiddleware,async (req,res)=>{
         const {roles}=req.body
         try{
           
         let updated= roles.map(role=>{
-
+            try{
+            
+notifyUser({
+    profileId: role.profile.id,
+    type: "ROLE",
+    title: "You've been added to a collection",
+    body: `You've been given ${role.role} access`,
+    entityId: role.item.id,
+    actorId: req.user.profiles[0].id,
+    route: `/collection/${role.item.id}`
+});
+  }catch(err){
+                console.error("NOTIFCATION ERROR")
+            }
             if(role.role=="role"){
                 if(role.id){
                 return prisma.roleToStory.delete({where:{id:role.id}})
@@ -1366,7 +1380,19 @@ let collection = null
    }})
 
             }
-   
+            try{
+   await notifyUser({
+    profileId: collection.profileId,
+    type: "COLLECTION_ADDED",
+    title: "Your collection was added to a library",
+    body: `Someone added your collection to their library`,
+    entityId: id,
+    actorId: req.user.profiles[0].id,
+    route: `/collection/${id}`
+});
+            }catch(err){
+                console.error("NOTIFCATION ERROR")
+            }
             res.json({collection})
 
 }catch(error){
@@ -1410,7 +1436,7 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         })
     })
     let joint = await Promise.all(promises)
-    let col = await prisma.collection.update({where:{id:id},data:{
+   const col = await prisma.collection.update({where:{id:id},data:{
         updated:new Date()
     },include:{
         storyIdList:{
@@ -1437,6 +1463,19 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
         }
     }
    }})
+   try{
+   await notifyUser({
+    profileId: col.profileId,
+    type: "STORY_ADDED",
+    title: "New story added to your collection",
+    body: `A story was added to ${col.title}`,
+    entityId: id,
+    actorId: req.user.profiles[0].id,
+    route: `/collection/${id}`
+});
+  }catch(err){
+                console.error("NOTIFCATION ERROR")
+            }
     res.json({collection:col,stories})
 }catch(error){
     console.log({error})
