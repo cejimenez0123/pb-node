@@ -1,18 +1,18 @@
 
 const Paths ={
-    subscribe:"/subscribe",
     newsletter:()=>`/newsletter`,
     feedback:()=>`/feedback`,
     links:()=>`/links`,
     calendar:()=>"/events",
+    dashboard:"/dashboard",
+    onboard:"/onboard",
     library: {
         route: ()=>`/library/:id`,
         createRoute:(id)=>{return `/library/${id}`;}},
-    page:{ route: ()=>`/story/:id`,createRoute:(id)=>{return `/story/${id}`
+    page:{ route: ()=>`/story/:id/view`,createRoute:(id)=>{return `/story/${id}/view`
     }},
-  
     workshop:{
-        route:()=>"/workshop/page/:pageId",
+        route:()=>"/workshop/page/:storyId",
         reader:()=>"/workshop",
         createRoute:(pageId)=>{return "/workshop/page/"+pageId}
     },
@@ -30,17 +30,18 @@ const Paths ={
         createRoute:(id)=>{return `/book/${id}`
     } },
     collection:{
-        route: ()=>{return '/collection/:id'},
-        createRoute:(id)=>{return "/collection/"+id}
+        route: ()=>{return '/collection/:id/view'},
+        createRoute:(id)=>{return "/collection/"+id+"/view"}
     },
-    editor:{
-        text:()=>{return `/story/text`},
-        link:()=>{ return `/story/link`},
-        image:()=>{return `/page/image`}   
+    editor:
+    {
+        text:`/story/text/edit`,
+        link:`/story/link/edit`,
+        image:`/story/image/edit`  
     },
-    login:()=>{return `/login`},
-    editPage:{route:()=>{return `/story/:id/edit`},
-        createRoute:(id)=>{return `/story/${id}/edit`}},
+    login: `/login`,
+    editPage:{route:`/story/:id/editor`,
+        createRoute:(id)=>{return `/story/${id}/editor`}},
 
     addToCollection:{
         route:'/collection/:id/add',
@@ -56,12 +57,13 @@ const Paths ={
             return `/item/${id}/collection`
         }
     },
-    discovery:()=>"/discovery",
-    home:()=>{return `/home`},
-    about:()=>{return `/`},
-    profile:{route:()=>{return `/profile/:id`},
-            createRoute:(id)=>{return `/profile/${id}`}},
-    myProfile:()=>{return `/profile/home`},
+    discovery:"/discovery",
+    home:`/home`,
+    about:()=>{return `/about`},
+    editProfile:`/profile/edit`,
+    profile:{route:()=>{return `/profile/:id/view`},
+            createRoute:(id)=>{return `/profile/${id}/view`}},
+    myProfile:`/profile`,
     notifications:()=>{return"/profile/alert"}
 }
-export default Paths
+module.exports = Paths

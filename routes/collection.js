@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require("../db");
 const { createLocation } = require('../utils/locationUtil');
 const { default: notifyUser } = require('../utils/notifyUser');
+const Paths = require('../utils/Paths');
 const router = express.Router()
 
 module.exports = function (authMiddleware){
@@ -237,85 +238,7 @@ module.exports = function (authMiddleware){
 
   return { ids: paginated, totalCount };
 };    
-        // const getRecommendedCollections=async (colId)=>{
-        //     const scores = {};
-        //     const collection = await prisma.collection.findFirst({where:{
-        //         id:{
-        //             equals:colId
-        //         }
-        //     },include:{
-        //         roles:{
-        //             include:{
-        //                 profile:true
-        //             }
-        //         },
-        //         hashtags:{
-        //             include:{
-        //                 hashtag:true
-        //             }
-        //         },
-        //         childCollections:{
-        //             include:{
-        //                 parentCollection:true,
-        //                 childCollection:true,
-        //             },
-        //             where:{
-        //                 childCollection:{
-        //                     isPrivate:{
-        //                         equals:false
-        //                     }
-        //                 }
-        //             }
-        //         },
-        //         parentCollections:{
-        //             include:{
-        //                 parentCollection:true,
-        //                 childCollection:true
-        //             },
-        //       where:{
-        //         parentCollection:{
-        //             isPrivate:{
-        //                 equals:false
-        //             }
-        //         }
-        //       }
-                    
-                
-        //         }
-        //     }})
-        //     let childIds = collection.childCollections.map(col=>col.id)
-        //     // .map(col=>col.id)
-        //     let parentIds = collection.childCollections.map(col=>col.id)
-
-        //    let collections = await prisma.collectionToCollection.findMany({where:{
-        //         OR:[{parentCollection:{
-        //             id:{in:[...parentIds,...childIds]}
-        //             ,isPrivate:true
-        //         },childCollection:{
-        //             isPrivate:{
-        //                 equals:false
-        //             }
-        //         }}]
-        //     }})
-            
-        //     for(const cTc of collections){
-                
-                    
-        //             if (!scores[cTc.childCollectionId]) { scores[sTc.childCollectionId] = 0;}
-        //             else{
-        //                 scores[cTc.childCollectionId] += 1;
-        //             }
-            
-    
-         
-   
-        //    return Object.entries(scores)
-        //      .sort((a, b) => b[1] - a[1]) // Sort by score
-        //      .map(([colId]) => colId); // Return sorted story IDs
-        //  };
-          
-        // }
-    
+        
           const getCollectionCollaborativeScores = async (profileId,colId) => {
             const scores = {};
             const collection = await prisma.collection.findFirst({where:{
@@ -1627,14 +1550,14 @@ let collection = null
 
             }
             try{
-   await notifyUser({
-    profileId: collection.profileId,
+   collection && await notifyUser({
+    profileId: collection?.profileId,
     type: "COLLECTION_ADDED",
     title: "Your collection was added to a library",
     body: `Someone added your collection to their library`,
     entityId: id,
     actorId: req.user.profiles[0].id,
-    route: `/collection/${id}`
+    route: Paths.collection.createRoute(id)
 });
             }catch(err){
                 console.error("NOTIFCATION ERROR")
@@ -1710,14 +1633,15 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
     }
    }})
    try{
-   await notifyUser({
+   
+    col.profileId !== req.user.profiles[0].id && await notifyUser({
     profileId: col.profileId,
     type: "STORY_ADDED",
     title: "New story added to your collection",
     body: `A story was added to ${col.title}`,
     entityId: id,
     actorId: req.user.profiles[0].id,
-    route: `/collection/${id}`
+    route: Paths.collection.createRoute(id)
 });
   }catch(err){
                 console.error("NOTIFCATION ERROR")

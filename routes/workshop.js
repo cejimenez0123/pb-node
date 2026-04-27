@@ -4,6 +4,7 @@ const router = express.Router()
 const{ generate} =require("random-words");
 const { user } = require('firebase-functions/v1/auth');
 const shuffle = require('../utils/shuffle');
+const { default: notifyUser } = require('../utils/notifyUser');
 const haversineDistance = (loc1, loc2) => {
   const toRad = value => (value * Math.PI) / 180;
   const R = 6371; // Earth radius in km
@@ -822,7 +823,20 @@ for (const s of selectedStories) {
    collectionId:newCollection.id,
   profileId:s.authorId,
 role:"writer"}})
-
+// for (const memberId of memberIds) {
+try{
+            await notifyUser({
+                profileId:s.authorId,
+                type: "WORKSHOP_JOIN",
+                title: "New member joined",
+                body: `Someone joined your workshop`,
+                entityId: newCollection.id,
+                actorId: prof.id,
+                route: `/collection/${newCollection.id}`
+            });
+        }catch(err){
+          console.log(err)
+        }
   if (existing) continue;
 
   await createStoryToCollection({
