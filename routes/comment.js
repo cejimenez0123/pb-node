@@ -72,12 +72,12 @@ router.post("/", ...protected, async (req, res) => {
     if (!parentId) {
       const story = await prisma.story.findUnique({
         where:  { id: storyId },
-        select: { profileId: true },
+        select: { authorId: true },
       });
 
-      if (story?.profileId && story.profileId !== profileId) {
+      if (story?.authorId && story.authorId !== profileId) {
         await notifyUser({
-          profileId: story.profileId,
+          profileId: story.authorId,
           type:      "COMMENT",
           title:     "New feedback on your piece",
           body:      `${currentuser.username ?? "Someone"} left a comment`,

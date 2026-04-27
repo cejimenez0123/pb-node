@@ -602,7 +602,23 @@ async function sendPush(tokens, payload) {
   const response = await admin.messaging().sendMulticast(message);
   console.log('Sent notifications:', response.successCount);
 }
+router.post("/device-token", authMiddleware, async (req, res) => {
+    try {
+        const { token } = req.body;
+        const profileId = req.user.profiles[0].id;
 
+        await prisma.deviceToken.upsert({
+            where: { token },
+            update: { profileId },
+            create: { token, profileId }
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("DEVICE_TOKEN_ERROR", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
 router.get("/:id/alert", authMiddleware, async (req, res) => {
   try {
     const profId = req.user.profiles[0].id;
