@@ -42,12 +42,13 @@ module.exports = function (authMiddleware) {
       res.status(500).json({ error: err });
     }
   });
-router.post("/", ...protected, async (req, res) => {
+  router.post("/", ...protected, async (req, res) => {
   try {
     const { storyId, text, parentId, anchorText } = req.body;
     const currentuser = req.user.profiles[0];
-    const profileId = currentuser.id
-console.log("COMMENT POST — profileId:", profileId, "storyId:", storyId, "parentId:", parentId);
+    const profileId = currentuser.id;
+
+    console.log("COMMENT POST — profileId:", profileId, "storyId:", storyId, "parentId:", parentId);
 
     const baseData = {
       content:    text,
@@ -55,14 +56,14 @@ console.log("COMMENT POST — profileId:", profileId, "storyId:", storyId, "pare
       story:      { connect: { id: storyId } },
       profile:    { connect: { id: profileId } },
     };
-console.log("COMMENT POST — profileId:X")
+
     const com = await prisma.comment.create({
       data: parentId
         ? { ...baseData, parent: { connect: { id: parentId } } }
-        :baseData,
+        : baseData,
       include: { profile: true },
     });
-console.log("COMMENT POST — profileId:L")
+
     const comment = await prisma.comment.findFirst({
       where: { id: com.id },
       include: {
@@ -70,7 +71,7 @@ console.log("COMMENT POST — profileId:L")
         children: { include: { profile: true } },
       },
     });
-console.log("COMMENT POST — profileId:C")
+
     // Notify story author about top-level comment
     if (!parentId) {
       const story = await prisma.story.findUnique({
@@ -78,12 +79,9 @@ console.log("COMMENT POST — profileId:C")
         select: { authorId: true },
       });
 
+      console.log("NOTIFY COMMENT — story.authorId:", story?.authorId, "profileId:", profileId, "same?", story?.authorId === profileId);
+
       if (story?.authorId && story.authorId !== profileId) {
-        // before the COMMENT notify
-console.log("NOTIFY COMMENT — story.authorId:", story?.authorId, "profileId:", profileId, "same?", story?.authorId === profileId);
-
-// before the REPLY notify  
-
         await notifyUser({
           profileId: story.authorId,
           type:      "COMMENT",
@@ -93,7 +91,6 @@ console.log("NOTIFY COMMENT — story.authorId:", story?.authorId, "profileId:",
           actorId:   profileId,
           route:     `/story/${storyId}`,
         });
-        console.log("NOTIFY REPLY — parentComment.profileId:", parentComment?.profileId, "profileId:", profileId);
       }
     }
 
@@ -103,6 +100,8 @@ console.log("NOTIFY COMMENT — story.authorId:", story?.authorId, "profileId:",
         where:  { id: parentId },
         select: { profileId: true },
       });
+
+      console.log("NOTIFY REPLY — parentComment.profileId:", parentComment?.profileId, "profileId:", profileId);
 
       if (parentComment?.profileId && parentComment.profileId !== profileId) {
         await notifyUser({
@@ -123,6 +122,86 @@ console.log("NOTIFY COMMENT — story.authorId:", story?.authorId, "profileId:",
     res.status(409).json({ error: err });
   }
 });
+// router.post("/", ...protected, async (req, res) => {
+//   try {
+//     const { storyId, text, parentId, anchorText } = req.body;
+//     const currentuser = req.user.profiles[0];
+//     const profileId = currentuser.id
+// console.log("COMMENT POST — profileId:", profileId, "storyId:", storyId, "parentId:", parentId);
+
+//     const baseData = {
+//       content:    text,
+//       anchorText: anchorText ?? "",
+//       story:      { connect: { id: storyId } },
+//       profile:    { connect: { id: profileId } },
+//     };
+// console.log("COMMENT POST — profileId:X")
+//     const com = await prisma.comment.create({
+//       data: parentId
+//         ? { ...baseData, parent: { connect: { id: parentId } } }
+//         :baseData,
+//       include: { profile: true },
+//     });
+// console.log("COMMENT POST — profileId:L")
+//     const comment = await prisma.comment.findFirst({
+//       where: { id: com.id },
+//       include: {
+//         profile:  true,
+//         children: { include: { profile: true } },
+//       },
+//     });
+// console.log("COMMENT POST — profileId:C")
+//     // Notify story author about top-level comment
+//     if (!parentId) {
+//       const story = await prisma.story.findUnique({
+//         where:  { id: storyId },
+//         select: { authorId: true },
+//       });
+
+//       if (story?.authorId && story.authorId !== profileId) {
+//         // before the COMMENT notify
+// console.log("NOTIFY COMMENT — story.authorId:", story?.authorId, "profileId:", profileId, "same?", story?.authorId === profileId);
+
+// // before the REPLY notify  
+
+//         await notifyUser({
+//           profileId: story.authorId,
+//           type:      "COMMENT",
+//           title:     "New feedback on your piece",
+//           body:      `${currentuser.username ?? "Someone"} left a comment`,
+//           entityId:  storyId,
+//           actorId:   profileId,
+//           route:     `/story/${storyId}`,
+//         });
+//         console.log("NOTIFY REPLY — parentComment.profileId:", parentComment?.profileId, "profileId:", profileId);
+//       }
+//     }
+//     // Notify parent comment author about reply
+//     if (parentId) {
+//       const parentComment = await prisma.comment.findUnique({
+//         where:  { id: parentId },
+//         select: { profileId: true },
+//       });
+
+//       if (parentComment?.profileId && parentComment?.profileId !== profileId) {
+//         await notifyUser({
+//           profileId: parentComment.profileId,
+//           type:      "REPLY",
+//           title:     "New reply to your comment",
+//           body:      `${currentuser.username ?? "Someone"} replied to your comment`,
+//           entityId:  storyId,
+//           actorId:   profileId,
+//           route:     `/story/${storyId}`,
+//         });
+//       }
+//     }
+
+//     res.json({ comment });
+//   } catch (err) {
+//     console.log(err);
+//     res.status(409).json({ error: err });
+//   }
+// });
   // ── POST /comments ────────────────────────────────────────────────────────
 
 
