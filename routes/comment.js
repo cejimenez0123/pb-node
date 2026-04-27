@@ -44,10 +44,11 @@ module.exports = function (authMiddleware) {
   });
 router.post("/", ...protected, async (req, res) => {
   try {
-    const { profileId, storyId, text, parentId, anchorText } = req.body;
+    const { storyId, text, parentId, anchorText } = req.body;
     const currentuser = req.user.profiles[0];
+    const profileId = currentuser.id
 console.log("COMMENT POST — profileId:", profileId, "storyId:", storyId, "parentId:", parentId);
-console.log("currentuser:", currentuser?.id, currentuser?.username);
+
     const baseData = {
       content:    text,
       anchorText: anchorText ?? "",
