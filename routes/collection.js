@@ -495,95 +495,168 @@ module.exports = function (authMiddleware){
         res.json(error)
     }
       })
-      router.get("/recommendations",authMiddleware,async(req,res)=>{
-        let profile = req.user.profiles[0]
-        try{
-        if(profile){
-        const collaborativeScores = await getCollectionCollaborativeScores(profile.id)
+//       router.get("/recommendations",authMiddleware,async(req,res)=>{
+//         let profile = req.user.profiles[0]
+//         try{
+//         if(profile){
+//         const collaborativeScores = await getCollectionCollaborativeScores(profile.id)
      
-        let sorted = Object.entries(collaborativeScores)
-        .sort((a, b) => b[1] - a[1]) // Sort by score
-        .map(([storyId]) => storyId);
+//         let sorted = Object.entries(collaborativeScores)
+//         .sort((a, b) => b[1] - a[1]) // Sort by score
+//         .map(([storyId]) => storyId);
       
-        let collections= await prisma.collection.findMany({where:{
-        id:{
-            in:sorted,
-            },profileId:{
-                not:profile.id
-            },isPrivate:{
-                equals:false
-            }},include:{
-                parentCollections:{
-                    include:{
-                        parentCollection:{
-                            select:{
-                                id:true
-                            }
-                        }
-                    }
-                },
-                childCollections:{
-                    where:{
-                        childCollection:{
-                            isPrivate:{
-                                equals:false,
-                            }
-                        }
-                    },
-                    include:{
-                        childCollection:{
+//         let collections= await prisma.collection.findMany({where:{
+//         id:{
+//             in:sorted,
+//             },profileId:{
+//                 not:profile.id
+//             },isPrivate:{
+//                 equals:false
+//             }},include:{
+//                 parentCollections:{
+//                     include:{
+//                         parentCollection:{
+//                             select:{
+//                                 id:true
+//                             }
+//                         }
+//                     }
+//                 },
+//                 childCollections:{
+//                     where:{
+//                         childCollection:{
+//                             isPrivate:{
+//                                 equals:false,
+//                             }
+//                         }
+//                     },
+//                     include:{
+//                         childCollection:{
                             
-                            include:{
+//                             include:{
                                 
-                                childCollections:{
-                                    include:{
+//                                 childCollections:{
+//                                     include:{
                                         
-                                        childCollection:{
+//                                         childCollection:{
                                             
-                                            include:{
-                                                storyIdList:{
-                                                    include:{
-                                                        story:true
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                roles:{
-                    include:{
-                        profile:true,
-                    }
-                },
-                storyIdList:{
-                    include:{
-                        story:{
-                            include:{
-                                author:true
-                            }
-                        }
-                    }
-                }
-            },
+//                                             include:{
+//                                                 storyIdList:{
+//                                                     include:{
+//                                                         story:true
+//                                                     }
+//                                                 }
+//                                             }
+//                                         }
+//                                     }
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 },
+//                 roles:{
+//                     include:{
+//                         profile:true,
+//                     }
+//                 },
+//                 storyIdList:{
+//                     include:{
+//                         story:{
+//                             include:{
+//                                 author:true
+//                             }
+//                         }
+//                     }
+//                 }
+//             },
             
-        })
-        if(collections.length==0){
-          collections=  await prisma.collection.findMany({where:{
-                isPrivate:false,
-            profileId:{
-                not:profile.id
-            }}})
-        }
+//         })
+//         if(collections.length==0){
+//           collections=  await prisma.collection.findMany({where:{
+//                 isPrivate:false,
+//             profileId:{
+//                 not:profile.id
+//             }}})
+//         }
 
-        res.json({collections:collections})}
+//         res.json({collections:collections})}
     
-}catch(error){
-    res.json({error})
-}})
+// }catch(error){
+//     res.json({error})
+// }})
+router.get("/recommendations", authMiddleware, async (req, res) => {
+  const profile = req.user.profiles[0];
+  const skip = parseInt(req.query.skip) || 0;
+  const take = parseInt(req.query.take) || 20;
+
+  try {
+    if (profile) {
+      const collaborativeScores = await getCollectionCollaborativeScores(profile.id);
+      let sorted = Object.entries(collaborativeScores)
+        .sort((a, b) => b[1] - a[1])
+        .map(([id]) => id);
+
+      let collections = await prisma.collection.findMany({
+        where: {
+          id: { in: sorted },
+          profileId: { not: profile.id },
+          isPrivate: { equals: false }
+        },
+        skip,
+        take,
+        include: {
+          parentCollections: {
+            include: { parentCollection: { select: { id: true } } }
+          },
+          childCollections: {
+            where: { childCollection: { isPrivate: { equals: false } } },
+            include: {
+              childCollection: {
+                include: {
+                  childCollections: {
+                    include: {
+                      childCollection: {
+                        include: {
+                          storyIdList: { include: { story: true } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          roles: { include: { profile: true } },
+          storyIdList: { include: { story: { include: { author: true } } } }
+        },
+      });
+
+      const totalCount = await prisma.collection.count({
+        where: {
+          id: { in: sorted },
+          profileId: { not: profile.id },
+          isPrivate: false
+        }
+      });
+
+      if (collections.length === 0) {
+        collections = await prisma.collection.findMany({
+          where: { isPrivate: false, profileId: { not: profile.id } },
+          skip,
+          take,
+        });
+        const fallbackTotal = await prisma.collection.count({
+          where: { isPrivate: false, profileId: { not: profile.id } }
+        });
+        return res.json({ collections, totalCount: fallbackTotal });
+      }
+
+      res.json({ collections, totalCount });
+    }
+  } catch (error) {
+    res.json({ error });
+  }
+});
 router.get("/:id/recommendations", async (req, res) => {
   try {
     if (req.params.id) {
