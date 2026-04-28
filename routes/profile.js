@@ -9,6 +9,7 @@ const bcrypt = require("bcryptjs")
 const authMiddleware = require("../middleware/authMiddleware"); // your auth
 const { select } = require('firebase-functions/params');
 const sendNotification = require('../utils/sendNotifications.js');
+const { markNotificationsRead } = require('../utils/notifyUser.js');
 const deleteCol =async()=>{
     
     await prisma.roleToCollection.deleteMany({where:{
@@ -583,25 +584,20 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
   }
 });
 
+router.patch("/notifications/read", authMiddleware, async (req, res) => {
+  try {
+    const profileId = req.user.profiles[0].id;
+
+    await markNotificationsRead(profileId);
+
+    res.json({ message: "Notifications marked as read" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err });
+  }
+});
 
 
-
-
-// async function sendPush(tokens, payload) {
-//   if (!tokens.length) return;
-
-//   const message = {
-//     notification: {
-//       title: payload.title,
-//       body: payload.body
-//     },
-//     data: payload.data,
-//     tokens
-//   };
-
-//   const response = await admin.messaging().sendMulticast(message);
-//   console.log('Sent notifications:', response.successCount);
-// }
 router.post("/device-token", authMiddleware, async (req, res) => {
     try {
         const { token, platform = "ios" } = req.body;

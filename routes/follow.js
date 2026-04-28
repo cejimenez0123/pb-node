@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require("../db");
 const comment = require('./comment');
+const { default: notifyUser } = require('../utils/notifyUser');
 
 
 
@@ -26,7 +27,15 @@ try{
                     }
                 }
             }})
-
+     await notifyUser({
+                profileId: follow.followingId,
+                type: "FOLLOW",
+                title: "New follower",
+                body: `${follower.username ?? "Someone"} started following you`,
+                entityId: follower.id,
+                actorId: follower.id,
+                route: `/profile/${follower.id}`
+            });
        res.json({follow}) 
 
 }catch(error){

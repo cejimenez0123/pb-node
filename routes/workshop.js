@@ -870,7 +870,7 @@ try{
         },
       });
 
-      // const storyId = story?.id;
+      
 
       if (storyId) {
         await attachStory({

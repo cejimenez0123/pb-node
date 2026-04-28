@@ -5,6 +5,8 @@ const router = express.Router()
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs");
 const getStory = require('../utils/getstory');
+const { default: notifyUser } = require('../utils/notifyUser');
+const Paths = require('../utils/Paths');
 
 module.exports = function (authMiddleware){
     router.get("/collection/:id",authMiddleware,async(req,res)=>{
@@ -108,20 +110,7 @@ try{
       ? getCollectionById(collectionId)
       : null;
 
-    // const col = collectionId
-    //   ? await getCollectionById(collectionId)
-    //   : null;
-// await prisma.collection.findFirst({
-//           where: { id: collectionId },
-//           include: {
-//             storyIdList: true,
-//             childCollections: true,
-//             roles: {
-//               include: { profile: true },
-//             },
-//             profile: true,
-//           },
-//         })
+  
     return res.json({
       collection: collection,
       roles: newRoles,
@@ -131,73 +120,7 @@ try{
     return res.status(500).json({ error });
   }
 });
-    //   router.put("/collection",authMiddleware,async(req,res)=>{
-    //     try{
-    //         const {roles}=req.body
-          
-    //         let updated= roles.map(role=>{
 
-    //             if(role.role=="role"){
-    //                 if(role.id){
-    //                 return prisma.roleToCollection.delete({where:{id:role.id}})
-    //                 }
-    //             }else{
-    //                 if(roles.role && roles.id.length>10){
-    //             return prisma.roleToCollection.upsert({
-    //                 where:{
-    //                     id:role.id
-    //                 },
-    //                 update:{
-    //                     role:role.role,
-    //                 },
-    //                 create:{
-    //                     role:role.role,
-    //                     profileId:role.profile.id,
-    //                     collectionId:role.item.id
-    //                 }
-    //                , include:{
-    //                     collection:true,
-    //                     profile:true
-    //                 }})
-    //             }else{
-    //                 return prisma.roleToCollection.create({data:{
-    //                     role:role.role,
-    //                     profile:{
-    //                         connect:{
-    //                             id:role.profile.id
-    //                         }
-    //                     },
-    //                     collection:{
-    //                         connect:{
-    //                             id:role.item.id
-    //                         }
-    //                     }
-    //                 },include:{
-    //                     collection:true,
-    //                     profile:true
-    //                 }})
-    //             }}
-    //             })
-    //     let newRoles = await Promise.all(updated)
-    //     let collection = await prisma.collection.findFirst({where:{id:{equals:roles[0].item.id}}
-    //         ,include:{
-    //             storyIdList:true,
-    //             childCollections:true,
-    //             roles:{
-    //                 include:{
-    //                     profile:true,
-    //                 }
-    //             },
-    //             profile:true
-    //         }})
-    //      let col =await getCollectionById(roles[0].item.id)
-    //     res.json({collection:col,roles:newRoles.filter(role=>!!role)})
-
-    //         }catch(error){
-    //             console.log(error)
-    //             res.json({error})
-    //         }
-    // })
 router.put("/story", authMiddleware, async (req, res) => {
   try {
     const { roles = [] } = req.body;
@@ -278,6 +201,16 @@ try{
         },include:{
             profile:true
         }})
+        const story = await getStory(storyId)
+        await notifyUser({
+  profileId,
+  type: "STORY_ROLE_ADDED",
+  title: "Story Access",
+  body: `You've been added as ${type} to "${story.title}"`,
+  entityId: storyId,
+  actorId: req.user.profiles[0].id,
+  route: Paths.page.createRoute(storyId)
+});
         res.json({message:"Success"})
 
     }catch(err){
@@ -337,6 +270,15 @@ try{
              storyIdList:true
          }})
         const col = await getCollectionById(collectionId)
+        await notifyUser({
+  profileId,
+  type: "COLLECTION_ROLE_ADDED",
+  title: "Collection Access",
+  body: `You've been added as ${type} to "${col.name}"`,
+  entityId: collectionId,
+  actorId: req.user.profiles[0].id, // whoever is making the request
+  route: Paths.collection.createRoute(col.id)
+});
         res.json({role,collection:col})
     } 
         

@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require("../db");
 const generateMongoId = require("./generateMongoId");
+const { default: notifyUser } = require('../utils/notifyUser');
 const router = express.Router()
 
 module.exports = function (authMiddleware){
