@@ -194,7 +194,7 @@ export async function markNotificationsRead(profileId) {
 
 export async function sendPush({ tokens, title, body, data = {}, badge }) {
   for (const token of tokens) {
-    console.log("Sending to token:", token.slice(0, 20) + "...");
+
 
     const notification = new apn.Notification();
 

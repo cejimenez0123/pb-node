@@ -495,95 +495,7 @@ module.exports = function (authMiddleware){
         res.json(error)
     }
       })
-//       router.get("/recommendations",authMiddleware,async(req,res)=>{
-//         let profile = req.user.profiles[0]
-//         try{
-//         if(profile){
-//         const collaborativeScores = await getCollectionCollaborativeScores(profile.id)
-     
-//         let sorted = Object.entries(collaborativeScores)
-//         .sort((a, b) => b[1] - a[1]) // Sort by score
-//         .map(([storyId]) => storyId);
-      
-//         let collections= await prisma.collection.findMany({where:{
-//         id:{
-//             in:sorted,
-//             },profileId:{
-//                 not:profile.id
-//             },isPrivate:{
-//                 equals:false
-//             }},include:{
-//                 parentCollections:{
-//                     include:{
-//                         parentCollection:{
-//                             select:{
-//                                 id:true
-//                             }
-//                         }
-//                     }
-//                 },
-//                 childCollections:{
-//                     where:{
-//                         childCollection:{
-//                             isPrivate:{
-//                                 equals:false,
-//                             }
-//                         }
-//                     },
-//                     include:{
-//                         childCollection:{
-                            
-//                             include:{
-                                
-//                                 childCollections:{
-//                                     include:{
-                                        
-//                                         childCollection:{
-                                            
-//                                             include:{
-//                                                 storyIdList:{
-//                                                     include:{
-//                                                         story:true
-//                                                     }
-//                                                 }
-//                                             }
-//                                         }
-//                                     }
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 },
-//                 roles:{
-//                     include:{
-//                         profile:true,
-//                     }
-//                 },
-//                 storyIdList:{
-//                     include:{
-//                         story:{
-//                             include:{
-//                                 author:true
-//                             }
-//                         }
-//                     }
-//                 }
-//             },
-            
-//         })
-//         if(collections.length==0){
-//           collections=  await prisma.collection.findMany({where:{
-//                 isPrivate:false,
-//             profileId:{
-//                 not:profile.id
-//             }}})
-//         }
 
-//         res.json({collections:collections})}
-    
-// }catch(error){
-//     res.json({error})
-// }})
 router.get("/recommendations", authMiddleware, async (req, res) => {
   const profile = req.user.profiles[0];
   const skip = parseInt(req.query.skip) || 0;
@@ -686,36 +598,7 @@ router.get("/:id/recommendations", async (req, res) => {
     res.json(err);
   }
 });
-//     router.get("/:id/recommendations",async (req,res)=>{
-//         try{
-//         if(req.params.id){
-//             console.log(req)
-// const recommendations = await getRecommendedCollections(req.params.id)
-//       let collections= await prisma.collection.findMany({where:{
-//         id:{
-//             in:recommendations,
-//             not:req.params.id
-//             },isPrivate:{
-//                 equals:false
-//             }},include:{
-//                 parentCollections:{
-//                     include:{
-//                         parentCollection:{
-//                             select:{
-//                                 id:true
-//                             }
-//                         }
-//                     }
-//                 }
-//             },
-//         })
 
-//         res.json({collections:collections})}
-//     }catch(err){
-//         console.log(err)
-//         res.json(err)
-//     }
-//     })
     router.get("/:id/story/recommendations",authMiddleware,async(req,res)=>{
         try{
         let profile = req.user.profiles[0]

@@ -5,10 +5,8 @@ const router = express.Router()
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs")
 
-const authMiddleware = require("../middleware/authMiddleware"); // your auth
-const { select } = require('firebase-functions/params');
-const sendNotification = require('../utils/sendNotifications.js');
 const { markNotificationsRead } = require('../utils/notifyUser.js');
+const getProfileRecommendations = require("../utils/recommenders/getProfileRecommendations.js")
 const deleteCol =async()=>{
     
     await prisma.roleToCollection.deleteMany({where:{
@@ -388,9 +386,18 @@ id:true
 })
 
 
-// Send FCM notifications
-
-
+router.get("/:profileId/recommendations", async (req, res) => {
+  try {
+    const { profileId } = req.params;
+    const { limit } = req.query;
+    const recommendations = await getProfileRecommendations(profileId, limit);
+    console.log(recommendations)
+    res.json({ profiles:recommendations });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch recommendations" });
+  }
+});
 router.patch("/notifications/read", authMiddleware, async (req, res) => {
   try {
     const profileId = req.user.profiles[0].id;
