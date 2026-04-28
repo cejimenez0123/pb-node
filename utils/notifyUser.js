@@ -185,10 +185,9 @@ export async function clearBadge(profileId) {
 }
 
 export async function markNotificationsRead(profileId) {
-  await prisma.notification.updateMany({
-    where: { profileId, readAt: null },
-    data: { readAt: new Date() }
-  });
+  prisma.profile.update({where:{id:profileId},data:{
+    lastNotified: new Date()
+  }})
 
   await clearBadge(profileId);
 }
