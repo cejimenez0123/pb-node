@@ -40,7 +40,7 @@ if(comments.length>0||roles.length>0||following.length>0||followers.length>0||co
      
      
 }else{
-  console.log(user.username,"NOT EMAILED:NOTHING TO SHOW")
+  
 }
   } else {
       console.log("Not enough time has passed since the last email.");

@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require("../db");
 const comment = require('./comment');
 const { hash } = require('crypto');
+const getHashtagCollectionRecommendations = require('../utils/recommenders/getHashtagCollectionRecommendations');
 
 
 
@@ -69,6 +70,23 @@ module.exports = function (authMiddleware){
         }
      
 })
+
+router.get("/recommendations", async (req, res) => {
+  try {
+    const hashtagIds         = req.query.hashtagIds?.split(",").filter(Boolean) ?? [];
+    const excludeCollectionIds = req.query.exclude?.split(",").filter(Boolean) ?? [];
+    const skip = parseInt(req.query.skip ?? 0);
+    const take = parseInt(req.query.take ?? 20);
+
+    if (!hashtagIds.length) return res.status(400).json({ error: "hashtagIds required" });
+
+    const { items, totalCount } = await getHashtagCollectionRecommendations(hashtagIds, skip, take, excludeCollectionIds);
+    res.json({ collections: items, totalCount });
+  } catch (err) {
+    console.error("Collection recommendation error:", err);
+    res.status(500).json({ error: "Failed to fetch collection recommendations" });
+  }
+});
 router.get("/:id",async(req,res)=>{
 try{
  

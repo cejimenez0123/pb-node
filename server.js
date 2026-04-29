@@ -69,7 +69,7 @@ const io = new Server(server,{    cors: {
 
 
 function authMiddleware(req, res, next) {
-  console.log("AUTH MIDDLEWARE HIT");
+
 
   passport.authenticate('bearer', { session: false }, (err, user, info) => {
   
