@@ -331,12 +331,15 @@ const getRecommendations = async (profileId) => {
 };
 router.get("/profile/protected", authMiddleware, async (req, res) => {
   try {
-    const profileId = req?.user?.profiles?.[0]?.id;
-
-    if (!profileId) {
+     const profile = await prisma.profile.findFirst({
+      where: { userId: req.user.id },
+     
+      
+    });
+    if (!profile) {
       return res.status(404).json({ message: "Profile not found" });
     }
-
+    const profileId = profile.id
     const skip = Number.parseInt(req.query.skip, 10) || 0;
     const take = Math.min(Number.parseInt(req.query.take, 10) || 50, 100);
     const status = req.query.status
