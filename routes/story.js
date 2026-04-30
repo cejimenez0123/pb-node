@@ -604,26 +604,14 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
     const userId = req.user.profiles[0].id; // Authenticated user's profile ID
     const storyId = req.params.id;
 
-    // Fetch the story with related data
-    // let story = await getStory(storyId)
+ 
     const story = await prisma.story.findFirstOrThrow({
   where: { id: storyId },
   include: {
     author: {
       select: { id: true, username: true,profilePic:true },
     },
-    collections: {
-      include: {
-        collection: {
-          select: {
-            id: true,
-            title: true,
-            type: true,
-            isPrivate: true,
-          },
-        },
-      },
-    },
+
     hashtags: {
       include: {
         hashtag: {
@@ -631,18 +619,7 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
         },
       },
     },
-    comments: {
-      select: {
-        id: true,
-        content: true,
-        profile: {
-          select: { id: true, username: true },
-        },
-        parent: {
-          select: { id: true },
-        },
-      },
-    },
+    
     betaReaders:{
       include:{
         profile:true
@@ -650,7 +627,7 @@ router.get("/:id/protected", authMiddleware, async (req, res) => {
     },
   },
 });
-console.log("TOCUH")
+
     // 1️⃣ Author can always see
     if (story.authorId === userId) return res.json({ story });
 
@@ -670,7 +647,7 @@ console.log("TOCUH")
     if (hasRoleInCollection) return res.json({ story });
 
     // 5️⃣ User is a beta reader
-    const isBetaReader = story.betaReaders.some((br) => br.profile.id === userId);
+    const isBetaReader = story.betaReaders.some((br) => br.profile.id == req.user.profiles[0].id);
     if (isBetaReader) return res.json({ story });
 
     // 6️⃣ Otherwise, deny access
