@@ -1913,7 +1913,6 @@ const baseCollections = await prisma.collection.findMany({
     // FILTERING PIPELINE
     // -----------------------------
     let filteredCollections = baseCollections;
-console.log(profile.profileToCollections)
     if (type === "library") {
       filteredCollections = filteredCollections.filter(
         (c) => (c._count.childCollections > 0 || c.type == "feedback" || c.type == "library") && !profile.profileToCollections.some(p=>p.collectionId==c.id)

@@ -344,7 +344,7 @@ res.status(409).json({error:err})
 }
 })
 router.delete("/:id",authMiddleware,async (req,res)=>{
-    let userId = req.user.id
+
     const profile = req.user.profiles[0]
     try{
         let profColsId = await prisma.collection.findMany({where:{profileId:{
@@ -595,8 +595,7 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// router.post("/device-token", authMiddleware, async (req, res) => {
-//     try {
+
 //         const { token,platform="ios" } = req.body;
 //         const profileId = req.user.profiles[0].id;
 // const existing = await prisma.deviceToken.findFirst({ where: { token } });

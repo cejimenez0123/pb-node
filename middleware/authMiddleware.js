@@ -11,13 +11,10 @@ function setUpPassportLocal(passport) {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify JWT
 
-        // Find user in the database
-        const user = await prisma.user.findFirst({
-          where: { id: decoded.userId },include:{
-            profiles:true
-          }
-        });
-      
+        let user = {
+          id:decoded.userId,
+          profiles:[{id:decoded.profileId}]
+        }
         if (!user) {
           return done(null, false); // Invalid token or user not found
         }
@@ -43,7 +40,7 @@ function setUpPassportLocal(passport) {
 console.log("passport user",user)
       done(null, user);
     } catch (error) {
-      console.log("passport err",err)
+      console.log("passport err",error)
       done(error);
     }
   });

@@ -221,7 +221,7 @@ module.exports = function ({authMiddleware}){
     })
    router.get("/recommendations", authMiddleware, async (req, res) => {
   try {
-    let profile = req.user.profiles[0];
+    const profile = req.user.profiles[0];
    
     // Ensure we have a profile ID
     if (!profile || !profile.id) {
@@ -347,22 +347,36 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
     const search = rawSearch?.trim();
 
 const where = {
-  authorId: profileId,
+  OR:[{authorId:{
+            equals:profileId
+          }},{betaReaders:{
+            some:{
+              profileId:{equals:profileId}
+            }
+          }}],
   ...(search ? {
     title: { contains: search, mode: "insensitive" },
   } : {}),
   ...(status ? { status } : {}),  // add this
 };
    
-    const [stories, totalCount] = await Promise.all([
-      prisma.story.findMany({
-        where,
-        take,
-        skip,
-        orderBy: {
-          updated: "desc", // optional but recommended
-        },
-      }),
+    const [stories, totalCount] = await Promise.all([prisma.story.findMany({
+  where,
+  take,
+  skip,
+  orderBy: { updated: "desc" },
+  select: {
+    id: true,
+    title: true,
+    status: true,
+    updated: true,
+    created: true,
+    isPrivate: true,
+    type: true,
+    description: true,
+    authorId: true,
+  },
+}),
 
       prisma.story.count({
         where,
@@ -377,7 +391,7 @@ const where = {
       totalCount,
     });
   } catch (error) {
-    console.log("/profile/protected", error);
+  
     res.status(500).json({ error: "Internal server error" });
   }
 });

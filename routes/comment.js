@@ -49,8 +49,7 @@ module.exports = function (authMiddleware) {
     const currentuser = req.user.profiles[0];
     const profileId = currentuser.id;
 
-    console.log("COMMENT POST — profileId:", profileId, "storyId:", storyId, "parentId:", parentId);
-
+ 
     const baseData = {
       content:    text,
       anchorText: anchorText ?? "",

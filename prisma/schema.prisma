@@ -136,6 +136,7 @@ model Profile{
     followers             Follow[]    @relation(name: "Followers")
     following             Follow[]   @relation(name: "Following")
     created DateTime? @default(now())
+    
 }
 model Follow{
     id String  @id @default(auto()) @map("_id") @db.ObjectId

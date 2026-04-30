@@ -733,14 +733,14 @@ router.post('/use-referral', async (req, res) => {
         userId: newUser.id
       });
 
-      const userToken = jwt.sign(
-        { userId: newUser.id },
-        process.env.JWT_SECRET
-      );
-
+     
+const token = jwt.sign(
+  { userId:  newUser.id , profileId: profile.id },
+  process.env.JWT_SECRET
+);
       return res.json({
         firstTime: true,
-        token: userToken,
+        token,
         profile
       });
     }
@@ -911,10 +911,10 @@ router.post("/session", async (req, res) => {
       
     });
 
-    const token = jwt.sign(
-      { userId: freshUser.id },
-      process.env.JWT_SECRET
-    );
+  const token = jwt.sign(
+  { userId: freshUser.id, profileId: profile.id },
+  process.env.JWT_SECRET
+);
 
     return res.json({ token, profile });
 
@@ -1139,11 +1139,11 @@ router.post("/register", async (req, res) => {
 
     // ✅ Already registered
     if (existingUser.profiles.length > 0) {
-      const verifiedToken = jwt.sign(
-        { userId: existingUser.id },
-        process.env.JWT_SECRET
-      );
-
+   
+  const token = jwt.sign(
+  { userId: existingUser.id, profileId: profile.id },
+  process.env.JWT_SECRET
+);
       return res.json({
         message: "User already has profile",
         profile: existingUser.profiles[0],
@@ -1209,11 +1209,11 @@ router.post("/register", async (req, res) => {
       }
     });
 
-    const verifiedToken = jwt.sign(
-      { userId: updatedUser.id },
-      process.env.JWT_SECRET
-    );
-
+  
+  const verifiedToken = jwt.sign(
+  { userId: updatedUser.id, profileId: profile.id },
+  process.env.JWT_SECRET
+);
     return res.json({
       message: "User registered successfully",
       profile,
@@ -1226,149 +1226,149 @@ router.post("/register", async (req, res) => {
   }
 });
 
-    router.post("/",async (req,res)=>{
-        try{
+    // router.post("/",async (req,res)=>{
+    //     try{
            
-                const {id,email,uId,profile,pages,books,libraries}= req.body
+    //             const {id,email,uId,profile,pages,books,libraries}= req.body
             
         
-        let user = await  prisma.user.create({data:{
-            email:email.toLowerCase(),
-            uId:id,
-            verified:false
-        }
-        ,include:{
-          profiles:true
-        }})
+    //     let user = await  prisma.user.create({data:{
+    //         email:email.toLowerCase(),
+    //         uId:id,
+    //         verified:false
+    //     }
+    //     ,include:{
+    //       profiles:true
+    //     }})
         
     
-        let collection = await prisma.collection.create({data:{
-            title:"Saved",
-            profile:{
-                connect:{
-                    id:prof.id
-                }
-            },
-            purpose:"Save your inspiration"
-            ,isPrivate:true,
-            isOpenCollaboration:false
-        }})
-        let pageCol = pages.map(page=>{
-            let type = page.type
-            if(type=="html/text"){
-                type = "html"
-            }
-            return prisma.story.create({data:{
-                id: generateMongoId(page.id),
-                title:page.title,
-                data:page.data,
-                type:type,
-                commentable:page.commentable,
-                author:{
-                    connect:{
-                        id: prof.id
-                    }
-                }
-            }})
-        })
-       await Promise.all(pageCol)
-        let bookCol = books.map(async book=>{
-             prisma.collection.create({
-                data:{
-                    id: generateMongoId(book.id),
-                    title:book.title,
-                    purpose:book.purpose,
-                    isPrivate:book.privacy,
-                    isOpenCollaboration:book.writingIsOpen,
-                    profile:{
-                        connect:{
-                            id:prof.id
-                        }
-                    }
-                }
-            })
-           let promises = book.pageIdList.map(async pid=>{
-               return prisma.storyToCollection.create({data:{
-                    story:{
-                        connect:{id:generateMongoId(pid)}
-                    },
-                    collection:{
-                        connect:{
-                            id:generateMongoId(book.id)
-                        }
-                    }
-                }})
-            })
-            return Promise.all(promises)
-        })
-        await Promise.all(bookCol)
-        let libCol = libraries.map(async lib=>{
+    //     let collection = await prisma.collection.create({data:{
+    //         title:"Saved",
+    //         profile:{
+    //             connect:{
+    //                 id:profile.id
+    //             }
+    //         },
+    //         purpose:"Save your inspiration"
+    //         ,isPrivate:true,
+    //         isOpenCollaboration:false
+    //     }})
+    //     let pageCol = pages.map(page=>{
+    //         let type = page.type
+    //         if(type=="html/text"){
+    //             type = "html"
+    //         }
+    //         return prisma.story.create({data:{
+    //             id: generateMongoId(page.id),
+    //             title:page.title,
+    //             data:page.data,
+    //             type:type,
+    //             commentable:page.commentable,
+    //             author:{
+    //                 connect:{
+    //                     id: profile.id
+    //                 }
+    //             }
+    //         }})
+    //     })
+    //    await Promise.all(pageCol)
+    //     let bookCol = books.map(async book=>{
+    //          prisma.collection.create({
+    //             data:{
+    //                 id: generateMongoId(book.id),
+    //                 title:book.title,
+    //                 purpose:book.purpose,
+    //                 isPrivate:book.privacy,
+    //                 isOpenCollaboration:book.writingIsOpen,
+    //                 profile:{
+    //                     connect:{
+    //                         id:prof.id
+    //                     }
+    //                 }
+    //             }
+    //         })
+    //        let promises = book.pageIdList.map(async pid=>{
+    //            return prisma.storyToCollection.create({data:{
+    //                 story:{
+    //                     connect:{id:generateMongoId(pid)}
+    //                 },
+    //                 collection:{
+    //                     connect:{
+    //                         id:generateMongoId(book.id)
+    //                     }
+    //                 }
+    //             }})
+    //         })
+    //         return Promise.all(promises)
+    //     })
+    //     await Promise.all(bookCol)
+    //     let libCol = libraries.map(async lib=>{
 
-          await prisma.collection.create({data:{
-                id: generateMongoId(lib.id),
-                title:lib.name,
-                purpose:lib.purpose,
-                isPrivate:lib.privacy,
-                isOpenCollaboration: lib.writingIsOpen,
-                profile:{
-                    connect:{
-                        id:prof.id
-                    }
-                }
-            }})
+    //       await prisma.collection.create({data:{
+    //             id: generateMongoId(lib.id),
+    //             title:lib.name,
+    //             purpose:lib.purpose,
+    //             isPrivate:lib.privacy,
+    //             isOpenCollaboration: lib.writingIsOpen,
+    //             profile:{
+    //                 connect:{
+    //                     id:prof.id
+    //                 }
+    //             }
+    //         }})
         
-            lib.pageIdList.map(async pid=>{
-               await prisma.storyToCollection.create({data:{
-                    story:{
-                        connectOrCreate:{
-                            where:{
-                                id: generateMongoId(pid),
-                            },create:{
-                                title:"Unititle'd",
-                                data:"",
-                                isPrivate:true,
-                                commentable:true,
-                                author:{
-                                    connect:{
-                                        id: prof.id
-                                    }
-                                },
-                                type:"html"
+    //         lib.pageIdList.map(async pid=>{
+    //            await prisma.storyToCollection.create({data:{
+    //                 story:{
+    //                     connectOrCreate:{
+    //                         where:{
+    //                             id: generateMongoId(pid),
+    //                         },create:{
+    //                             title:"Unititle'd",
+    //                             data:"",
+    //                             isPrivate:true,
+    //                             commentable:true,
+    //                             author:{
+    //                                 connect:{
+    //                                     id: prof.id
+    //                                 }
+    //                             },
+    //                             type:"html"
 
-                            }
+    //                         }
                             
-                        }
-                    },
-                    collection:{
-                        connect:{
-                            id:generateMongoId(lib.id)
-                        }
-                    }
-                }})
-            })
+    //                     }
+    //                 },
+    //                 collection:{
+    //                     connect:{
+    //                         id:generateMongoId(lib.id)
+    //                     }
+    //                 }
+    //             }})
+    //         })
        
-            lib.bookIdList.map(async bid=>{
-                await prisma.collectionToCollection.create({data:{
-                    parentCollection:{
-                        connect:{
-                            id:generateMongoId(lib.id)
-                    },
+    //         lib.bookIdList.map(async bid=>{
+    //             await prisma.collectionToCollection.create({data:{
+    //                 parentCollection:{
+    //                     connect:{
+    //                         id:generateMongoId(lib.id)
+    //                 },
                  
-            },childCollection:{
-                connect:{id:generateMongoId(bid)}
-            }}})
-            })
-        })
-        await Promise.all(libCol)
-        await prisma.profileToCollection.create({data:{
-            profile:{connect:{id:prof.id}},
-            collection:{connect:{id:collection.id}}
-        }})
-        res.json({profile})
-    }catch(e){
-       res.json({error})
-    }
-    })
+    //         },childCollection:{
+    //             connect:{id:generateMongoId(bid)}
+    //         }}})
+    //         })
+    //     })
+    //     await Promise.all(libCol)
+    //     await prisma.profileToCollection.create({data:{
+    //         profile:{connect:{id:prof.id}},
+    //         collection:{connect:{id:collection.id}}
+    //     }})
+    //     res.json({profile})
+    // }catch(e){
+    //    res.json({error})
+    // }
+    // })
     router.delete("/session",authMiddleware,async (req,res)=>{
 
          try{     
