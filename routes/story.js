@@ -786,7 +786,7 @@ await Promise.all(promises)
     })
     router.get("/prompts",async (req,res)=>{
     try{
-console.log("prompt tocuh")
+
         let stories = await prisma.story.findMany({where:{
           AND:[{isPrivate:false},{
           hashtags:{

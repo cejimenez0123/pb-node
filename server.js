@@ -11,6 +11,7 @@ const authRoutes = require("./routes/auth")
 const storyRoutes = require("./routes/story")
 const collectionRoutes = require("./routes/collection")
 const profileRoutes = require("./routes/profile")
+
 const likeRoutes = require("./routes/like.js")
 const historyRoutes = require("./routes/history.js")
 const commentRoutes = require("./routes/comment.js")
@@ -18,6 +19,7 @@ const algoliaRoutes = require("./routes/algolia.js")
 const workshopRoutes = require("./routes/workshop.js")
 const followRoutes = require("./routes/follow.js")
 const passport = require("passport")
+
 const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const { Server } = require('socket.io');
