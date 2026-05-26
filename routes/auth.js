@@ -949,7 +949,7 @@ const token = jwt.sign(
 // });
 
 router.post("/session", async (req, res) => {
-  const { email, password, uId, identityToken, idToken } = req.body;
+  const { email, password,  identityToken, idToken } = req.body;
 
   try {
     let user = null;
