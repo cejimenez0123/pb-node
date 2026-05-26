@@ -68,7 +68,7 @@ module.exports = async function verifyAppleIdentityToken(identityToken) {
   const payload = verify(identityToken, applePublicKey, {
     algorithms: ['RS256'],
     issuer: 'https://appleid.apple.com',
-    audience: process.env.apple_clientId,
+audience: process.env.APPLE_BUNDLE_ID, // Ensure this matches the client ID you set in Apple Developer Console
   });
 
   return payload; // Payload contains email, sub (user ID), etc.
