@@ -995,41 +995,94 @@ router.post("/session", async (req, res) => {
     // =====================================================
     // 🍎 APPLE LOGIN
     // =====================================================
-    else if (identityToken) {
-      const appleUser = await verifyAppleIdentityToken(identityToken);
+    // else if (identityToken) {
+    //   const appleUser = await verifyAppleIdentityToken(identityToken);
 
-      if (!appleUser?.sub) {
-        return res.status(401).json({ message: "Invalid Apple token." });
-      }
+    //   if (!appleUser?.sub) {
+    //     return res.status(401).json({ message: "Invalid Apple token." });
+    //   }
 
-      // 1. Try stable sub first (works even when email is withheld)
-      user = await prisma.user.findFirst({
-        where: { uId: appleUser.sub },
+    //   // 1. Try stable sub first (works even when email is withheld)
+    //   user = await prisma.user.findFirst({
+    //     where: { uId: appleUser.sub },
+    //     include: { profiles: { select: { id: true } } },
+    //   });
+
+    //   // 2. Fallback to email (first-time login only)
+    //   if (!user && appleUser.email) {
+    //     user = await prisma.user.findFirst({
+    //       where: { email: appleUser.email },
+    //       include: { profiles: { select: { id: true } } },
+    //     });
+
+    //     // Stamp sub onto user so future logins skip email lookup
+    //     if (user && !user.uId) {
+    //       user = await prisma.user.update({
+    //         where: { id: user.id },
+    //         data: { uId: appleUser.sub },
+    //         include: { profiles: { select: { id: true } } },
+    //       });
+    //     }
+    //   }
+
+    //   if (!user) {
+    //     return res.status(404).json({ message: "No account found for this Apple ID. Please apply first." });
+    //   }
+    // }
+// =====================================================
+// 🍎 APPLE LOGIN
+// =====================================================
+else if (identityToken) {
+  console.log('🍎 APPLE LOGIN ATTEMPT');
+  console.log('identityToken (first 30):', identityToken?.slice(0, 30));
+
+  let appleUser;
+  try {
+    appleUser = await verifyAppleIdentityToken(identityToken);
+    console.log('✅ Token verified:', {
+      sub: appleUser?.sub,
+      email: appleUser?.email,
+      aud: appleUser?.aud,
+    });
+  } catch (e) {
+    console.error('❌ verifyAppleIdentityToken FAILED:', e.message);
+    return res.status(401).json({ message: `Apple token verification failed: ${e.message}` });
+  }
+
+  if (!appleUser?.sub) {
+    console.error('❌ No sub in appleUser');
+    return res.status(401).json({ message: "Invalid Apple token." });
+  }
+
+  user = await prisma.user.findFirst({
+    where: { uId: appleUser.sub },
+    include: { profiles: { select: { id: true } } },
+  });
+  console.log('sub lookup result:', user ? `found user ${user.id}` : 'no user found');
+
+  if (!user && appleUser.email) {
+    console.log('trying email fallback:', appleUser.email);
+    user = await prisma.user.findFirst({
+      where: { email: appleUser.email },
+      include: { profiles: { select: { id: true } } },
+    });
+    console.log('email lookup result:', user ? `found user ${user.id}` : 'no user found');
+
+    if (user && !user.uId) {
+      console.log('stamping sub onto user:', user.id);
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { uId: appleUser.sub },
         include: { profiles: { select: { id: true } } },
       });
-
-      // 2. Fallback to email (first-time login only)
-      if (!user && appleUser.email) {
-        user = await prisma.user.findFirst({
-          where: { email: appleUser.email },
-          include: { profiles: { select: { id: true } } },
-        });
-
-        // Stamp sub onto user so future logins skip email lookup
-        if (user && !user.uId) {
-          user = await prisma.user.update({
-            where: { id: user.id },
-            data: { uId: appleUser.sub },
-            include: { profiles: { select: { id: true } } },
-          });
-        }
-      }
-
-      if (!user) {
-        return res.status(404).json({ message: "No account found for this Apple ID. Please apply first." });
-      }
     }
+  }
 
+  if (!user) {
+    console.error('❌ No user found for sub:', appleUser.sub, 'email:', appleUser.email);
+    return res.status(404).json({ message: "No account found for this Apple ID. Please apply first." });
+  }
+}
     // =====================================================
     // 📧 EMAIL/PASSWORD LOGIN
     // =====================================================
