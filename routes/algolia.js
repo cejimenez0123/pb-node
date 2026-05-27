@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router()
 const {algoliasearch }= require("algoliasearch");
-const { de } = require('@faker-js/faker');
+
 const prisma = require('../db');
 module.exports = function (authMiddleware){
 const client = algoliasearch(

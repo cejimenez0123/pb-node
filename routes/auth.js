@@ -992,46 +992,6 @@ router.post("/session", async (req, res) => {
       }
     }
 
-    // =====================================================
-    // 🍎 APPLE LOGIN
-    // =====================================================
-    // else if (identityToken) {
-    //   const appleUser = await verifyAppleIdentityToken(identityToken);
-
-    //   if (!appleUser?.sub) {
-    //     return res.status(401).json({ message: "Invalid Apple token." });
-    //   }
-
-    //   // 1. Try stable sub first (works even when email is withheld)
-    //   user = await prisma.user.findFirst({
-    //     where: { uId: appleUser.sub },
-    //     include: { profiles: { select: { id: true } } },
-    //   });
-
-    //   // 2. Fallback to email (first-time login only)
-    //   if (!user && appleUser.email) {
-    //     user = await prisma.user.findFirst({
-    //       where: { email: appleUser.email },
-    //       include: { profiles: { select: { id: true } } },
-    //     });
-
-    //     // Stamp sub onto user so future logins skip email lookup
-    //     if (user && !user.uId) {
-    //       user = await prisma.user.update({
-    //         where: { id: user.id },
-    //         data: { uId: appleUser.sub },
-    //         include: { profiles: { select: { id: true } } },
-    //       });
-    //     }
-    //   }
-
-    //   if (!user) {
-    //     return res.status(404).json({ message: "No account found for this Apple ID. Please apply first." });
-    //   }
-    // }
-// =====================================================
-// 🍎 APPLE LOGIN
-// =====================================================
 else if (identityToken) {
   console.log('🍎 APPLE LOGIN ATTEMPT');
   console.log('identityToken (first 30):', identityToken?.slice(0, 30));
@@ -1039,11 +999,11 @@ else if (identityToken) {
   let appleUser;
   try {
     appleUser = await verifyAppleIdentityToken(identityToken);
-    console.log('✅ Token verified:', {
-      sub: appleUser?.sub,
-      email: appleUser?.email,
-      aud: appleUser?.aud,
-    });
+    // console.log('✅ Token verified:', {
+    //   sub: appleUser?.sub,
+    //   email: appleUser?.email,
+    //   aud: appleUser?.aud,
+    // });
   } catch (e) {
     console.error('❌ verifyAppleIdentityToken FAILED:', e.message);
     return res.status(401).json({ message: `Apple token verification failed: ${e.message}` });
@@ -1367,8 +1327,7 @@ router.post("/email-webhook", express.json(), (req, res) => {
 
 router.post("/register", async (req, res) => {
   const {
-    referralToken, // this is your ONLY token
-    email,
+    referralToken, 
     password,
     username,
     profilePicture,
@@ -1376,7 +1335,7 @@ router.post("/register", async (req, res) => {
     privacy,
     frequency
   } = req.body;
-
+console.log("Register payload:", req.body)
   if (!referralToken || !username || !password) {
     return res.status(400).json({ message: "Missing required fields" });
   }
@@ -1443,7 +1402,10 @@ router.post("/register", async (req, res) => {
           });
         }
       } catch (err) {
-        console.log("Referral handling failed (ignored)");
+       if (err.code === 'P2002' && err.meta?.target?.includes('username')) {
+    return res.status(409).json({ message: "Username is already taken" });
+  }
+  return res.status(500).json({ message: "Something went wrong" });
       }
     }
 
@@ -1455,7 +1417,6 @@ router.post("/register", async (req, res) => {
       data: {
         password: hashedPassword,
         verified: true,
-        email,
         emailFrequency: parseInt(frequency) || 1
       }
     });
@@ -1489,149 +1450,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-    // router.post("/",async (req,res)=>{
-    //     try{
-           
-    //             const {id,email,uId,profile,pages,books,libraries}= req.body
-            
-        
-    //     let user = await  prisma.user.create({data:{
-    //         email:email.toLowerCase(),
-    //         uId:id,
-    //         verified:false
-    //     }
-    //     ,include:{
-    //       profiles:true
-    //     }})
-        
     
-    //     let collection = await prisma.collection.create({data:{
-    //         title:"Saved",
-    //         profile:{
-    //             connect:{
-    //                 id:profile.id
-    //             }
-    //         },
-    //         purpose:"Save your inspiration"
-    //         ,isPrivate:true,
-    //         isOpenCollaboration:false
-    //     }})
-    //     let pageCol = pages.map(page=>{
-    //         let type = page.type
-    //         if(type=="html/text"){
-    //             type = "html"
-    //         }
-    //         return prisma.story.create({data:{
-    //             id: generateMongoId(page.id),
-    //             title:page.title,
-    //             data:page.data,
-    //             type:type,
-    //             commentable:page.commentable,
-    //             author:{
-    //                 connect:{
-    //                     id: profile.id
-    //                 }
-    //             }
-    //         }})
-    //     })
-    //    await Promise.all(pageCol)
-    //     let bookCol = books.map(async book=>{
-    //          prisma.collection.create({
-    //             data:{
-    //                 id: generateMongoId(book.id),
-    //                 title:book.title,
-    //                 purpose:book.purpose,
-    //                 isPrivate:book.privacy,
-    //                 isOpenCollaboration:book.writingIsOpen,
-    //                 profile:{
-    //                     connect:{
-    //                         id:prof.id
-    //                     }
-    //                 }
-    //             }
-    //         })
-    //        let promises = book.pageIdList.map(async pid=>{
-    //            return prisma.storyToCollection.create({data:{
-    //                 story:{
-    //                     connect:{id:generateMongoId(pid)}
-    //                 },
-    //                 collection:{
-    //                     connect:{
-    //                         id:generateMongoId(book.id)
-    //                     }
-    //                 }
-    //             }})
-    //         })
-    //         return Promise.all(promises)
-    //     })
-    //     await Promise.all(bookCol)
-    //     let libCol = libraries.map(async lib=>{
-
-    //       await prisma.collection.create({data:{
-    //             id: generateMongoId(lib.id),
-    //             title:lib.name,
-    //             purpose:lib.purpose,
-    //             isPrivate:lib.privacy,
-    //             isOpenCollaboration: lib.writingIsOpen,
-    //             profile:{
-    //                 connect:{
-    //                     id:prof.id
-    //                 }
-    //             }
-    //         }})
-        
-    //         lib.pageIdList.map(async pid=>{
-    //            await prisma.storyToCollection.create({data:{
-    //                 story:{
-    //                     connectOrCreate:{
-    //                         where:{
-    //                             id: generateMongoId(pid),
-    //                         },create:{
-    //                             title:"Unititle'd",
-    //                             data:"",
-    //                             isPrivate:true,
-    //                             commentable:true,
-    //                             author:{
-    //                                 connect:{
-    //                                     id: prof.id
-    //                                 }
-    //                             },
-    //                             type:"html"
-
-    //                         }
-                            
-    //                     }
-    //                 },
-    //                 collection:{
-    //                     connect:{
-    //                         id:generateMongoId(lib.id)
-    //                     }
-    //                 }
-    //             }})
-    //         })
-       
-    //         lib.bookIdList.map(async bid=>{
-    //             await prisma.collectionToCollection.create({data:{
-    //                 parentCollection:{
-    //                     connect:{
-    //                         id:generateMongoId(lib.id)
-    //                 },
-                 
-    //         },childCollection:{
-    //             connect:{id:generateMongoId(bid)}
-    //         }}})
-    //         })
-    //     })
-    //     await Promise.all(libCol)
-    //     await prisma.profileToCollection.create({data:{
-    //         profile:{connect:{id:prof.id}},
-    //         collection:{connect:{id:collection.id}}
-    //     }})
-    //     res.json({profile})
-    // }catch(e){
-    //    res.json({error})
-    // }
-    // })
     router.delete("/session",authMiddleware,async (req,res)=>{
 
          try{     
