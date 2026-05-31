@@ -1,4 +1,5 @@
-const { mod } = require("firebase/firestore/pipelines")
+
+const prisma = require("../db")
 
 const findProfile= async (profileId)=>{
     return prisma.profile.findFirst({

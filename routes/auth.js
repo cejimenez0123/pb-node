@@ -1388,18 +1388,8 @@ router.post("/register", async (req, res) => {
         emailFrequency: parseInt(frequency) || 1
       }
     });
-createNewProfileForUser({username,profilePicture,selfStatement,privacy,userId:updatedUser.id})
-    // const profile = await prisma.profile.create({
-    //   data: {
-    //     username: username.toLowerCase(),
-    //     profilePic: profilePicture,
-    //     selfStatement,
-    //     isPrivate: privacy,
-    //     user: {
-    //       connect: { id: updatedUser.id }
-    //     }
-    //   }
-    // });
+    const profile = await  createNewProfileForUser({username,profilePicture,selfStatement,privacy,userId:updatedUser.id})
+
 
   
   const verifiedToken = jwt.sign(
@@ -1408,7 +1398,7 @@ createNewProfileForUser({username,profilePicture,selfStatement,privacy,userId:up
 );
     return res.json({
       message: "User registered successfully",
-      profile,
+      profile:profile,
       token: verifiedToken
     });
 

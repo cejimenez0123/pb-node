@@ -6,7 +6,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs")
 
 const { markNotificationsRead } = require('../utils/notifyUser.js');
-const getProfileRecommendations = require("../utils/recommenders/getProfileRecommendations.js")
+const getProfileRecommendations = require("../utils/recommenders/getProfileRecommendations.js");
+const createNewProfileUser = require('../utils/createNewProfileUser.js');
 const deleteCol =async()=>{
     
     await prisma.roleToCollection.deleteMany({where:{
@@ -105,30 +106,10 @@ module.exports = function (authMiddleware){
             })
    
     try{
+ const profile = await  createNewProfileUser({username,profilePicture,selfStatement,isPrivate:privacy,userId:user.id})
    
-        let profile = await prisma.profile.create({data:{
-            user:{
-                connect:{
-                    id:user.id,
-                   
-                }
-            },
-            profilePic:profilePicture,
-             username:username?.toLowerCase(),
-            selfStatement:selfStatement,
-            isPrivate:privacy
-        },include:{
-            likedStories:true,
-            historyStories:true,
-            collectionHistory:true,
-            collections:true,
-            stories:true,
-            location:true,
-            followers:true,
-            following:true
-        }})
         const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
-        res.json({profile,token:verifiedToken})
+        res.json({profile:profile,token:verifiedToken})
     }catch(error){
         
         res.status(409).json({error: new Error("Username already taken")})
