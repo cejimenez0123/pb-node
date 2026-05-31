@@ -1304,7 +1304,6 @@ router.post("/register", async (req, res) => {
     privacy,
     frequency
   } = req.body;
-console.log("Register payload:", req.body)
   if (!referralToken || !username || !password) {
     return res.status(400).json({ message: "Missing required fields" });
   }
