@@ -30,6 +30,7 @@ const app = express();
 const PORT = process.env.PORT
 const {storage} = require("./utils/storage.js")
 const Sentry = require("@sentry/node");
+
 try{
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
@@ -39,7 +40,8 @@ Sentry.init({
   
 }
 
-const { getDownloadURL,ref } = require("firebase/storage")
+const { getDownloadURL,ref } = require("firebase/storage");
+
 app.use(bodyParser.urlencoded({ extended: false }))
 
 const logger = (req, _res, next) => {
