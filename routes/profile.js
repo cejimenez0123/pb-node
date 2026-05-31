@@ -343,48 +343,103 @@ console.log(err)
 res.status(409).json({error:err})
 }
 })
-router.delete("/:id",authMiddleware,async (req,res)=>{
+// router.delete("/:id",authMiddleware,async (req,res)=>{
 
-    const profile = req.user.profiles[0]
-    try{
-        let profColsId = await prisma.collection.findMany({where:{profileId:{
-                equals:profile.id
-            }}})
-         let profStoriesId = await prisma.story.findMany({where:{profileId:{
-                equals:profile.id
-            }},select:{
-id:true
-            }})
-        let followsId = await prisma.follow.findMany({where:{
-            OR:[{followerId:{
-                equals:profile.id
-            }},{followingId:{
-                equals:profile.id
-            }}]
-        },select:{
-            id:true
-        }})
-        let userColHist = await prisma.userCollectionHistory.findMany({where:{
-            profileId:{equals:profile.id}
-        },select:{
-            id:true
-        }})
-        let userStoryHist = await prisma.userStoryHistory.deleteMany({where:{
-            profileId:{equals:profile.id}
-        },select:{
-            id:true
-        }})
-        let userStoryLike = await prisma.userStoryLike.findMany({where:{
-            profileId:{equals:profile.id}
-        },select:{
-            id:true
-        }})
-    }catch(error){
+//     const profile = req.user.profiles[0]
+//     try{
+//         let profColsId = await prisma.collection.findMany({where:{profileId:{
+//                 equals:profile.id
+//             }}})
+//          let profStoriesId = await prisma.story.findMany({where:{profileId:{
+//                 equals:profile.id
+//             }},select:{
+// id:true
+//             }})
+//         let followsId = await prisma.follow.findMany({where:{
+//             OR:[{followerId:{
+//                 equals:profile.id
+//             }},{followingId:{
+//                 equals:profile.id
+//             }}]
+//         },select:{
+//             id:true
+//         }})
+//         let userColHist = await prisma.userCollectionHistory.findMany({where:{
+//             profileId:{equals:profile.id}
+//         },select:{
+//             id:true
+//         }})
+//         let userStoryHist = await prisma.userStoryHistory.deleteMany({where:{
+//             profileId:{equals:profile.id}
+//         },select:{
+//             id:true
+//         }})
+//         let userStoryLike = await prisma.userStoryLike.findMany({where:{
+//             profileId:{equals:profile.id}
+//         },select:{
+//             id:true
+//         }})
+      
+//     }catch(error){
 
+//     }
+
+// })
+router.delete("/:id", authMiddleware, async (req, res) => {
+  const profile = req.user.profiles[0];
+  try {
+    const stories = await prisma.story.findMany({
+      where: { authorId: profile.id },
+      select: { id: true }
+    });
+    const storyIds = stories.map(s => s.id);
+
+    // Junction tables and relations first
+    await prisma.comment.deleteMany({ where: { profileId: profile.id } });
+    await prisma.hashtagStory.deleteMany({ where: { profileId: profile.id } });
+    await prisma.hashtagComment.deleteMany({ where: { profileId: profile.id } });
+    await prisma.hashtagCollection.deleteMany({ where: { profileId: profile.id } });
+    await prisma.userStoryLike.deleteMany({ where: { profileId: profile.id } });
+    await prisma.userStoryHistory.deleteMany({ where: { profileId: profile.id } });
+    await prisma.userCollectionHistory.deleteMany({ where: { profileId: profile.id } });
+    await prisma.roleToStory.deleteMany({ where: { profileId: profile.id } });
+    await prisma.roleToCollection.deleteMany({ where: { profileId: profile.id } });
+    await prisma.storyToCollection.deleteMany({ where: { profileId: profile.id } });
+    await prisma.collectionToCollection.deleteMany({ where: { profileId: profile.id } });
+    await prisma.profileToCollection.deleteMany({ where: { profileId: profile.id } });
+    await prisma.follow.deleteMany({
+      where: {
+        OR: [
+          { followerId: profile.id },
+          { followingId: profile.id }
+        ]
+      }
+    });
+    await prisma.hashtagFollower.deleteMany({ where: { followerId: profile.id } });
+    await prisma.notification.deleteMany({ where: { profileId: profile.id } });
+    await prisma.message.deleteMany({ where: { senderId: profile.id } });
+    await prisma.deviceToken.deleteMany({ where: { profileId: profile.id } });
+
+    // Stories and collections
+    if (storyIds.length > 0) {
+      await prisma.story.deleteMany({ where: { authorId: profile.id } });
     }
+    await prisma.collection.deleteMany({ where: { profileId: profile.id } });
 
-})
+    // Referrals on user
+    await prisma.referralUse.deleteMany({ where: { userId: req.user.id } });
+    await prisma.referral.deleteMany({ where: { createdById: req.user.id } });
 
+    // Profile then user last
+    await prisma.profile.delete({ where: { id: profile.id } });
+    await prisma.user.delete({ where: { id: req.user.id } });
+
+    res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    console.error("Delete account error:", error);
+    res.status(500).json({ error: "Failed to delete account" });
+  }
+});
 
 router.get("/:profileId/recommendations", async (req, res) => {
   try {

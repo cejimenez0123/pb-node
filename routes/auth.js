@@ -1388,18 +1388,18 @@ router.post("/register", async (req, res) => {
         emailFrequency: parseInt(frequency) || 1
       }
     });
-
-    const profile = await prisma.profile.create({
-      data: {
-        username: username.toLowerCase(),
-        profilePic: profilePicture,
-        selfStatement,
-        isPrivate: privacy,
-        user: {
-          connect: { id: updatedUser.id }
-        }
-      }
-    });
+createNewProfileForUser({username,profilePicture,selfStatement,privacy,userId:updatedUser.id})
+    // const profile = await prisma.profile.create({
+    //   data: {
+    //     username: username.toLowerCase(),
+    //     profilePic: profilePicture,
+    //     selfStatement,
+    //     isPrivate: privacy,
+    //     user: {
+    //       connect: { id: updatedUser.id }
+    //     }
+    //   }
+    // });
 
   
   const verifiedToken = jwt.sign(
