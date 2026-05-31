@@ -18,6 +18,7 @@ const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken");
 // const feedbackTemplate = require("../feedbackTemplate");
 const crypto = require("crypto");
 const { verifyGoogleIdToken } = require('../utils/ verifyGoogleIdToken');
+const findProfile = require('../utils/findProfile');
 function isHex(num) {
 
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
@@ -116,6 +117,18 @@ module.exports = function (authMiddleware){
             }
         }
     })
+       const portCol = await prisma.collection.create({data:{
+      title:"Portfolio",
+      purpose:"Showcase your work and collaborations",
+      isOpenCollaboration:false,
+      isPrivate:true,
+      profile:{
+        connect:{
+          id:profile.id
+        }
+      }
+    }
+    })
    const homeCol = await prisma.collection.create({data:{
       title:"Home",
       purpose:"Add Collections to home to up with updates",
@@ -128,6 +141,19 @@ module.exports = function (authMiddleware){
       }
     }
     })
+       const eventCol = await prisma.collection.create({data:{
+      title:"Events",
+      purpose:"Add Collections to home to up with updates",
+      isOpenCollaboration:false,
+      isPrivate:true,
+      profile:{
+        connect:{
+          id:profile.id
+        }
+      }
+    }
+    })
+
   const archCol= await prisma.collection.create({data:{
       title:"Archive",
       purpose:"Save things for later",
@@ -141,7 +167,36 @@ module.exports = function (authMiddleware){
     }
     })
 
-
+    await prisma.profileToCollection.create({
+      data:{
+        collection:{
+          connect:{
+            id:eventCol.id
+          }
+        },
+        type:"events",
+        profile:{
+          connect:{
+            id:profile.id
+          }
+        }
+      }
+    })
+        await prisma.profileToCollection.create({
+      data:{
+        collection:{
+          connect:{
+            id:portCol.id
+          }
+        },
+        type:"portfolio",
+        profile:{
+          connect:{
+            id:profile.id
+          }
+        }
+      }
+    })
     await prisma.profileToCollection.create({
       data:{
         collection:{
@@ -157,39 +212,26 @@ module.exports = function (authMiddleware){
         }
       }
     })
-    let profileToColl= await prisma.profileToCollection.create({data:{
-      collection:{
-          connect:{
-              id:archCol.id
-          }
-      },type:"archive",
-      profile:{
-          connect:{
-              id:profile.id
-          }
+await prisma.profileToCollection.create({
+  data: {
+    collection: {
+      connect: {
+        id: archCol.id
       }
+    },
+    type: "archive",
+    profile: {
+      connect: {
+        id: profile.id
+      }
+    }
+  }
+})
 
-  },include:{
-      collection:true,
-      profile:{
-          include:{
-            likedStories:true,
-              followers:true,
-              stories:true,
-              collections:true,
-              profileToCollections:{
-                  include:{
-                      collection:{
-                        include:{
-                          storyIdList:true
-                        }
-                      }
-                  }
-              }
-          }
-      }
-    }})
-    return profileToColl.profile
+
+
+   let newProfile = await findProfile(profile.id)
+    return newProfile 
   }
     router.put("/subscription",async(req,res)=>{
       try{
@@ -461,80 +503,7 @@ router.post("/apply", async (req, res) => {
 
   }
     })
-    async function createNewProfileCollections(profile){
-      const homeCol = await prisma.collection.create({data:{
-        title:"Home",
-        purpose:"Add Collections to home to up with updates",
-        isOpenCollaboration:false,
-        isPrivate:true,
-        profile:{
-          connect:{
-            id:profile.id
-          }
-        }
-      }
-      })
-    const archCol= await prisma.collection.create({data:{
-        title:"Archive",
-        purpose:"Save things for later",
-        isOpenCollaboration:false,
-        isPrivate:true,
-        profile:{
-          connect:{
-            id:profile.id
-          }
-        }
-      }
-      })
-      await prisma.profileToCollection.create({
-        data:{
-          collection:{
-            connect:{
-              id:homeCol.id
-            }
-          },
-          type:"home",
-          profile:{
-            connect:{
-              id:profile.id
-            }
-          }
-        }
-      })
-      let profileToColl= await prisma.profileToCollection.create({data:{
-        collection:{
-            connect:{
-                id:archCol.id
-            }
-        },type:"archive",
-           profile:{
-            connect:{
-                id:profile.id
-            }
-        }
-
-    },include:{
-        collection:true,
-        profile:{
-            include:{
-              likedStories:true,
-                followers:true,
-                stories:true,
-                collections:true,
-                profileToCollections:{
-                  include:{
-                    collection:{
-                      include:{
-                        storyIdList:true
-                      }
-                    }
-                }
-                }
-            }
-        }
-    }})
-
-    }
+  
     router.get("/unsubscribe",async (req,res)=>{
       try{
       const {token}= req.query

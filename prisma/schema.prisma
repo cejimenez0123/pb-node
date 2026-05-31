@@ -424,6 +424,7 @@ enum StoryType {
 enum ProfileToCollectionType {
   home
   archive
+  events
   portfolio
 }
 enum SubscriptionLevel{

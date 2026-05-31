@@ -3,6 +3,7 @@ const prisma = require("../db");
 const { createLocation } = require('../utils/locationUtil');
 const { default: notifyUser } = require('../utils/notifyUser');
 const Paths = require('../utils/Paths');
+const findProfile = require('../utils/findProfile');
 const router = express.Router()
 
 module.exports = function (authMiddleware){
@@ -462,7 +463,7 @@ module.exports = function (authMiddleware){
                 id:oldPro.id
             }})
         }
-        let profileToColl= await prisma.profileToCollection.create({data:{
+        await prisma.profileToCollection.create({data:{
             collection:{
                 connect:{
                     id:collection.id
@@ -490,10 +491,11 @@ module.exports = function (authMiddleware){
                 }
             }
         }})
-        res.json({profile:profileToColl.profile})
-    }catch(error){
-        res.json(error)
-    }
+        let updatedProfile = await findProfile(profile.id)
+        res.json({profile:updatedProfile})
+        }catch(error){
+          res.json({error}) 
+        }
       })
 
 router.get("/recommendations", authMiddleware, async (req, res) => {
