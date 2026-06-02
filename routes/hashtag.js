@@ -1,7 +1,6 @@
 const express = require('express');
 const prisma = require("../db");
-const comment = require('./comment');
-const { hash } = require('crypto');
+
 const getHashtagCollectionRecommendations = require('../utils/recommenders/getHashtagCollectionRecommendations');
 
 
@@ -70,7 +69,28 @@ module.exports = function (authMiddleware){
         }
      
 })
+router.get("/search", async (req, res) => {
+  try {
+    const q = (req.query.query || req.query.q || "").trim().toLowerCase();
+    if (q.length < 2) return res.json({ hashtags: [] });
 
+    const take = Math.min(parseInt(req.query.take ?? 5), 10);
+
+    const hashtags = await prisma.hashtag.findMany({
+      where: {
+        name: { contains: q, mode: "insensitive" },
+      },
+      take,
+      orderBy: { stories: { _count: "desc" } }, // most-used surfaces first
+      select: { id: true, name: true },
+    });
+
+    res.json({ hashtags });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error });
+  }
+});
 router.get("/recommendations", async (req, res) => {
   try {
     const hashtagIds         = req.query.hashtagIds?.split(",").filter(Boolean) ?? [];
