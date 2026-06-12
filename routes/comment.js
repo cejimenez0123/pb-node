@@ -43,6 +43,78 @@ module.exports = function (authMiddleware) {
       res.status(500).json({ error: err });
     }
   });
+  // ── POST /comments/to-story ───────────────────────────────────────────────
+// Promote one or more of your own comments into standalone Stories.
+// Body: { commentIds: string[], isPrivate?, status?, collectionId? }
+// Place before the /:id routes for consistency with /helpful.
+router.post("/to-story", ...protected, async (req, res) => {
+  try {
+    const currentuser = req.user.profiles[0];
+    const profileId   = currentuser.id;
+
+    const { commentIds, isPrivate = true, status, collectionId } = req.body;
+
+    if (!Array.isArray(commentIds) || commentIds.length === 0) {
+      return res.status(400).json({ error: "commentIds[] required" });
+    }
+
+    const VALID_STATUS = ["draft", "fragment", "finished", "workshop"];
+    const storyStatus  = VALID_STATUS.includes(status) ? status : "draft";
+
+    const comments = await prisma.comment.findMany({
+      where: { id: { in: commentIds } },
+    });
+
+    if (comments.length === 0) {
+      return res.status(404).json({ error: "No comments found" });
+    }
+
+    const notOwned = comments.filter((c) => c.profileId !== profileId);
+    if (notOwned.length > 0) {
+      return res
+        .status(403)
+        .json({ error: "You can only turn your own comments into stories" });
+    }
+
+    // Preserve the order the client sent the IDs in
+    const ordered = commentIds
+      .map((id) => comments.find((c) => c.id === id))
+      .filter(Boolean);
+
+    const stories = await prisma.$transaction(
+      ordered.map((c) => {
+        const text  = (c.content ?? "").trim();
+        const title =
+          text.length > 60 ? `${text.slice(0, 57).trimEnd()}…` : text || "Untitled";
+
+        return prisma.story.create({
+          data: {
+            title,
+            data:        text,
+            isPrivate,
+            status:      storyStatus,
+            commentable: true,
+            author:      { connect: { id: profileId } },
+            ...(collectionId && {
+              collections: {
+                create: {
+                  collection: { connect: { id: collectionId } },
+                  profile:    { connect: { id: profileId } },
+                },
+              },
+            }),
+          },
+          include: { author: true },
+        });
+      })
+    );
+
+    res.json({ stories });
+  } catch (err) {
+    console.log(err);
+    res.status(409).json({ error: err });
+  }
+});
   router.post("/", ...protected, async (req, res) => {
   try {
     const { storyId, text, parentId, anchorText } = req.body;

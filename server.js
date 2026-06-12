@@ -11,7 +11,7 @@ const authRoutes = require("./routes/auth")
 const storyRoutes = require("./routes/story")
 const collectionRoutes = require("./routes/collection")
 const profileRoutes = require("./routes/profile")
-
+// const sprintRoutes = require("./cron/sprint.js")
 const likeRoutes = require("./routes/like.js")
 const historyRoutes = require("./routes/history.js")
 const commentRoutes = require("./routes/comment.js")
@@ -30,7 +30,7 @@ const app = express();
 const PORT = process.env.PORT
 const {storage} = require("./utils/storage.js")
 const Sentry = require("@sentry/node");
-
+// sprintRoutes()
 try{
 Sentry.init({
   dsn: process.env.SENTRY_DSN,

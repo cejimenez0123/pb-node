@@ -108,7 +108,7 @@ model ReferralUse {
   @@unique([referralId, userId])
 }
 model Profile{
-    id    String @id @default(auto()) @map("_id") @db.ObjectId
+    id   String @id @default(auto()) @map("_id") @db.ObjectId
     profilePic String?
     username String? @unique
  
@@ -124,7 +124,7 @@ model Profile{
     locationId String? @db.ObjectId
     location Location?  @relation(fields: [locationId], references: [id])
     hashtag HashtagComment[]
-
+    isAdmin Boolean @default(false)
     isPrivate Boolean?
     messages Message[]
     followedHashtags HashtagFollower[]
@@ -140,7 +140,7 @@ model Profile{
     collectionHistory UserCollectionHistory[]
     rolesToCollection RoleToCollection[]
     comments Comment[] 
-  
+    writingSprintSlots WritingTimeSlots[]  @default([morning,midday])
     devices DeviceToken[] 
     followers             Follow[]    @relation(name: "Followers")
     following             Follow[]   @relation(name: "Following")
@@ -183,6 +183,8 @@ model Hashtag {
   stories   HashtagStory[]  
   collections HashtagCollection[]
   followers HashtagFollower[]
+created    DateTime? @default(now())
+isReserved Boolean   @default(false)
 }
 model HashtagFollower{
   id String @id @default(auto()) @map("_id") @db.ObjectId
@@ -441,8 +443,13 @@ enum SubscriptionLevel{
   basic
   premium
 }
-
-
+enum WritingTimeSlots{
+morning 
+midday
+afternoon
+evening
+night 
+}
 
 
 

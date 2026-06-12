@@ -4,7 +4,7 @@ const generateMongoId = require("./generateMongoId");
 const router = express.Router()
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs")
-
+const { SPRINT_SLOTS } = require('../cron/sprint.js');
 const { markNotificationsRead } = require('../utils/notifyUser.js');
 const getProfileRecommendations = require("../utils/recommenders/getProfileRecommendations.js");
 const createNewProfileUser = require('../utils/createNewProfileUser.js');
@@ -226,84 +226,170 @@ stories:{
         res.status(409).json({error:err})
     }
     })
+router.put("/:id", authMiddleware, async (req, res) => {
+  const {
+    username,
+    profilePicture,
+    selfStatement,
+    privacy,
+    location,
+    writingSprintSlots,  // ← new
+  } = req.body;
 
-    router.put("/:id",authMiddleware,async (req,res)=>{
-        const {username,profilePicture,selfStatement,privacy,location} = req.body
+  try {
+    // Validate + sanitize sprint slots if provided
+    const validSlotIds = Object.keys(SPRINT_SLOTS);
+    const sanitizedSlots = Array.isArray(writingSprintSlots)
+      ? writingSprintSlots.filter((s) => validSlotIds.includes(s))
+      : undefined; // undefined = don't touch the field if not sent
+
+    let city = "";
+    if (location?.address?.length > 0) {
+      const parts = location.address.split(',').map((p) => p.trim());
+      city = `${parts[2]}, ${parts[parts.length - 1]}` || ""; // fix: parts[-1] → parts[parts.length - 1]
+    }
+
+    const locale = location?.latitude
+      ? await prisma.location.upsert({
+          where: {
+            location_coords: {
+              latitude: location.latitude,
+              longitude: location.longitude,
+            },
+          },
+          update: {
+            city: location.city,
+            latitude: location.latitude,
+            longitude: location.longitude,
+          },
+          create: {
+            city: location.city,
+            latitude: location.latitude,
+            longitude: location.longitude,
+          },
+        })
+      : null;
+
+    const includeBlock = {
+      location: true,
+      likedStories: true,
+      historyStories: true,
+      collectionHistory: true,
+      collections: true,
+      stories: true,
+      followers: true,
+    };
+
+    // Shared data payload — only spread slots if they were actually sent
+    const sharedData = {
+      username: username?.toLowerCase(),
+      profilePic: profilePicture,
+      selfStatement,
+      isPrivate: privacy,
+      ...(sanitizedSlots !== undefined && { writingSprintSlots: sanitizedSlots }),
+    };
+
+    let profile;
+
+    if (locale?.latitude && locale?.longitude) {
+      profile = await prisma.profile.update({
+        where: { id: req.params.id },
+        data: {
+          ...sharedData,
+          location: { connect: { id: locale.id } },
+        },
+        include: includeBlock,
+      });
+    } else {
+      profile = await prisma.profile.update({ // fix: was missing await
+        where: { id: req.params.id },
+        data: sharedData,
+        include: includeBlock,
+      });
+    }
+
+    res.json({ profile });
+  } catch (e) {
+    res.status(409).json({ error: e });
+  }
+});
+//     router.put("/:id",authMiddleware,async (req,res)=>{
+//         const {username,profilePicture,selfStatement,privacy,location} = req.body
       
       
         
-      try{
-       let  city =""
-       if(location && location.address && location.address.length>0){
-      const parts = location.address.split(',').map(p => p.trim());
-      city = `${parts[2]}, ${parts[-1]}` || "";
-       }
-       let  locale = location && location.latitude?await prisma.location.upsert({
-  where: {
-    location_coords: {
-      latitude: location.latitude,
-      longitude: location.longitude
-    }
-  },
-  update: { city: location.city,
-    latitude: location.latitude,
-    longitude: location.longitude},
-  create: {
-    city: location.city,
-    latitude: location.latitude,
-    longitude: location.longitude
+//       try{
+//        let  city =""
+//        if(location && location.address && location.address.length>0){
+//       const parts = location.address.split(',').map(p => p.trim());
+//       city = `${parts[2]}, ${parts[-1]}` || "";
+//        }
+//        let  locale = location && location.latitude?await prisma.location.upsert({
+//   where: {
+//     location_coords: {
+//       latitude: location.latitude,
+//       longitude: location.longitude
+//     }
+//   },
+//   update: { city: location.city,
+//     latitude: location.latitude,
+//     longitude: location.longitude},
+//   create: {
+//     city: location.city,
+//     latitude: location.latitude,
+//     longitude: location.longitude
     
-  }
-}):null
-let profile = null
-       if(locale && locale.latitude && locale.longitude){
-        profile = await prisma.profile.update({where:{
-            id: req.params.id
-        },data:{
-            username: username.toLowerCase(),
-            profilePic:profilePicture,
-            selfStatement:selfStatement,
-            isPrivate:privacy,
-            location:{
-                connect:{
-                    id:locale.id
-                }
-            }
-        },include:{
-            location:true,
-            likedStories:true,
-            historyStories:true,
-            collectionHistory:true,
-            collections:true,
-            stories:true,
-            followers:true
-        }})
-    }else{profile =prisma.profile.update({where:{
-            id: req.params.id
-        },data:{
-            username: username?.toLowerCase(),
-            profilePic:profilePicture,
-            selfStatement:selfStatement,
-            isPrivate:privacy,
+//   }
+// }):null
+// let profile = null
+//        if(locale && locale.latitude && locale.longitude){
+//         profile = await prisma.profile.update({where:{
+//             id: req.params.id
+//         },data:{
+//             username: username.toLowerCase(),
+//             profilePic:profilePicture,
+//             selfStatement:selfStatement,
+//             isPrivate:privacy,
+//             location:{
+//                 connect:{
+//                     id:locale.id
+//                 }
+//             }
+//         },include:{
+//             location:true,
+//             likedStories:true,
+//             historyStories:true,
+//             collectionHistory:true,
+//             collections:true,
+//             stories:true,
+//             followers:true
+//         }})
+//     }else{profile =prisma.profile.update({where:{
+//             id: req.params.id
+//         },data:{
+//             username: username?.toLowerCase(),
+//             profilePic:profilePicture,
+//             selfStatement:selfStatement,
+//             isPrivate:privacy,
            
             
-        },include:{
-             location:true,
-            likedStories:true,
-            historyStories:true,
-            collectionHistory:true,
-            collections:true,
-            stories:true,
-            followers:true
-        }})
+//         },include:{
+//              location:true,
+//             likedStories:true,
+//             historyStories:true,
+//             collectionHistory:true,
+//             collections:true,
+//             stories:true,
+//             followers:true
+//         }})
       
-    }
-      res.json({profile})
-    }catch(e){
+//     }
+//       res.json({profile})
+//     }catch(e){
         
-        res.status(409).json({error:e})
-    }
-    })
+//         res.status(409).json({error:e})
+//     }
+//     })
     router.get("/user/:id/public",async (req,res)=>{
        try{
         const profiles = await prisma.profile.findMany({where:{

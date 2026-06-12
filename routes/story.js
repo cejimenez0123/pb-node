@@ -784,32 +784,66 @@ await Promise.all(promises)
         res.json({error})
     }
     })
-    router.get("/prompts",async (req,res)=>{
-    try{
+    // router.get("/prompts",async (req,res)=>{
+    // try{
 
-        let stories = await prisma.story.findMany({where:{
-          AND:[{isPrivate:false},{
-          hashtags:{
-            some:{
-              hashtag:{
-                name:{
-                  contains:"prompt",
-                  mode:"insensitive"
-                }
-              }
-            }
-          }}]
-        }})
+    //     let stories = await prisma.story.findMany({where:{
+    //       AND:[{isPrivate:false},{
+    //       hashtags:{
+    //         some:{
+    //           hashtag:{
+    //             name:{
+    //               contains:"prompt",
+    //               mode:"insensitive"
+    //             }
+    //           }
+    //         }
+    //       }}]
+    //     }})
 
 
 
-        res.status(201).json({prompts:stories})
-    }catch(error){
+    //     res.status(201).json({prompts:stories})
+    // }catch(error){
     
-        console.log({error})
-        res.json({error})
-    }
-    })
+    //     console.log({error})
+    //     res.json({error})
+    // }
+    // })
+    router.get("/prompts", async (req, res) => {
+  try {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // today's slots that have already dropped
+    const slots = await prisma.dailyPrompt.findMany({
+      where: { scheduledFor: { gte: startOfDay, lte: now } },
+      orderBy: { scheduledFor: "desc" },
+    });
+    if (slots.length === 0) return res.json({ prompts: [] });
+
+    // hydrate the referenced stories in one query, then re-attach in slot order
+    const storyIds = slots.map((s) => s.storyId);
+    const stories = await prisma.story.findMany({
+      where: { id: { in: storyIds } },
+      include: { hashtags: { include: { hashtag: true } } }, // adjust to your shape
+    });
+    const byId = Object.fromEntries(stories.map((s) => [s.id, s]));
+
+    const prompts = slots
+      .map((slot) => ({
+        slotIndex: slot.slotIndex,
+        scheduledFor: slot.scheduledFor,
+        story: byId[slot.storyId],
+      }))
+      .filter((p) => p.story); // drop any since-deleted stories
+
+    res.json({ prompts });
+  } catch (error) {
+    console.log({ error });
+    res.status(500).json({ error: "Failed to load prompts" });
+  }
+});
     router.get("/events/:days",async(req,res)=>{
         try{
        let days = req.params.days
