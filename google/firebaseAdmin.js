@@ -29,7 +29,7 @@ const serviceAccount = {
   "token_uri": process.env.GOOGLE_SERVICES_TOKEN_URI,
   "auth_provider_x509_cert_url": process.env.GOOGLE_SERVICES_AUTH_PROVIDER,
   "client_x509_cert_url": process.env.GOOGLE_SERVICES_CERT_URL,
-    "universe_domain":process.env.GOOGLE_SERVICES_UNIVERSE_DOMAIN
+  "universe_domain":process.env.GOOGLE_SERVICES_UNIVERSE_DOMAIN
 }
 // // admin.initializeApp({
 // //   credential: admin.credential.cert(serviceAccount)
