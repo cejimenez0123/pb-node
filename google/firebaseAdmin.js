@@ -39,7 +39,7 @@ const serviceAccount = {
 
 
 const admin = require('firebase-admin');
-const serviceAccount = require('../pb-android-2725a-firebase-adminsdk-pb-android-2725a.json'); // exact filename
+// const serviceAccount = require('../pb-android-2725a-firebase-adminsdk-pb-android-2725a.json'); // exact filename
 
 
 
