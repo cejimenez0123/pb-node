@@ -19,7 +19,7 @@ async function main() {
   ]);
 
   const body  = prompt?.teaser ?? "Open Plumbum for today's writing prompt.";
-  const route = '/notifications';
+  const route = '/profile/alert';
 
   await Promise.all(
     testProfiles.map((p) =>

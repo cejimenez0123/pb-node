@@ -2,13 +2,14 @@ const prisma = require("../db")
 const findProfile = require("./findProfile")
 
   
-  module.exports = async function createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId}){
+  module.exports = async function createNewProfileForUser({username,profilePicture,selfStatement,isPrivate,userId,writingSprintSlots}){
       const profile = await prisma.profile.create({
         data:{
             username:username?.toLowerCase(),
             profilePic:profilePicture,
             selfStatement,
-            isPrivate:isPrivate,
+            isPrivate,
+            writingSprintSlots,
             user:{
                 connect:{
                     id:userId

@@ -20,6 +20,7 @@ const crypto = require("crypto");
 const { verifyGoogleIdToken } = require('../utils/ verifyGoogleIdToken');
 const findProfile = require('../utils/findProfile');
 const createNewProfileUser = require('../utils/createNewProfileUser');
+const { SPRINT_SLOTS } = require('../cron/sprint');
 function isHex(num) {
 
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
@@ -585,7 +586,8 @@ router.post('/use-referral', async (req, res) => {
         profilePicture,
         selfStatement,
         isPrivate,
-        userId: newUser.id
+        userId: newUser.id,
+        writingSprintSlots: sanitizedSlots
       });
 
      
@@ -1174,8 +1176,13 @@ router.post("/register", async (req, res) => {
     profilePicture,
     selfStatement,
     privacy,
-    frequency
+    frequency,
+    writingSprintSlots
   } = req.body;
+   const validSlotIds = Object.keys(SPRINT_SLOTS);
+  const sanitizedSlots = Array.isArray(writingSprintSlots)
+    ? writingSprintSlots.filter((s) => validSlotIds.includes(s))
+    : [];
   if (!referralToken || !username || !password) {
     return res.status(400).json({ message: "Missing required fields" });
   }
@@ -1260,7 +1267,7 @@ router.post("/register", async (req, res) => {
         emailFrequency: parseInt(frequency) || 1
       }
     });
-    const profile = await  createNewProfileUser({username,profilePicture,selfStatement,privacy,userId:updatedUser.id})
+    const profile = await  createNewProfileUser({username,profilePicture,selfStatement,isPrivate:privacy,userId:updatedUser.id,writingSprintSlots:sanitizedSlots})
 
 
   
