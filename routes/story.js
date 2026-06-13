@@ -784,67 +784,127 @@ await Promise.all(promises)
         res.json({error})
     }
     })
-    // router.get("/prompts",async (req,res)=>{
-    // try{
+   
+//     router.get("/prompts", async (req, res) => {
+//   try {
+//     const now = new Date();
+//     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    //     let stories = await prisma.story.findMany({where:{
-    //       AND:[{isPrivate:false},{
-    //       hashtags:{
-    //         some:{
-    //           hashtag:{
-    //             name:{
-    //               contains:"prompt",
-    //               mode:"insensitive"
-    //             }
-    //           }
-    //         }
-    //       }}]
-    //     }})
+//     // today's slots that have already dropped
+//     const slots = await prisma.dailyPrompt.findMany({
+//       where: { scheduledFor: { gte: startOfDay, lte: now } },
+//       orderBy: { scheduledFor: "desc" },
+//     });
+//     if (slots.length === 0) return res.json({ prompts: [] });
 
+//     // hydrate the referenced stories in one query, then re-attach in slot order
+//     const storyIds = slots.map((s) => s.storyId);
+//     const stories = await prisma.story.findMany({
+//       where: { id: { in: storyIds } },
+//       include: { hashtags: { include: { hashtag: true } } }, // adjust to your shape
+//     });
+//     const byId = Object.fromEntries(stories.map((s) => [s.id, s]));
 
+//     const prompts = slots
+//       .map((slot) => ({
+//         slotIndex: slot.slotIndex,
+//         scheduledFor: slot.scheduledFor,
+//         story: byId[slot.storyId],
+//       }))
+//       .filter((p) => p.story); // drop any since-deleted stories
 
-    //     res.status(201).json({prompts:stories})
-    // }catch(error){
-    
-    //     console.log({error})
-    //     res.json({error})
-    // }
-    // })
-    router.get("/prompts", async (req, res) => {
+//     res.json({ prompts });
+//   } catch (error) {
+//     console.log({ error });
+//     res.status(500).json({ error: "Failed to load prompts" });
+//   }
+// });
+router.get("/prompts/recommended", authMiddleware, async (req, res) => {
   try {
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const profileId = req.user.profiles[0].id;
+    const take = parseInt(req.query.take) || 6;
 
-    // today's slots that have already dropped
-    const slots = await prisma.dailyPrompt.findMany({
-      where: { scheduledFor: { gte: startOfDay, lte: now } },
-      orderBy: { scheduledFor: "desc" },
+    // what the user has already seen
+    const history = await prisma.userStoryHistory.findMany({
+      where: { profileId },
+      select: { storyId: true },
+      take: 100,
     });
-    if (slots.length === 0) return res.json({ prompts: [] });
+    const seenIds = new Set(history.map((h) => h.storyId));
 
-    // hydrate the referenced stories in one query, then re-attach in slot order
-    const storyIds = slots.map((s) => s.storyId);
-    const stories = await prisma.story.findMany({
-      where: { id: { in: storyIds } },
-      include: { hashtags: { include: { hashtag: true } } }, // adjust to your shape
+    // hashtags from stories the user liked — their taste signal
+    const likes = await prisma.userStoryLike.findMany({
+      where: { profileId },
+      select: { storyId: true },
+      take: 50,
     });
-    const byId = Object.fromEntries(stories.map((s) => [s.id, s]));
 
-    const prompts = slots
-      .map((slot) => ({
-        slotIndex: slot.slotIndex,
-        scheduledFor: slot.scheduledFor,
-        story: byId[slot.storyId],
-      }))
-      .filter((p) => p.story); // drop any since-deleted stories
+    const likedHashtags = likes.length
+      ? await prisma.hashtagStory.findMany({
+          where: { storyId: { in: likes.map((l) => l.storyId) } },
+          select: { hashtagId: true },
+        })
+      : [];
+
+    const followedHashtags = await prisma.hashtagFollower.findMany({
+      where: { followerId: profileId },
+      select: { hashtagId: true },
+    });
+
+    const signalIds = new Set([
+      ...likedHashtags.map((h) => h.hashtagId),
+      ...followedHashtags.map((h) => h.hashtagId),
+    ]);
+
+    // find the #plumbumprompt hashtag
+    const promptHashtag = await prisma.hashtag.findUnique({
+      where: { name: "plumbumprompt" },
+    });
+
+    if (!promptHashtag) return res.json({ prompts: [] });
+
+    // all prompt stories not yet seen by this user
+    const candidates = await prisma.story.findMany({
+      where: {
+        isPrivate: false,
+        id: { notIn: [...seenIds] },
+        hashtags: { some: { hashtagId: promptHashtag.id } },
+      },
+      include: {
+        hashtags: { include: { hashtag: true } },
+        author: true,
+        storyLikes: { select: { id: true } },
+      },
+      orderBy: { updated: "desc" },
+      take: 40,
+    });
+
+    // score by taste overlap + likes + recency
+    const now = Date.now();
+    const prompts = candidates
+      .map((story) => {
+        const overlap = story.hashtags.filter((h) =>
+          signalIds.has(h.hashtagId)
+        ).length;
+        const likeCount = story.storyLikes.length;
+        const ageMs = now - new Date(story.updated).getTime();
+        const recency = Math.max(0, 1 - ageMs / (1000 * 60 * 60 * 24 * 30));
+
+        return {
+          ...story,
+          _score: overlap * 2 + likeCount * 0.5 + recency * 1.5,
+        };
+      })
+      .sort((a, b) => b._score - a._score)
+      .slice(0, take);
 
     res.json({ prompts });
-  } catch (error) {
-    console.log({ error });
-    res.status(500).json({ error: "Failed to load prompts" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load prompt recommendations" });
   }
-});
-    router.get("/events/:days",async(req,res)=>{
+});    
+router.get("/events/:days",async(req,res)=>{
         try{
        let days = req.params.days
 
