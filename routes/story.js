@@ -784,7 +784,176 @@ await Promise.all(promises)
         res.json({error})
     }
     })
-   
+    router.get("/prompts/recommended", authMiddleware, async (req, res) => {
+  try {
+    const profileId = req.user.profiles[0].id;
+    const take = parseInt(req.query.take) || 6;
+
+    // what the user has already seen — kept for deprioritization, not exclusion
+    const history = await prisma.userStoryHistory.findMany({
+      where: { profileId },
+      select: { storyId: true },
+      take: 100,
+    });
+    const seenIds = new Set(history.map((h) => h.storyId));
+
+    // hashtags from stories the user liked — their taste signal
+    const likes = await prisma.userStoryLike.findMany({
+      where: { profileId },
+      select: { storyId: true },
+      take: 50,
+    });
+    const likedHashtags = likes.length
+      ? await prisma.hashtagStory.findMany({
+          where: { storyId: { in: likes.map((l) => l.storyId) } },
+          select: { hashtagId: true },
+        })
+      : [];
+    const followedHashtags = await prisma.hashtagFollower.findMany({
+      where: { followerId: profileId },
+      select: { hashtagId: true },
+    });
+    const signalIds = new Set([
+      ...likedHashtags.map((h) => h.hashtagId),
+      ...followedHashtags.map((h) => h.hashtagId),
+    ]);
+
+    // match any prompt-related hashtag: "prompt", "plumbumprompt", "prompts", etc.
+    const promptHashtags = await prisma.hashtag.findMany({
+      where: {
+        name: {
+          contains: "prompt",
+          mode: "insensitive",
+        },
+      },
+      select: { id: true },
+    });
+    if (!promptHashtags.length) return res.json({ prompts: [] });
+
+    const promptHashtagIds = promptHashtags.map((h) => h.id);
+
+    // all prompt stories — seen ones allowed back in, just deprioritized
+    const candidates = await prisma.story.findMany({
+      where: {
+        isPrivate: false,
+        hashtags: { some: { hashtagId: { in: promptHashtagIds } } },
+      },
+      include: {
+        hashtags: { include: { hashtag: true } },
+        author: true,
+        storyLikes: { select: { id: true } },
+      },
+      orderBy: { updated: "desc" },
+      take: 40,
+    });
+
+    // score by taste overlap + likes + recency + unseen bonus
+    const now = Date.now();
+    const prompts = candidates
+      .map((story) => {
+        const overlap = story.hashtags.filter((h) =>
+          signalIds.has(h.hashtagId)
+        ).length;
+        const likeCount = story.storyLikes.length;
+        const ageMs = now - new Date(story.updated).getTime();
+        const recency = Math.max(0, 1 - ageMs / (1000 * 60 * 60 * 24 * 30));
+        const unseenBonus = seenIds.has(story.id) ? 0 : 1.0;
+
+        return {
+          ...story,
+          _score: overlap * 2 + likeCount * 0.5 + recency * 1.5 + unseenBonus,
+        };
+      })
+      .sort((a, b) => b._score - a._score)
+      .slice(0, take);
+
+    res.json({ prompts });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load prompt recommendations" });
+  }
+});
+//   router.get("/prompts/recommended", authMiddleware, async (req, res) => {
+//   try {
+//     const profileId = req.user.profiles[0].id;
+//     const take = parseInt(req.query.take) || 6;
+
+//     // what the user has already seen — kept for deprioritization, not exclusion
+//     const history = await prisma.userStoryHistory.findMany({
+//       where: { profileId },
+//       select: { storyId: true },
+//       take: 100,
+//     });
+//     const seenIds = new Set(history.map((h) => h.storyId));
+
+//     // hashtags from stories the user liked — their taste signal
+//     const likes = await prisma.userStoryLike.findMany({
+//       where: { profileId },
+//       select: { storyId: true },
+//       take: 50,
+//     });
+//     const likedHashtags = likes.length
+//       ? await prisma.hashtagStory.findMany({
+//           where: { storyId: { in: likes.map((l) => l.storyId) } },
+//           select: { hashtagId: true },
+//         })
+//       : [];
+//     const followedHashtags = await prisma.hashtagFollower.findMany({
+//       where: { followerId: profileId },
+//       select: { hashtagId: true },
+//     });
+//     const signalIds = new Set([
+//       ...likedHashtags.map((h) => h.hashtagId),
+//       ...followedHashtags.map((h) => h.hashtagId),
+//     ]);
+
+//     // find the #plumbumprompt hashtag
+//     const promptHashtag = await prisma.hashtag.findUnique({
+//       where: { name: "prompt" },
+//     });
+//     if (!promptHashtag) return res.json({ prompts: [] });
+
+//     // all prompt stories — seen ones allowed back in, just deprioritized
+//     const candidates = await prisma.story.findMany({
+//       where: {
+//         isPrivate: false,
+//         hashtags: { some: { hashtagId: promptHashtag.id } },
+//       },
+//       include: {
+//         hashtags: { include: { hashtag: true } },
+//         author: true,
+//         storyLikes: { select: { id: true } },
+//       },
+//       orderBy: { updated: "desc" },
+//       take: 40,
+//     });
+
+//     // score by taste overlap + likes + recency + unseen bonus
+//     const now = Date.now();
+//     const prompts = candidates
+//       .map((story) => {
+//         const overlap = story.hashtags.filter((h) =>
+//           signalIds.has(h.hashtagId)
+//         ).length;
+//         const likeCount = story.storyLikes.length;
+//         const ageMs = now - new Date(story.updated).getTime();
+//         const recency = Math.max(0, 1 - ageMs / (1000 * 60 * 60 * 24 * 30));
+//         const unseenBonus = seenIds.has(story.id) ? 0 : 1.0;
+
+//         return {
+//           ...story,
+//           _score: overlap * 2 + likeCount * 0.5 + recency * 1.5 + unseenBonus,
+//         };
+//       })
+//       .sort((a, b) => b._score - a._score)
+//       .slice(0, take);
+
+//     res.json({ prompts });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "Failed to load prompt recommendations" });
+//   }
+// }); 
 //     router.get("/prompts", async (req, res) => {
 //   try {
 //     const now = new Date();
@@ -819,91 +988,91 @@ await Promise.all(promises)
 //     res.status(500).json({ error: "Failed to load prompts" });
 //   }
 // });
-router.get("/prompts/recommended", authMiddleware, async (req, res) => {
-  try {
-    const profileId = req.user.profiles[0].id;
-    const take = parseInt(req.query.take) || 6;
+// router.get("/prompts/recommended", authMiddleware, async (req, res) => {
+//   try {
+//     const profileId = req.user.profiles[0].id;
+//     const take = parseInt(req.query.take) || 6;
 
-    // what the user has already seen
-    const history = await prisma.userStoryHistory.findMany({
-      where: { profileId },
-      select: { storyId: true },
-      take: 100,
-    });
-    const seenIds = new Set(history.map((h) => h.storyId));
+//     // what the user has already seen
+//     const history = await prisma.userStoryHistory.findMany({
+//       where: { profileId },
+//       select: { storyId: true },
+//       take: 100,
+//     });
+//     const seenIds = new Set(history.map((h) => h.storyId));
 
-    // hashtags from stories the user liked — their taste signal
-    const likes = await prisma.userStoryLike.findMany({
-      where: { profileId },
-      select: { storyId: true },
-      take: 50,
-    });
+//     // hashtags from stories the user liked — their taste signal
+//     const likes = await prisma.userStoryLike.findMany({
+//       where: { profileId },
+//       select: { storyId: true },
+//       take: 50,
+//     });
 
-    const likedHashtags = likes.length
-      ? await prisma.hashtagStory.findMany({
-          where: { storyId: { in: likes.map((l) => l.storyId) } },
-          select: { hashtagId: true },
-        })
-      : [];
+//     const likedHashtags = likes.length
+//       ? await prisma.hashtagStory.findMany({
+//           where: { storyId: { in: likes.map((l) => l.storyId) } },
+//           select: { hashtagId: true },
+//         })
+//       : [];
 
-    const followedHashtags = await prisma.hashtagFollower.findMany({
-      where: { followerId: profileId },
-      select: { hashtagId: true },
-    });
+//     const followedHashtags = await prisma.hashtagFollower.findMany({
+//       where: { followerId: profileId },
+//       select: { hashtagId: true },
+//     });
 
-    const signalIds = new Set([
-      ...likedHashtags.map((h) => h.hashtagId),
-      ...followedHashtags.map((h) => h.hashtagId),
-    ]);
+//     const signalIds = new Set([
+//       ...likedHashtags.map((h) => h.hashtagId),
+//       ...followedHashtags.map((h) => h.hashtagId),
+//     ]);
 
-    // find the #plumbumprompt hashtag
-    const promptHashtag = await prisma.hashtag.findUnique({
-      where: { name: "plumbumprompt" },
-    });
+//     // find the #plumbumprompt hashtag
+//     const promptHashtag = await prisma.hashtag.findUnique({
+//       where: { name: "plumbumprompt" },
+//     });
 
-    if (!promptHashtag) return res.json({ prompts: [] });
+//     if (!promptHashtag) return res.json({ prompts: [] });
 
-    // all prompt stories not yet seen by this user
-    const candidates = await prisma.story.findMany({
-      where: {
-        isPrivate: false,
-        id: { notIn: [...seenIds] },
-        hashtags: { some: { hashtagId: promptHashtag.id } },
-      },
-      include: {
-        hashtags: { include: { hashtag: true } },
-        author: true,
-        storyLikes: { select: { id: true } },
-      },
-      orderBy: { updated: "desc" },
-      take: 40,
-    });
+//     // all prompt stories not yet seen by this user
+//     const candidates = await prisma.story.findMany({
+//       where: {
+//         isPrivate: false,
+//         id: { notIn: [...seenIds] },
+//         hashtags: { some: { hashtagId: promptHashtag.id } },
+//       },
+//       include: {
+//         hashtags: { include: { hashtag: true } },
+//         author: true,
+//         storyLikes: { select: { id: true } },
+//       },
+//       orderBy: { updated: "desc" },
+//       take: 40,
+//     });
 
-    // score by taste overlap + likes + recency
-    const now = Date.now();
-    const prompts = candidates
-      .map((story) => {
-        const overlap = story.hashtags.filter((h) =>
-          signalIds.has(h.hashtagId)
-        ).length;
-        const likeCount = story.storyLikes.length;
-        const ageMs = now - new Date(story.updated).getTime();
-        const recency = Math.max(0, 1 - ageMs / (1000 * 60 * 60 * 24 * 30));
+//     // score by taste overlap + likes + recency
+//     const now = Date.now();
+//     const prompts = candidates
+//       .map((story) => {
+//         const overlap = story.hashtags.filter((h) =>
+//           signalIds.has(h.hashtagId)
+//         ).length;
+//         const likeCount = story.storyLikes.length;
+//         const ageMs = now - new Date(story.updated).getTime();
+//         const recency = Math.max(0, 1 - ageMs / (1000 * 60 * 60 * 24 * 30));
 
-        return {
-          ...story,
-          _score: overlap * 2 + likeCount * 0.5 + recency * 1.5,
-        };
-      })
-      .sort((a, b) => b._score - a._score)
-      .slice(0, take);
+//         return {
+//           ...story,
+//           _score: overlap * 2 + likeCount * 0.5 + recency * 1.5,
+//         };
+//       })
+//       .sort((a, b) => b._score - a._score)
+//       .slice(0, take);
 
-    res.json({ prompts });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to load prompt recommendations" });
-  }
-});    
+//     res.json({ prompts });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "Failed to load prompt recommendations" });
+//   }
+// });    
 router.get("/events/:days",async(req,res)=>{
         try{
        let days = req.params.days
