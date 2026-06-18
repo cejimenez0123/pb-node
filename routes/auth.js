@@ -439,29 +439,51 @@ router.post("/apply", async (req, res) => {
 }
 
   })
-
-    router.post("/forgot-password",async (req,res)=>{
-        const {email}=req.body
-
-        try{
-        let user =  await prisma.user.findFirstOrThrow({where:{email:{equals:email
-          }},include:{
-            profiles:true
-          }})
-
-let mailOptions = forgotPasswordTemplate(user)
-
-                resend.emails.send(mailOptions).then(res=>{
-                  res.json({user,message:'Applied Successfully!'});
-          
-                }).catch(err=>{throw err})
-                
-              return  res.status(200).json({message:"If there is an account you will recieve an email"})
-                }catch(err){
- 
-                 return res.status(409).json({err,message:"If there is an account you will recieve an email"})
-                }
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body
+  try {
+    let user = await prisma.user.findFirstOrThrow({
+      where: { email: { equals: email } },
+      include: { profiles: true }
     })
+
+    let mailOptions = forgotPasswordTemplate(user)
+
+    try {
+      await resend.emails.send(mailOptions)
+    } catch (emailErr) {
+      console.error("Email send failed:", emailErr)
+      // Still return the vague message so you don't leak whether the account exists
+    }
+
+    return res.status(200).json({ message: "If there is an account you will receive an email" })
+
+  } catch (err) {
+    return res.status(409).json({ message: "If there is an account you will receive an email" })
+  }
+})
+//     router.post("/forgot-password",async (req,res)=>{
+//         const {email}=req.body
+
+//         try{
+//         let user =  await prisma.user.findFirstOrThrow({where:{email:{equals:email
+//           }},include:{
+//             profiles:true
+//           }})
+
+// let mailOptions = forgotPasswordTemplate(user)
+
+//                 resend.emails.send(mailOptions).then(res=>{
+//                   res.json({user,message:'Applied Successfully!'});
+          
+//                 }).catch(err=>{throw err})
+                
+//               return  res.status(200).json({message:"If there is an account you will recieve an email"})
+//                 }catch(err){
+ 
+//                  return res.status(409).json({err,message:"If there is an account you will recieve an email"})
+//                 }
+//     })
     router.get('/review', async (req, res) => {
  
    
