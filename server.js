@@ -18,6 +18,7 @@ const commentRoutes = require("./routes/comment.js")
 const algoliaRoutes = require("./routes/algolia.js")
 const workshopRoutes = require("./routes/workshop.js")
 const followRoutes = require("./routes/follow.js")
+const eventRoutes = require("./routes/events")
 const passport = require("passport")
 
 const hashtagRoutes = require("./routes/hashtag.js")
@@ -141,6 +142,7 @@ app.use("/collection",collectionRoutes(authMiddleware))
 app.use("/comment",commentRoutes(authMiddleware))
 app.use("/follow",followRoutes(authMiddleware))
 app.use("/workshop",workshopRoutes(authMiddleware))
+app.use("/events",eventRoutes(authMiddleware))
 app.use(
     session({
     secret: process.env.JWT_SECRET,resave: false,
