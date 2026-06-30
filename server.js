@@ -11,7 +11,7 @@ const authRoutes = require("./routes/auth")
 const storyRoutes = require("./routes/story")
 const collectionRoutes = require("./routes/collection")
 const profileRoutes = require("./routes/profile")
-const sprintRoutes = require("./cron/sprint.js")
+const {registerSprintCrons} = require("./cron/sprint.js")
 const likeRoutes = require("./routes/like.js")
 const historyRoutes = require("./routes/history.js")
 const commentRoutes = require("./routes/comment.js")
@@ -264,6 +264,7 @@ async function updateProfileWithRetry(profileId, localeId) {
 });
 
 server.listen(PORT, () => {
+  registerSprintCrons()
         console.log(`Server is running`+PORT)
         })
 
