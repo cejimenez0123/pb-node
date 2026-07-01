@@ -4,6 +4,7 @@ const { createLocation } = require('../utils/locationUtil');
 const { default: notifyUser } = require('../utils/notifyUser');
 const Paths = require('../utils/Paths');
 const findProfile = require('../utils/findProfile');
+const sendNotification = require('../utils/sendNotifications');
 const router = express.Router()
 
 module.exports = function (authMiddleware){
@@ -1305,77 +1306,169 @@ const otherCols = libraries.filter(book=>book.priority<90)
         res.json({error:e})
         }
     })
-    router.patch("/:id/role",authMiddleware,async (req,res)=>{
-        const {roles}=req.body
-        try{
+//     router.patch("/:id/role",authMiddleware,async (req,res)=>{
+//         const {roles}=req.body
+//         try{
           
-        let updated= roles.map(role=>{
-            try{
+          
+//         let updated= roles.map(role=>{
+//             try{
             
-notifyUser({
-    profileId: role.profile.id,
-    type: "ROLE",
-    title: "You've been added to a collection",
-    body: `You've been given ${role.role} access`,
-    entityId: role.item.id,
-    actorId: req.user.profiles[0].id,
-    route: `/collection/${role.item.id}`
-});
-  }catch(err){
-                console.error("NOTIFCATION ERROR")
-            }
-            if(role.role=="role"){
-                if(role.id){
-                return prisma.roleToStory.delete({where:{id:role.id}})
-                }
-            }else{
-                if(roles.role && roles.id.length>10){
-            return prisma.roleToCollection.upsert({
-                where:{
-                    id:role.id
-                },
-                update:{
-                    role:role.role,
-                },
-                create:{
-                    role:role.role,
-                    profileId:role.profile.id,
-                    collectionId:role.item.id
-                }
-               , include:{
-                    collection:true,
-                    profile:true
-                }})
-            }else{
-                return prisma.roleToCollection.create({data:{
-                    role:role.role,
-                    profile:{
-                        connect:{
-                            id:role.profile.id
-                        }
-                    },
-                    collection:{
-                        connect:{
-                            id:role.item.id
-                        }
-                    }
-                },include:{
-                    collection:true,
-                    profile:true
-                }})
-            }}
-            })
-    let newRoles = await Promise.all(updated)
+// notifyUser({
+//     profileId: role.profile.id,
+//     type: "ROLE",
+//     title: "You've been added to a collection",
+//     body: `You've been given ${role.role} access`,
+//     entityId: role.item.id,
+//     actorId: req.user.profiles[0].id,
+//     route: `/collection/${role.item.id}`
+// });
+//   }catch(err){
+//                 console.error("NOTIFCATION ERROR")
+//             }
+//             if(role.role=="role"){
+//                 if(role.id){
+//                 return prisma.roleToStory.delete({where:{id:role.id}})
+//                 }
+//             }else{
+//                 if(roles.role && roles.id.length>10){
+//             return prisma.roleToCollection.upsert({
+//                 where:{
+//                     id:role.id
+//                 },
+//                 update:{
+//                     role:role.role,
+//                 },
+//                 create:{
+//                     role:role.role,
+//                     profileId:role.profile.id,
+//                     collectionId:role.item.id
+//                 }
+//                , include:{
+//                     collection:true,
+//                     profile:true
+//                 }})
+//             }else{
+//                 return prisma.roleToCollection.create({data:{
+//                     role:role.role,
+//                     profile:{
+//                         connect:{
+//                             id:role.profile.id
+//                         }
+//                     },
+//                     collection:{
+//                         connect:{
+//                             id:role.item.id
+//                         }
+//                     }
+//                 },include:{
+//                     collection:true,
+//                     profile:true
+//                 }})
+//             }}
+//             })
+//     let newRoles = await Promise.all(updated)
    
-    res.json({roles:newRoles.filter(role=>!!role)})
+//     res.json({roles:newRoles.filter(role=>!!role)})
 
-        }catch(error){
-            console.log(error)
-            res.json({error})
-        }
+//         }catch(error){
+//             console.log(error)
+//             res.json({error})
+//         }
 
         
-    })
+//     })
+router.patch("/:id/role", authMiddleware, async (req, res) => {
+    const { roles } = req.body;
+    try {
+
+        let updated = roles.map(async (role) => {
+            try {
+                const title = "You've been added to a collection";
+                const body  = `You've been given ${role.role} access`;
+                const route = Paths.collection.createRoute(role.item.id);
+
+                await Promise.all([
+                    notifyUser({
+                        profileId: role.profile.id,
+                        type: "ROLE",
+                        title,
+                        body,
+                        entityId: role.item.id,
+                        actorId: req.user.profiles[0].id,
+                        route,
+                    }).catch((err) =>
+                        console.error("[notifyUser] ROLE failed:", err)
+                    ),
+                    sendNotification(role.profile.id, title, body, {
+                        type: "ROLE",
+                        entityId: role.item.id,
+                        actorId: req.user.profiles[0].id,
+                        route,
+                    }).catch((err) =>
+                        console.error("[sendNotification] ROLE failed:", err)
+                    ),
+                ]);
+            } catch (err) {
+                console.error("NOTIFCATION ERROR", err);
+            }
+
+            if (role.role == "role") {
+                if (role.id) {
+                    return prisma.roleToStory.delete({ where: { id: role.id } });
+                }
+            } else {
+                if (role.role && role.id?.length > 10) {
+                    return prisma.roleToCollection.upsert({
+                        where: {
+                            id: role.id
+                        },
+                        update: {
+                            role: role.role,
+                        },
+                        create: {
+                            role: role.role,
+                            profileId: role.profile.id,
+                            collectionId: role.item.id
+                        },
+                        include: {
+                            collection: true,
+                            profile: true
+                        }
+                    });
+                } else {
+                    return prisma.roleToCollection.create({
+                        data: {
+                            role: role.role,
+                            profile: {
+                                connect: {
+                                    id: role.profile.id
+                                }
+                            },
+                            collection: {
+                                connect: {
+                                    id: role.item.id
+                                }
+                            }
+                        },
+                        include: {
+                            collection: true,
+                            profile: true
+                        }
+                    });
+                }
+            }
+        });
+
+        let newRoles = await Promise.all(updated);
+
+        res.json({ roles: newRoles.filter(role => !!role) });
+
+    } catch (error) {
+        console.log(error);
+        res.json({ error });
+    }
+});
     router.get("/:id/profile/:profileId",async (req,res)=>{
         try{
            let found = prisma.roleToCollection.findUniqueOrThrow({
@@ -1755,16 +1848,43 @@ let collection = null
    }})
 
             }
-            try{
-   collection && await notifyUser({
-    profileId: collection?.profileId,
-    type: "COLLECTION_ADDED",
-    title: "Your collection was added to a library",
-    body: `Someone added your collection to their library`,
-    entityId: id,
-    actorId: req.user.profiles[0].id,
-    route: Paths.collection.createRoute(id)
-});
+//             try{
+//    collection && await notifyUser({
+//     profileId: collection?.profileId,
+//     type: "COLLECTION_ADDED",
+//     title: "Your collection was added to a library",
+//     body: `Someone added your collection to their library`,
+//     entityId: id,
+//     actorId: req.user.profiles[0].id,
+//     route: Paths.collection.createRoute(id)
+// });
+//             }catch(err){
+//                 console.error("NOTIFCATION ERROR")
+//             }
+try{
+   if (collection) {
+     const title = "Your collection was added to a library";
+     const body  = `Someone added your collection to their library`;
+     const route = Paths.collection.createRoute(id);
+
+     await Promise.all([
+       notifyUser({
+         profileId: collection.profileId,
+         type: "COLLECTION_ADDED",
+         title,
+         body,
+         entityId: id,
+         actorId: req.user.profiles[0].id,
+         route,
+       }),
+       sendNotification(collection.profileId, title, body, {
+         type: "COLLECTION_ADDED",
+         entityId: id,
+         actorId: req.user.profiles[0].id,
+         route,
+       }).catch((err) => console.error("[sendNotification] COLLECTION_ADDED failed:", err)),
+     ]);
+   }
             }catch(err){
                 console.error("NOTIFCATION ERROR")
             }

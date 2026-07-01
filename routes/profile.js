@@ -1,6 +1,5 @@
 const express = require('express');
 const prisma = require("../db");
-const generateMongoId = require("./generateMongoId");
 const router = express.Router()
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs")
