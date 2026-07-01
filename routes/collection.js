@@ -1959,19 +1959,46 @@ router.post("/:id/story",authMiddleware,async (req,res)=>{
     }
    }})
    try{
-   
-    col.profileId !== req.user.profiles[0].id && await notifyUser({
-    profileId: col.profileId,
-    type: "STORY_ADDED",
-    title: "New story added to your collection",
-    body: `A story was added to ${col.title}`,
-    entityId: id,
-    actorId: req.user.profiles[0].id,
-    route: Paths.collection.createRoute(id)
-});
+    if (col.profileId !== req.user.profiles[0].id) {
+      const title = "New story added to your collection";
+      const body  = `A story was added to ${col.title}`;
+      const route = Paths.collection.createRoute(id);
+
+      await Promise.all([
+        notifyUser({
+          profileId: col.profileId,
+          type: "STORY_ADDED",
+          title,
+          body,
+          entityId: id,
+          actorId: req.user.profiles[0].id,
+          route,
+        }),
+        sendNotification(col.profileId, title, body, {
+          type: "STORY_ADDED",
+          entityId: id,
+          actorId: req.user.profiles[0].id,
+          route,
+        }).catch((err) => console.error("[sendNotification] STORY_ADDED failed:", err)),
+      ]);
+    }
   }catch(err){
                 console.error("NOTIFCATION ERROR")
             }
+//    try{
+   
+//     col.profileId !== req.user.profiles[0].id && await notifyUser({
+//     profileId: col.profileId,
+//     type: "STORY_ADDED",
+//     title: "New story added to your collection",
+//     body: `A story was added to ${col.title}`,
+//     entityId: id,
+//     actorId: req.user.profiles[0].id,
+//     route: Paths.collection.createRoute(id)
+// });
+//   }catch(err){
+//                 console.error("NOTIFCATION ERROR")
+//             }
     res.json({collection:col,stories})
 }catch(error){
     console.log({error})
