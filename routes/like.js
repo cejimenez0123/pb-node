@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require("../db");
 const generateMongoId = require("./generateMongoId");
 const { default: notifyUser } = require('../utils/notifyUser');
+const Paths = require('../utils/Paths');
 const router = express.Router()
 
 module.exports = function (authMiddleware){
@@ -78,15 +79,38 @@ module.exports = function (authMiddleware){
                 });
 
                 if (likedStory?.authorId && likedStory.authorId !== profile.id) {
-                    await notifyUser({
+                                const title = "Someone liked your story";
+                const body  = `${updatedProfile.username ?? "Someone"} liked your piece`;
+                const route = Paths.page.createRoute(story.id);
+
+                await Promise.all([
+                    notifyUser({
                         profileId: likedStory.authorId,
                         type: "LIKE",
-                        title: "Someone liked your story",
-                        body: `${updatedProfile.username ?? "Someone"} liked your piece`,
+                        title,
+                        body,
                         entityId: story.id,
                         actorId: profile.id,
-                        route: `/story/${story.id}`
-                    });
+                        route,
+                    }),
+                    sendNotification(likedStory.authorId, title, body, {
+                        type: "LIKE",
+                        entityId: story.id,
+                        actorId: profile.id,
+                        route,
+                    }).catch((err) =>
+                        console.error("[sendNotification] LIKE failed:", err)
+                    ),
+                ]);
+                    // await notifyUser({
+                    //     profileId: likedStory.authorId,
+                    //     type: "LIKE",
+                    //     title: "Someone liked your story",
+                    //     body: `${updatedProfile.username ?? "Someone"} liked your piece`,
+                    //     entityId: story.id,
+                    //     actorId: profile.id,
+                    //     route: `/story/${story.id}`
+                    // });
                 }
             } catch (err) {
                 console.error("NOTIFICATION ERROR", err);
@@ -100,10 +124,24 @@ module.exports = function (authMiddleware){
     });
     router.delete("/story/like/:id",authMiddleware,async(req,res)=>{
         try{
-           await prisma.userStoryLike.delete({where:{
-                id:req.params.id
-            }})
-            let profile = await prisma.profile.findFirst({where:{id:{equals:profile.id}},include:{
+            const profileId = req.user.profiles[0].id;
+
+        const like = await prisma.userStoryLike.findFirst({
+            where: { id: req.params.id },
+        });
+
+        if (!like) {
+            return res.status(404).json({ error: "Like not found" });
+        }
+
+        if (like.profileId !== profileId) {
+            return res.status(403).json({ error: "You can only remove your own likes" });
+        }
+
+        
+        await prisma.userStoryLike.delete({ where: { id: req.params.id } });
+
+            let profile = await prisma.profile.findFirst({where:{id:{equals:profileId}},include:{
                 likedStories:true,
                 historyStories:true,
                 hashtags:true,
