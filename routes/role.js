@@ -173,6 +173,29 @@ router.put("/story", authMiddleware, async (req, res) => {
       getStory(storyId),
     ]);
 
+            const title = "Story Access";
+            const body  = `You've been added as ${type} to "${story.title}"`;
+            const route = Paths.page.createRoute(storyId);
+
+            await Promise.all([
+                notifyUser({
+                    profileId,
+                    type: "STORY_ROLE_ADDED",
+                    title,
+                    body,
+                    entityId: storyId,
+                    actorId: req.user.profiles[0].id,
+                    route,
+                }),
+                sendNotification(profileId, title, body, {
+                    type: "STORY_ROLE_ADDED",
+                    entityId: storyId,
+                    actorId: req.user.profiles[0].id,
+                    route,
+                }).catch((err) =>
+                    console.error("[sendNotification] STORY_ROLE_ADDED failed:", err)
+                ),
+            ]);
     return res.json({
       roles: newRoles,
       story,
@@ -252,14 +275,32 @@ try{
             collection:true
         }})
     
-        let collection = await prisma.collection.findFirst({where:{
-            id:collectionId
-         },include:{
-             roles:true,
-             childCollections:true,
-             storyIdList:true
-         }})
-           const col = await getCollectionById(collectionId)
+                const col = await getCollectionById(collectionId)
+                const title = "Collection Access";
+                const body  = `You've been added as ${type} to "${col.name}"`;
+                const route = Paths.collection.createRoute(col.id);
+
+                await Promise.all([
+                    notifyUser({
+                        profileId,
+                        type: "COLLECTION_ROLE_ADDED",
+                        title,
+                        body,
+                        entityId: collectionId,
+                        actorId: req.user.profiles[0].id,
+                        route,
+                    }),
+                    sendNotification(profileId, title, body, {
+                        type: "COLLECTION_ROLE_ADDED",
+                        entityId: collectionId,
+                        actorId: req.user.profiles[0].id,
+                        route,
+                    }).catch((err) =>
+                        console.error("[sendNotification] COLLECTION_ROLE_ADDED failed:", err)
+                    ),
+                ]);
+
+     
         res.json({role,collection:col})
     }else{
         let collection = await prisma.collection.findFirst({where:{
