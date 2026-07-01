@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require("../db");
 const comment = require('./comment');
 const { default: notifyUser } = require('../utils/notifyUser');
+const Paths = require('../utils/Paths');
 
 
 
@@ -27,15 +28,39 @@ try{
                     }
                 }
             }})
-     await notifyUser({
-                profileId: follow.followingId,
-                type: "FOLLOW",
-                title: "New follower",
-                body: `${follower.username ?? "Someone"} started following you`,
-                entityId: follower.id,
-                actorId: follower.id,
-                route: `/profile/${follower.id}`
-            });
+    //  await notifyUser({
+    //             profileId: follow.followingId,
+    //             type: "FOLLOW",
+    //             title: "New follower",
+    //             body: `${follower.username ?? "Someone"} started following you`,
+    //             entityId: follower.id,
+    //             actorId: follower.id,
+    //             route: `/profile/${follower.id}`
+    //         });
+
+      const title = "New follower";
+      const body  = `${follower.username ?? "Someone"} started following you`;
+      const route = Paths.profile.createRoute(follower.id); // ← fixed to match router pattern
+
+      await Promise.all([
+        notifyUser({
+          profileId: follow.followingId,
+          type:      "FOLLOW",
+          title,
+          body,
+          entityId:  follower.id,
+          actorId:   follower.id,
+          route,
+        }),
+        sendNotification(follow.followingId, title, body, {
+          type:     "FOLLOW",
+          entityId: follower.id,
+          actorId:  follower.id,
+          route,
+        }).catch((err) =>
+          console.error("[sendNotification] FOLLOW failed:", err)
+        ),
+      ]);
        res.json({follow}) 
 
 }catch(error){

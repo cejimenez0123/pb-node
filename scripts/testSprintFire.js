@@ -3,7 +3,7 @@ const prisma = require('../db');
 const sendNotification = require("../utils/sendNotifications.js");
 const { SPRINT_SLOTS, fireSprintNotification, getTodaysPrompt } = require('../cron/sprint.js')
 
-const TEST_EMAILS = ['plumbumapp@gmail.com'];
+const TEST_EMAILS = ['plumbumapp@gmail.com,christianjimenez0123@gmail.com'];
 const SLOT_ID = 'morning';
 
 async function main() {

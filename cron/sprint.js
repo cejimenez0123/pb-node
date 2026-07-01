@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const prisma = require('../db');
 const sendNotification = require('../utils/sendNotifications');
+const Paths = require('../utils/Paths');
 
 const SPRINT_SLOTS = {
   morning:   { label: '🌅 Morning Sprint',   cron: '0 7  * * *', time: '7:00 AM'  },
@@ -9,31 +10,39 @@ const SPRINT_SLOTS = {
   evening:   { label: '🌆 Evening Sprint',   cron: '0 19 * * *', time: '7:00 PM'  },
   night:     { label: '🌙 Night Sprint',     cron: '0 22 * * *', time: '10:00 PM' },
 };
-
 async function getTodaysPrompt() {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const prompt = await prisma.story.findFirst({
+    const allPrompts = await prisma.story.findMany({
       where: {
-        hashtags: { some: { hashtag: { name: { contains: 'prompt' } } } },
-        createdAt: { gte: today },
+        hashtags: { some: { hashtag: { name: { contains: 'prompt', mode: 'insensitive' } } } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { created: 'asc' }, // stable, consistent order
       select: { id: true, data: true },
     });
 
-    if (!prompt?.data) return null; // ← was prompt?.content
+    if (!allPrompts.length) return null;
 
-    const raw = prompt.data.replace(/<[^>]+>/g, '').trim(); // ← was prompt.content
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const EPOCH = new Date('2024-01-01'); // fixed reference so the index is stable over time
+    const daysSinceEpoch = Math.floor((today - EPOCH) / 86400000);
+    const index = daysSinceEpoch % allPrompts.length;
+
+    const prompt = allPrompts[index];
+    if (!prompt?.data) return null;
+
+    const raw = prompt.data.replace(/<[^>]+>/g, '').trim();
     const teaser = raw.length > 90 ? raw.slice(0, 87) + '…' : raw;
 
+    console.log('[sprint-cron] getTodaysPrompt:', { promptId: prompt.id, index, total: allPrompts.length });
     return { id: prompt.id, teaser };
-  } catch {
+  } catch (err) {
+    console.error('[sprint-cron] getTodaysPrompt failed:', err);
     return null;
   }
 }
+
 
 async function fireSprintNotification(slotId) {
   const slot = SPRINT_SLOTS[slotId];
@@ -52,7 +61,7 @@ async function fireSprintNotification(slotId) {
   }
 
   const body  = prompt?.teaser ?? "Open Plumbum for today's writing prompt."; // ← moved inside function
-  const route = '/notifications'; // ← moved inside function
+  const route = prompt.id? Paths.page.createRoute(prompt.id): Paths.notifications;
 
   await Promise.all(
     profiles.map((p) =>

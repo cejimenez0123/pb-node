@@ -43,9 +43,7 @@ module.exports = function (authMiddleware) {
       res.status(500).json({ error: err });
     }
   });
-  // ── POST /comments/:id/to-story ───────────────────────────────────────────
-// Promote a single comment into a standalone Story.
-// Body: { isPrivate?, status?, collectionId? }
+
 router.post("/:id/to-story", ...protected, async (req, res) => {
   try {
     const profileId = req.user.profiles[0].id;
@@ -132,18 +130,41 @@ router.post("/:id/to-story", ...protected, async (req, res) => {
         select: { authorId: true },
       });
 
-      console.log("NOTIFY COMMENT — story.authorId:", story?.authorId, "profileId:", profileId, "same?", story?.authorId === profileId);
+      // console.log("NOTIFY COMMENT — story.authorId:", story?.authorId, "profileId:", profileId, "same?", story?.authorId === profileId);
 
       if (story?.authorId && story.authorId !== profileId) {
-        await notifyUser({
-          profileId: story.authorId,
-          type:      "COMMENT",
-          title:     "New feedback on your piece",
-          body:      `${req?.user?.profiles[0]?.username ?? "Someone"} left a comment`,
-          entityId:  storyId,
-          actorId:   profileId,
-          route:    Paths.page.createRoute(storyId),
-        });
+        // await notifyUser({
+        //   profileId: story.authorId,
+        //   type:      "COMMENT",
+        //   title:     "New feedback on your piece",
+        //   body:      `${req?.user?.profiles[0]?.username ?? "Someone"} left a comment`,
+        //   entityId:  storyId,
+        //   actorId:   profileId,
+        //   route:    Paths.page.createRoute(storyId),
+        // });
+         const title = "New reply to your comment";
+        const body  = `${currentuser.username ?? "Someone"} replied to your comment`;
+        const route = Paths.page.createRoute(storyId); // ← also fixes the /view mismatch bug
+
+        await Promise.all([
+          notifyUser({
+            profileId: parentComment.profileId,
+            type:      "REPLY",
+            title,
+            body,
+            entityId:  storyId,
+            actorId:   profileId,
+            route,
+          }),
+          sendNotification(parentComment.profileId, title, body, {
+            type:     "REPLY",
+            entityId: storyId,
+            actorId:  profileId,
+            route,
+          }).catch((err) =>
+            console.error("[sendNotification] REPLY failed:", err)
+          ),
+        ]);
       }
     
 
