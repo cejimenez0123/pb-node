@@ -461,7 +461,17 @@ router.post("/forgot-password", async (req, res) => {
   } catch (err) {
     return res.status(409).json({ message: "If there is an account you will receive an email" })
   }
+
 })
+// backend route
+router.post('/accept-terms', authenticate, async (req, res) => {
+  const { version } = req.body;
+  await prisma.user.update({
+    where: { id: req.user.id },
+    data: { termsAcceptedAt: new Date(), termsVersion: version }
+  });
+  res.json({ ok: true });
+});
 //     router.post("/forgot-password",async (req,res)=>{
 //         const {email}=req.body
 

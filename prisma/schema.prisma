@@ -25,9 +25,44 @@ model User{
   lastEmailed   DateTime?  @default(now())
   profiles Profile[]
   lastLogin  DateTime?  @default(now())
-  verified Boolean @default(false)
+    termsAcceptedAt     DateTime?
+  termsVersion        String?
+  isBanned            Boolean   @default(false)
+  bannedAt            DateTime?
+  bannedReason         String?
+
+  reportsFiled        Report[]  @relation("ReportedBy")
+  reportsReceived      Report[]  @relation("ReportedUser")
+  blocksInitiated     Block[]   @relation("Blocker")
+  blocksReceived       Block[]   @relation("Blocked")
+ 
   created DateTime? @default(now())
 
+}
+model Report {
+  id            String @id @default(auto()) @map("_id") @db.ObjectId
+  reporterId     String
+  reporter       User     @relation("ReportedBy", fields: [reporterId], references: [id])
+  reportedUserId String
+  reportedUser   User     @relation("ReportedUser", fields: [reportedUserId], references: [id])
+  contentType    String   // "comment" | "story" | "collection" etc
+  contentId      String
+  reason         String
+  status         String   @default("pending") // pending | actioned | dismissed
+  createdAt      DateTime @default(now())
+  resolvedAt     DateTime?
+  resolvedBy     String?
+}
+model Block {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  blockerId  String
+  blocker    User     @relation("Blocker", fields: [blockerId], references: [id])
+  blockedId  String
+  blocked    User     @relation("Blocked", fields: [blockedId], references: [id])
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
 }
 model Story{
     id    String @id @default(auto()) @map("_id") @db.ObjectId

@@ -664,6 +664,8 @@ router.get("/protected", authMiddleware, async (req, res) => {
         
             user:{
               select:{
+                id:true,
+                
                 lastLogin:true
               }
             },
@@ -673,6 +675,7 @@ router.get("/protected", authMiddleware, async (req, res) => {
             
             }
           },
+          
           profileToCollections: {
             include: {
               
