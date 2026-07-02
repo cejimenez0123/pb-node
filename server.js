@@ -42,6 +42,7 @@ Sentry.init({
 }
 
 const { getDownloadURL,ref } = require("firebase/storage");
+const { weeklyJob } = require("./cron/emails.js");
 
 app.use(bodyParser.urlencoded({ extended: false }))
 
@@ -265,6 +266,7 @@ async function updateProfileWithRetry(profileId, localeId) {
 
 server.listen(PORT, () => {
   registerSprintCrons()
+weeklyJob.start()
         console.log(`Server is running`+PORT)
         })
 
