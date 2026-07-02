@@ -5,7 +5,6 @@ const bcrypt = require("bcryptjs")
 const jwt = require('jsonwebtoken');
 const newsletterWelcomeTemplate = require("../html/newsletterWelcome")
 const applicationConfirmationTemplate = require("../html/applicationConfirmationTemplate")
-const generateMongoId = require("./generateMongoId");
 const approvalTemplate = require('../html/approvalTemplate');
 const newsletterSurveyTemplate = require('../html/newsletterSurveyTemplate');
 const subscriptionConfirmation = require('../html/subscriptionConfirmation');
@@ -17,14 +16,15 @@ const recievedReferralTemplate = require('../html/recievedReferralTemplate');
 const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken");
 // const feedbackTemplate = require("../feedbackTemplate");
 const crypto = require("crypto");
+
 const { verifyGoogleIdToken } = require('../utils/ verifyGoogleIdToken');
-const findProfile = require('../utils/findProfile');
 const createNewProfileUser = require('../utils/createNewProfileUser');
 const { SPRINT_SLOTS } = require('../cron/sprint');
 function isHex(num) {
 
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
 }
+ const CURRENT_TERMS_VERSION = "2026-07-01";
 module.exports = function (authMiddleware){
   const resend = new Resend(process.env.RESEND_API_KEY);
     router.get("/user",authMiddleware,async(req,res)=>{
@@ -651,177 +651,6 @@ const token = jwt.sign(
   return res.status(400).json({ message: "Unable to process invite. Please request a new link." });
 }
 });
-// router.post("/session", async (req, res) => {
-//   const { email, password, uId, identityToken, idToken } = req.body;
-
-//   try {
-//     let user = null;
-//     let lookupEmail = email;
-
-//     // =====================================================
-//     // 🔵 GOOGLE LOGIN
-//     // =====================================================
-//     if (idToken) {
-//       const googleUser = await verifyGoogleIdToken(idToken);
-
-//       if (!googleUser?.sub || !googleUser?.email) {
-//         return res.status(401).json({ message: "Invalid Google token." });
-//       }
-
-//       lookupEmail = googleUser.email;
-
-//       user = await prisma.user.findFirst({
-//         where: { uId: googleUser.sub },
-//         include: { profiles: { select: { id: true } } },
-//       });
-
-//       if (!user) {
-//         user = await prisma.user.findFirst({
-//           where: { email: googleUser.email },
-//           include: { profiles: { select: { id: true } } },
-//         });
-
-//         if (user && !user.uId) {
-//           user = await prisma.user.update({
-//             where: { id: user.id },
-//             data: { uId: googleUser.sub },
-//             include: { profiles: { select: { id: true } } },
-//           });
-//         }
-//       }
-
-//       if (!user) {
-//         return res.status(404).json({ message: "No account found for this Google ID. Please apply first." });
-//       }
-//     }
-
-//     // =====================================================
-//     // 🍎 APPLE LOGIN
-//     // =====================================================
-//     else if (identityToken) {
-//       const appleUser = await verifyAppleIdentityToken(identityToken);
-
-//       if (!appleUser?.email) {
-//         return res.status(401).json({ message: "Invalid Apple token." });
-//       }
-
-//       lookupEmail = appleUser.email;
-
-//       // ❌ BUG WAS HERE — email was set but user was never fetched
-//       user = await prisma.user.findFirst({
-//         where: { email: appleUser.email },
-//         include: { profiles: { select: { id: true } } },
-//       });
-
-//       if (!user) {
-//         return res.status(404).json({ message: "No account found for this Apple ID. Please apply first." });
-//       }
-//     }
-
-//     // =====================================================
-//     // 📧 EMAIL/PASSWORD LOGIN
-//     // =====================================================
-//     if (!user && lookupEmail) {
-//       user = await prisma.user.findFirst({
-//         where: { email: lookupEmail },
-//         include: { profiles: { select: { id: true } } },
-//       });
-//     }
-
-//     // =====================================================
-//     // 🔐 PASSWORD CHECK
-//     // =====================================================
-//     if (password) {
-//       if (!user) {
-//         return res.status(404).json({ message: "No account found with that email." });
-//       }
-
-//       if (!user.password) {
-//         return res.status(409).json({ message: "This account uses Google or Apple login." });
-//       }
-
-//       const valid = bcrypt.compareSync(password, user.password);
-//       if (!valid) {
-//         return res.status(401).json({ message: "Incorrect password." });
-//       }
-//     }
-
-//     // =====================================================
-//     // 🚫 FINAL GUARDS
-//     // =====================================================
-//     if (!user?.id) {
-//       return res.status(404).json({ message: "No account found. Please apply first." });
-//     }
-
-//     if (!user.verified) {
-//       return res.status(403).json({ message: "Your account hasn't been approved yet." });
-//     }
-
-//     if (!user.profiles?.length) {
-//       return res.status(403).json({ message: "Account found but no profile exists. Please complete registration." });
-//     }
-
-//     // =====================================================
-//     // 🟢 UPDATE ACTIVITY
-//     // =====================================================
-//     await prisma.profile.updateMany({
-//       where: { userId: user.id },
-//       data: { lastActive: new Date(), isActive: true },
-//     });
-
-//     const freshUser = await prisma.user.update({
-//       where: { id: user.id },
-//       data: { lastLogin: new Date() },
-//       include: { profiles: { select: { id: true } } },
-//     });
-
-//     const profileId = freshUser?.profiles?.[0]?.id;
-
-//     if (!profileId) {
-//       return res.status(403).json({ message: "Profile missing. Please contact support." });
-//     }
-
-//     const profile = await prisma.profile.findUnique({
-//       where: { id: profileId },
-//       include: {
-//         user: { select: { lastLogin: true } },
-//         profileToCollections: {
-//           include: {
-//             collection: {
-//               include: {
-//                 storyIdList: { select: { story: { select: { id: true, title: true } } } },
-//                 childCollections: { select: { childCollection: { select: { id: true, title: true } } } },
-//               },
-//             },
-//           },
-//         },
-//       },
-//     });
-
-//     if (!profile) {
-//       return res.status(403).json({ message: "Profile could not be loaded." });
-//     }
-
-//     const token = jwt.sign(
-//       { userId: freshUser.id, profileId: profile.id },
-//       process.env.JWT_SECRET
-//     );
-
-//     return res.json({ token, profile });
-
-//   } catch (error) {
-//     console.error("SESSION ERROR:", error);
-
-//     if (error.name === "TokenExpiredError") {
-//       return res.status(401).json({ message: "Session expired. Please log in again." });
-//     }
-//     if (error.name === "JsonWebTokenError") {
-//       return res.status(401).json({ message: "Invalid token." });
-//     }
-
-//     return res.status(500).json({ message: "Unable to log in. Please try again." });
-//   }
-// });
 
 router.post("/session", async (req, res) => {
   const { email, password,  identityToken, idToken } = req.body;
@@ -874,11 +703,7 @@ else if (identityToken) {
   let appleUser;
   try {
     appleUser = await verifyAppleIdentityToken(identityToken);
-    // console.log('✅ Token verified:', {
-    //   sub: appleUser?.sub,
-    //   email: appleUser?.email,
-    //   aud: appleUser?.aud,
-    // });
+
   } catch (e) {
     console.error('❌ verifyAppleIdentityToken FAILED:', e.message);
     return res.status(401).json({ message: `Apple token verification failed: ${e.message}` });
@@ -1002,13 +827,14 @@ else if (identityToken) {
       return res.status(403).json({ message: "Profile could not be loaded." });
     }
 
+
+    const termsCurrent = freshUser.termsVersion === CURRENT_TERMS_VERSION;
+
     const token = jwt.sign(
       { userId: freshUser.id, profileId: profile.id },
       process.env.JWT_SECRET
     );
-
-    return res.json({ token, profile });
-
+ return res.json({ token, profile, termsCurrent });
   } catch (error) {
     console.error("SESSION ERROR:", error);
 
