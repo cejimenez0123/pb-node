@@ -4,7 +4,6 @@ const bodyParser = require("body-parser")
 const cors = require('cors')
 const http = require("http")
 const axios = require("axios")
-const prisma = require("./db")
 const NodeCache = require("node-cache");
 const roleRoutes = require("./routes/role.js")
 const authRoutes = require("./routes/auth")
@@ -43,6 +42,7 @@ Sentry.init({
 
 const { getDownloadURL,ref } = require("firebase/storage");
 const { weeklyJob } = require("./cron/emails.js");
+const prisma = require("./db/index.js");
 
 app.use(bodyParser.urlencoded({ extended: false }))
 
