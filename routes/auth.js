@@ -778,9 +778,7 @@ else if (identityToken) {
       return res.status(404).json({ message: "No account found. Please apply first." });
     }
 
-    if (!user.verified) {
-      return res.status(403).json({ message: "Your account hasn't been approved yet." });
-    }
+ 
 
     if (!user.profiles?.length) {
       return res.status(403).json({ message: "Account found but no profile exists. Please complete registration." });
