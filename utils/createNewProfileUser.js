@@ -67,68 +67,81 @@ const findProfile = require("./findProfile")
     }
     })
 
-    await prisma.profileToCollection.create({
-      data:{
-        collection:{
-          connect:{
-            id:eventCol.id
-          }
-        },
-        type:"events",
-        profile:{
-          connect:{
-            id:profile.id
-          }
-        }
-      }
-    })
-        await prisma.profileToCollection.create({
-      data:{
-        collection:{
-          connect:{
-            id:portCol.id
-          }
-        },
-        type:"portfolio",
-        profile:{
-          connect:{
-            id:profile.id
-          }
-        }
-      }
-    })
-    await prisma.profileToCollection.create({
-      data:{
-        collection:{
-          connect:{
-            id:homeCol.id
-          }
-        },
-        type:"home",
-        profile:{
-          connect:{
-            id:profile.id
-          }
-        }
-      }
-    })
-await prisma.profileToCollection.create({
-  data: {
-    collection: {
-      connect: {
-        id: archCol.id
-      }
-    },
-    type: "archive",
-    profile: {
-      connect: {
-        id: profile.id
-      }
-    }
-  }
-})
+//     await prisma.profileToCollection.create({
+//       data:{
+//         collection:{
+//           connect:{
+//             id:eventCol.id
+//           }
+//         },
+//         type:"events",
+//         profile:{
+//           connect:{
+//             id:profile.id
+//           }
+//         }
+//       }
+//     })
+//         await prisma.profileToCollection.create({
+//       data:{
+//         collection:{
+//           connect:{
+//             id:portCol.id
+//           }
+//         },
+//         type:"portfolio",
+//         profile:{
+//           connect:{
+//             id:profile.id
+//           }
+//         }
+//       }
+//     })
+//     await prisma.profileToCollection.create({
+//       data:{
+//         collection:{
+//           connect:{
+//             id:homeCol.id
+//           }
+//         },
+//         type:"home",
+//         profile:{
+//           connect:{
+//             id:profile.id
+//           }
+//         }
+//       }
+//     })
+// await prisma.profileToCollection.create({
+//   data: {
+//     collection: {
+//       connect: {
+//         id: archCol.id
+//       }
+//     },
+//     type: "archive",
+//     profile: {
+//       connect: {
+//         id: profile.id
+//       }
+//     }
+//   }
+// })
 
-
+await Promise.all([
+  prisma.profileToCollection.create({
+    data: { collection: { connect: { id: eventCol.id } }, type: "events", profile: { connect: { id: profile.id } } }
+  }),
+  prisma.profileToCollection.create({
+    data: { collection: { connect: { id: portCol.id } }, type: "portfolio", profile: { connect: { id: profile.id } } }
+  }),
+  prisma.profileToCollection.create({
+    data: { collection: { connect: { id: homeCol.id } }, type: "home", profile: { connect: { id: profile.id } } }
+  }),
+  prisma.profileToCollection.create({
+    data: { collection: { connect: { id: archCol.id } }, type: "archive", profile: { connect: { id: profile.id } } }
+  }),
+]);
 
    let newProfile = await findProfile(profile.id)
     return newProfile 

@@ -464,7 +464,7 @@ router.post("/forgot-password", async (req, res) => {
 
 })
 // backend route
-router.post('/accept-terms', authenticate, async (req, res) => {
+router.post('/accept-terms', authMiddleware, async (req, res) => {
   const { version } = req.body;
   await prisma.user.update({
     where: { id: req.user.id },

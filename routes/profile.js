@@ -87,21 +87,26 @@ module.exports = function (authMiddleware){
         res.status(200).json({profiles:profiles})
     })
     router.post("/",async(req,res)=>{
-        const  {email,googleId,password,username,profilePicture,selfStatement,privacy}=req.body
+      const { email, googleId, password, username, profilePicture, selfStatement, privacy, termsVersion, termsAcceptedAt } = req.body
         try{
            
             const decoded = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
     
             if(decoded.applicantId){
+                if (!termsVersion || !termsAcceptedAt) {
+                return res.status(400).json({ error: new Error("Terms of Service must be accepted") })
+            }
             const hashedPassword = await bcrypt.hash(password, 10);
-               const user = await prisma.user.update({
-                where:{
-                  id:decoded.applicantId
-                
-                },data:{
-                    googleId:googleId,
-                    password:hashedPassword,
-                    verified:true
+    
+                       const user = await prisma.user.update({
+                where: {
+                    id: decoded.applicantId
+                }, data: {
+                    googleId: googleId,
+                    password: hashedPassword,
+                    verified: true,
+                    termsVersion: termsVersion,
+                    termsAcceptedAt: new Date(termsAcceptedAt)
                 }
             })
    
@@ -110,18 +115,16 @@ module.exports = function (authMiddleware){
    
         const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
         res.json({profile:profile,token:verifiedToken})
-    }catch(error){
-        
-        res.status(409).json({error: new Error("Username already taken")})
+ } catch (error) {
+                res.status(409).json({ error: new Error("Username already taken") })
+            }
+        } else {
+            throw new Error("User not found")
+        }
+    } catch (error) {
+        console.log(error)
+        res.status(409).json({ error })
     }
-}else{
-    throw new Error("User not found")
-}
-    }catch(error){
-    console.log(error)
-        res.status(409).json({error})
-    }
-    
     
     
     })
@@ -665,7 +668,8 @@ router.get("/protected", authMiddleware, async (req, res) => {
             user:{
               select:{
                 id:true,
-                
+                  termsAcceptedAt:true,
+  termsVersion:true,
                 lastLogin:true
               }
             },
