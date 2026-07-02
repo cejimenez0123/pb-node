@@ -846,6 +846,114 @@ else if (identityToken) {
     return res.status(500).json({ message: "Unable to log in. Please try again." });
   }
 });
+
+
+router.post("/reports", authMiddleware, async (req, res) => {
+  const { contentType, contentId, reportedProfileId, reason } = req.body;
+
+  if (!contentType || !contentId || !reportedProfileId || !reason) {
+    return res.status(400).json({ error: new Error("Missing required report fields") });
+  }
+
+  try {
+    const report = await prisma.report.create({
+      data: {
+        reporterProfileId: req.user.profileId, // adjust to however your middleware attaches profile
+        reportedProfileId,
+        contentType,
+        contentId,
+        reason,
+      },
+    });
+
+    // TODO: notify moderators — Slack webhook, email, whatever you wire up
+    console.log(`🚩 New report: ${contentType} ${contentId} by profile ${req.user.profileId}`);
+
+    res.json({ report });
+  } catch (error) {
+    console.log(error);
+    res.status(409).json({ error });
+  }
+});
+
+router.post("/blocks", authMiddleware, async (req, res) => {
+  const { blockedProfileId, reason } = req.body;
+
+  if (!blockedProfileId) {
+    return res.status(400).json({ error: new Error("blockedProfileId is required") });
+  }
+
+  if (blockedProfileId === req.user.profileId) {
+    return res.status(400).json({ error: new Error("You can't block yourself") });
+  }
+
+  try {
+    const block = await prisma.block.upsert({
+      where: {
+        blockerProfileId_blockedProfileId: {
+          blockerProfileId: req.user.profileId,
+          blockedProfileId,
+        },
+      },
+      update: {}, // already blocked, no-op
+      create: {
+        blockerProfileId: req.user.profileId,
+        blockedProfileId,
+        reason,
+      },
+    });
+
+    // A block is always logged as a report too, so moderators see it even if the user doesn't separately report
+    await prisma.report.create({
+      data: {
+        reporterProfileId: req.user.profileId,
+        reportedProfileId: blockedProfileId,
+        contentType: "profile_block",
+        contentId: blockedProfileId,
+        reason: reason || "User blocked via block action",
+      },
+    });
+
+    console.log(`🚫 Block: profile ${req.user.profileId} blocked ${blockedProfileId}`);
+
+    res.json({ block });
+  } catch (error) {
+    console.log(error);
+    res.status(409).json({ error });
+  }
+});
+
+router.get("/blocks", authMiddleware, async (req, res) => {
+  try {
+    const blocks = await prisma.block.findMany({
+      where: { blockerProfileId: req.user.profileId },
+      select: { blockedProfileId: true },
+    });
+    res.json({ blockedProfileIds: blocks.map((b) => b.blockedProfileId) });
+  } catch (error) {
+    console.log(error);
+    res.status(409).json({ error });
+  }
+});
+
+router.delete("/blocks/:blockedProfileId", authMiddleware, async (req, res) => {
+  try {
+    await prisma.block.delete({
+      where: {
+        blockerProfileId_blockedProfileId: {
+          blockerProfileId: req.user.profileId,
+          blockedProfileId: req.params.blockedProfileId,
+        },
+      },
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    console.log(error);
+    res.status(409).json({ error });
+  }
+});
+
+
     router.post("/newsletter",async (req,res)=>{
       try{
       const{

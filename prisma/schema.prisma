@@ -40,32 +40,33 @@ model User{
 
 }
 model Report {
-  id            String @id @default(auto()) @map("_id") @db.ObjectId
-  reporterId     String
-  reporter       User     @relation("ReportedBy", fields: [reporterId], references: [id])
-  reportedUserId String
-  reportedUser   User     @relation("ReportedUser", fields: [reportedUserId], references: [id])
-  contentType    String   // "comment" | "story" | "collection" etc
-  contentId      String
-  reason         String
-  status         String   @default("pending") // pending | actioned | dismissed
-  createdAt      DateTime @default(now())
-  resolvedAt     DateTime?
-  resolvedBy     String?
+     id    String @id @default(auto()) @map("_id") @db.ObjectId
+  reporterProfileId String
+  reporterProfile   Profile  @relation("ReportsFiled", fields: [reporterProfileId], references: [id])
+  reportedProfileId String
+  reportedProfile   Profile  @relation("ReportsReceived", fields: [reportedProfileId], references: [id])
+  contentType       String   // "comment" | "profile" | "story" | "collection"
+  contentId         String
+  reason            String
+  status            String   @default("pending") // pending | actioned | dismissed
+  createdAt         DateTime @default(now())
+  resolvedAt        DateTime?
+  resolvedBy        String?
 }
-model Block {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  blockerId  String
-  blocker    User     @relation("Blocker", fields: [blockerId], references: [id])
-  blockedId  String
-  blocked    User     @relation("Blocked", fields: [blockedId], references: [id])
-  reason     String?
-  createdAt  DateTime @default(now())
 
-  @@unique([blockerId, blockedId])
+model Block {
+  id                  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  blockerProfileId String
+  blockerProfile   Profile  @relation("BlocksInitiated", fields: [blockerProfileId], references: [id])
+  blockedProfileId String
+  blockedProfile   Profile  @relation("BlocksReceived", fields: [blockedProfileId], references: [id])
+  reason           String?
+  createdAt        DateTime @default(now())
+
+  @@unique([blockerProfileId, blockedProfileId])
 }
 model Story{
-    id    String @id @default(auto()) @map("_id") @db.ObjectId
+     id    String @id @default(auto()) @map("_id") @db.ObjectId
     title String
     data String @default("")
     description String @default("")
@@ -172,6 +173,10 @@ model Profile{
     collectionToCollections CollectionToCollection[]
     collections Collection[] 
     rolesToStory RoleToStory[]
+    reportsFiled     Report[] @relation("ReportsFiled")
+  reportsReceived  Report[] @relation("ReportsReceived")
+  blocksInitiated  Block[]  @relation("BlocksInitiated")
+  blocksReceived   Block[]  @relation("BlocksReceived")
     collectionHistory UserCollectionHistory[]
     rolesToCollection RoleToCollection[]
     comments Comment[] 

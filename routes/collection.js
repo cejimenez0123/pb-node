@@ -6,10 +6,11 @@ const Paths = require('../utils/Paths');
 const findProfile = require('../utils/findProfile');
 const sendNotification = require('../utils/sendNotifications');
 const haversineDistance = require('../utils/haversineDistance');
+const attachBlockedProfiles = require('../middleware/attechBlockedProfiles');
 const router = express.Router()
 
 module.exports = function (authMiddleware){
-
+    const withBlocks = [authMiddleware, attachBlockedProfiles];
         const getCollectionContentBasedScores = async (colId) => {
             const scores = {};
 

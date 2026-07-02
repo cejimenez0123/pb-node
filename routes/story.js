@@ -5,6 +5,13 @@ const updateWriterLevelMiddleware = require("../middleware/updateWriterLevelMidd
 const fetchEvents = require("../newsletter/fetchEvents");
 const getStory = require('../utils/getstory');
 const { default: safeQuery } = require('../utils/safrQuery');
+const checkContent = require('../utils/checkContent.js');
+const attachBlockedProfiles = require('../middleware/attechBlockedProfiles.js');
+
+const optionalAuth = require("../middleware/optionalAuth");
+
+
+
 const recommendStories = async (profileId) => {
     // Fetch user history
     const profile = await prisma.profile.findFirst({where:{
@@ -145,7 +152,9 @@ for(let i = 0;i<profile.likedStories.length;i++){
   
 module.exports = function ({authMiddleware}){
     const allMiddlewares = [authMiddleware,updateWriterLevelMiddleware];
-    router.get("/", async (req, res) => {
+     const withBlocks = [authMiddleware, attachBlockedProfiles];
+     const withOptionalBlocks = [optionalAuth, attachBlockedProfiles];
+    router.get("/",withOptionalBlocks, async (req, res) => {
   try {
     const skip = parseInt(req.query.skip) || 0;
     const take = parseInt(req.query.take) || 20;
@@ -219,10 +228,10 @@ module.exports = function ({authMiddleware}){
         res.json(error)
     }
     })
-   router.get("/recommendations", authMiddleware, async (req, res) => {
+    router.get("/recommendations", withBlocks, async (req, res) => {
   try {
-    const profile = req.user.profiles[0];
-   
+    let profile = req.user.profiles[0];
+
     // Ensure we have a profile ID
     if (!profile || !profile.id) {
       profile = await prisma.profile.findFirst({
@@ -237,10 +246,11 @@ module.exports = function ({authMiddleware}){
       recommendations = await recommendStories(profile.id);
     }
 
-    // Fetch stories while respecting privacy/beta readers
+    // Fetch stories while respecting privacy/beta readers, and excluding blocked authors
     let stories = await prisma.story.findMany({
       where: {
         id: { in: recommendations },
+        authorId: { notIn: req.blockedProfileIds },
         OR: [
           { isPrivate: { equals: false } },
           {
@@ -253,11 +263,14 @@ module.exports = function ({authMiddleware}){
       include: { author: true },
     });
 
-    // If still empty, fetch top public stories
+    // If still empty, fetch top public stories, still excluding blocked authors
     if (stories.length === 0) {
       stories = await prisma.story.findMany({
         orderBy: { storyLikes: { _count: "desc" } },
-        where: { isPrivate: false },
+        where: {
+          isPrivate: false,
+          authorId: { notIn: req.blockedProfileIds },
+        },
         include: { author: true },
       });
     }
@@ -268,6 +281,55 @@ module.exports = function ({authMiddleware}){
     res.json({ error });
   }
 });
+//    router.get("/recommendations", withBlocks, async (req, res) => {
+//   try {
+//     const profile = req.user.profiles[0];
+   
+//     // Ensure we have a profile ID
+//     if (!profile || !profile.id) {
+//       profile = await prisma.profile.findFirst({
+//         where: { userId: req.user.id },
+//       });
+//     }
+
+//     let recommendations = await getRecommendations(profile.id);
+
+//     // If no recommendations, fallback
+//     if (recommendations.length === 0) {
+//       recommendations = await recommendStories(profile.id);
+//     }
+
+//     // Fetch stories while respecting privacy/beta readers
+//     let stories = await prisma.story.findMany({
+//       where: {
+//         id: { in: recommendations },
+//         OR: [
+//           { isPrivate: { equals: false } },
+//           {
+//             betaReaders: {
+//               some: { profileId: { equals: profile.id } },
+//             },
+//           },
+//         ],
+//       },
+//       include: { author: true },
+//     });
+
+//     // If still empty, fetch top public stories
+//     if (stories.length === 0) {
+//       stories = await prisma.story.findMany({
+//         orderBy: { storyLikes: { _count: "desc" } },
+//         where: { isPrivate: false },
+//         include: { author: true },
+//       });
+//     }
+
+//     res.json({ stories });
+//   } catch (error) {
+//     console.log(error);
+//     res.json({ error });
+//   }
+// });
 
 // ---------------------- Recommender ---------------------- //
 
@@ -447,7 +509,7 @@ const where = {
             res.status(404).json({error})
         }
      })
-    router.get("/:id/comment/protected",authMiddleware,async (req,res)=>{
+    router.get("/:id/comment/protected",withBlocks,async (req,res)=>{
       try{
      
         let comments =await prisma.comment.findMany({where:{
@@ -744,6 +806,7 @@ await Promise.all(promises)
     })
     router.post("/",...allMiddlewares,async (req,res)=>{
     try{
+    
        const authorId = req.user.profiles[0].id
         const doc = req.body
    const {isPrivate,
@@ -758,7 +821,10 @@ await Promise.all(promises)
     profileId,
     type}=doc
         // const {title,data,isPrivate,authorId,commentable,type}= doc
-      
+          const moderation = checkContent(`${title ?? ""} ${description ?? ""}`);
+    if (moderation.flagged) {
+        return res.status(400).json({ error: new Error("Content violates community guidelines") });
+    }
         const story = await prisma.story.create({data:{
             title:title??"",
             data:data,

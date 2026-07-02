@@ -3,13 +3,16 @@ const prisma = require("../db");
 const updateWriterLevelMiddleware = require('../middleware/updateWriterLevelMiddleware');
 const { default: notifyUser } = require('../utils/notifyUser');
 const Paths = require('../utils/Paths');
+const attachBlockedProfiles = require('../middleware/attechBlockedProfiles');
+const optionalAuth = require('../middleware/optionalAuth');
 
 
 const router = express.Router();
 
 module.exports = function (authMiddleware) {
-  const protected = [authMiddleware, updateWriterLevelMiddleware];
-
+  const protected = [authMiddleware, updateWriterLevelMiddleware,attachBlockedProfiles];
+    const withBlocks = [authMiddleware, attachBlockedProfiles];
+ const withOptionalBlocks = [optionalAuth, attachBlockedProfiles];
   // ── GET /comments?storyId=xxx ─────────────────────────────────────────────
   // Public — used by DataElement to hydrate annotation highlights
   router.get("/", async (req, res) => {
@@ -94,13 +97,16 @@ router.post("/:id/to-story", ...protected, async (req, res) => {
     res.status(409).json({ error: err });
   }
 });
-  router.post("/", ...protected, async (req, res) => {
+router.post("/", ...protected, async (req, res) => {
   try {
     const { storyId, text, parentId, anchorText } = req.body;
     const currentuser = req.user.profiles[0];
     const profileId = currentuser.id;
+    const moderation = checkContent(`${text ?? ""} ${anchorText ?? ""}`);
+    if (moderation.flagged) {
+      return res.status(400).json({ error: new Error("Content violates community guidelines") });
+    }
 
- 
     const baseData = {
       content:    text,
       anchorText: anchorText ?? "",
@@ -123,28 +129,18 @@ router.post("/:id/to-story", ...protected, async (req, res) => {
       },
     });
 
-    // Notify story author about top-level comment
-  
-      const story = await prisma.story.findUnique({
-        where:  { id: storyId },
-        select: { authorId: true },
+    const route = Paths.page.createRoute(storyId);
+
+    if (parentId) {
+      // Reply — notify the parent comment's author
+      const parentComment = await prisma.comment.findUnique({
+        where:  { id: parentId },
+        select: { profileId: true },
       });
 
-      // console.log("NOTIFY COMMENT — story.authorId:", story?.authorId, "profileId:", profileId, "same?", story?.authorId === profileId);
-
-      if (story?.authorId && story.authorId !== profileId) {
-        // await notifyUser({
-        //   profileId: story.authorId,
-        //   type:      "COMMENT",
-        //   title:     "New feedback on your piece",
-        //   body:      `${req?.user?.profiles[0]?.username ?? "Someone"} left a comment`,
-        //   entityId:  storyId,
-        //   actorId:   profileId,
-        //   route:    Paths.page.createRoute(storyId),
-        // });
-         const title = "New reply to your comment";
+      if (parentComment?.profileId && parentComment.profileId !== profileId) {
+        const title = "New reply to your comment";
         const body  = `${currentuser.username ?? "Someone"} replied to your comment`;
-        const route = Paths.page.createRoute(storyId); // ← also fixes the /view mismatch bug
 
         await Promise.all([
           notifyUser({
@@ -166,27 +162,36 @@ router.post("/:id/to-story", ...protected, async (req, res) => {
           ),
         ]);
       }
-    
-
-    // Notify parent comment author about reply
-    if (parentId) {
-      
-      const parentComment = await prisma.comment.findUnique({
-        where:  { id: parentId },
-        select: { profileId: true },
+    } else {
+      // Top-level comment — notify the story author
+      const story = await prisma.story.findUnique({
+        where:  { id: storyId },
+        select: { authorId: true },
       });
 
-   
-      if (parentComment?.profileId && parentComment.profileId !== profileId) {
-        await notifyUser({
-          profileId: parentComment.profileId,
-          type:      "REPLY",
-          title:     "New reply to your comment",
-          body:      `${currentuser.username ?? "Someone"} replied to your comment`,
-          entityId:  storyId,
-          actorId:   profileId,
-          route:     `/story/${storyId}`,
-        });
+      if (story?.authorId && story.authorId !== profileId) {
+        const title = "New feedback on your piece";
+        const body  = `${currentuser.username ?? "Someone"} left a comment`;
+
+        await Promise.all([
+          notifyUser({
+            profileId: story.authorId,
+            type:      "COMMENT",
+            title,
+            body,
+            entityId:  storyId,
+            actorId:   profileId,
+            route,
+          }),
+          sendNotification(story.authorId, title, body, {
+            type:     "COMMENT",
+            entityId: storyId,
+            actorId:  profileId,
+            route,
+          }).catch((err) =>
+            console.error("[sendNotification] COMMENT failed:", err)
+          ),
+        ]);
       }
     }
 
@@ -196,6 +201,110 @@ router.post("/:id/to-story", ...protected, async (req, res) => {
     res.status(409).json({ error: err });
   }
 });
+//   router.post("/", ...protected, async (req, res) => {
+//   try {
+//     const { storyId, text, parentId, anchorText } = req.body;
+//     const currentuser = req.user.profiles[0];
+//     const profileId = currentuser.id;
+//        const moderation = checkContent(`${text ?? ""} ${anchorText ?? ""}`);
+//     if (moderation.flagged) {
+//         return res.status(400).json({ error: new Error("Content violates community guidelines") });
+//     }
+ 
+//     const baseData = {
+//       content:    text,
+//       anchorText: anchorText ?? "",
+//       story:      { connect: { id: storyId } },
+//       profile:    { connect: { id: profileId } },
+//     };
+
+//     const com = await prisma.comment.create({
+//       data: parentId
+//         ? { ...baseData, parent: { connect: { id: parentId } } }
+//         : baseData,
+//       include: { profile: true },
+//     });
+
+//     const comment = await prisma.comment.findFirst({
+//       where: { id: com.id },
+//       include: {
+//         profile:  true,
+//         children: { include: { profile: true } },
+//       },
+//     });
+
+//     // Notify story author about top-level comment
+  
+//       const story = await prisma.story.findUnique({
+//         where:  { id: storyId },
+//         select: { authorId: true },
+//       });
+
+//       // console.log("NOTIFY COMMENT — story.authorId:", story?.authorId, "profileId:", profileId, "same?", story?.authorId === profileId);
+
+//       if (story?.authorId && story.authorId !== profileId) {
+//         // await notifyUser({
+//         //   profileId: story.authorId,
+//         //   type:      "COMMENT",
+//         //   title:     "New feedback on your piece",
+//         //   body:      `${req?.user?.profiles[0]?.username ?? "Someone"} left a comment`,
+//         //   entityId:  storyId,
+//         //   actorId:   profileId,
+//         //   route:    Paths.page.createRoute(storyId),
+//         // });
+//          const title = "New reply to your comment";
+//         const body  = `${currentuser.username ?? "Someone"} replied to your comment`;
+//         const route = Paths.page.createRoute(storyId); // ← also fixes the /view mismatch bug
+
+//         await Promise.all([
+//           notifyUser({
+//             profileId: parentComment.profileId,
+//             type:      "REPLY",
+//             title,
+//             body,
+//             entityId:  storyId,
+//             actorId:   profileId,
+//             route,
+//           }),
+//           sendNotification(parentComment.profileId, title, body, {
+//             type:     "REPLY",
+//             entityId: storyId,
+//             actorId:  profileId,
+//             route,
+//           }).catch((err) =>
+//             console.error("[sendNotification] REPLY failed:", err)
+//           ),
+//         ]);
+//       }
+//        if (parentId) {
+//       const parentComment = await prisma.comment.findUnique({   // ← declared down here
+//         where:  { id: parentId },
+//         select: { profileId: true },
+//       });
+
+//     // Notify parent comment author about reply
+
+
+   
+//       if (parentComment?.profileId && parentComment.profileId !== profileId) {
+//         await notifyUser({
+//           profileId: parentComment.profileId,
+//           type:      "REPLY",
+//           title:     "New reply to your comment",
+//           body:      `${currentuser.username ?? "Someone"} replied to your comment`,
+//           entityId:  storyId,
+//           actorId:   profileId,
+//           route:     `/story/${storyId}`,
+//         });
+//       }
+//     }
+
+//     res.json({ comment });
+//   } catch (err) {
+//     console.log(err);
+//     res.status(409).json({ error: err });
+//   }
+// });
 
 
   // ── POST /comments ────────────────────────────────────────────────────────
@@ -271,7 +380,7 @@ router.post("/:id/to-story", ...protected, async (req, res) => {
 
   // ── GET /comments/helpful ─────────────────────────────────────────────────
   // Must be defined BEFORE /:id routes to avoid "helpful" matching as an id
-  router.get("/helpful", async (req, res) => {
+  router.get("/helpful", withOptionalBlocks,async (req, res) => {
     try {
       const comments = await prisma.comment.findMany({
         where:   { hashtags: { some: {} } },
