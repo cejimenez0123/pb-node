@@ -114,7 +114,7 @@ module.exports = function (authMiddleware){
  const profile = await  createNewProfileUser({username,profilePicture,selfStatement,isPrivate:privacy,userId:user.id})
    
         const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
-        res.json({profile:profile,token:verifiedToken})
+        res.json({ profile: profile, token: verifiedToken, termsVersion: user.termsVersion })
  } catch (error) {
                 res.status(409).json({ error: new Error("Username already taken") })
             }
