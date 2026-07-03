@@ -66,8 +66,7 @@ async function attachBlockedProfiles(req, res, next) {
     });
 
     req.blockedProfileIds = [...ids];
-    console.log("attachBlockedProfiles: final blockedProfileIds =", req.blockedProfileIds);
-
+  
     next();
   } catch (error) {
     console.log("attachBlockedProfiles error:", error);

@@ -644,6 +644,7 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
   }
 });
 
+
 router.get("/protected", authMiddleware, async (req, res) => {
   try {
     if (!req?.user) {
@@ -659,69 +660,63 @@ router.get("/protected", authMiddleware, async (req, res) => {
     const profileId = currentProfile.id;
 
 
-    const profile = await
-      prisma.profile.findFirst({
-        where: { id: profileId },
-        include: 
-          { location:true,
-        
-            user:{
-              select:{
-                id:true,
-                  termsAcceptedAt:true,
-  termsVersion:true,
-                lastLogin:true
+    const profile = await prisma.profile.findFirst({
+  where: { id: profileId },
+  include: {
+    location: true,
+    user: {
+      select: {
+        id: true,
+        termsAcceptedAt: true,
+        termsVersion: true,
+        lastLogin: true
+      }
+    },
+    hashtag: {
+      include: {
+        hashtag: true
+      }
+    },
+    profileToCollections: {
+      include: {
+        collection: {
+          include: {
+            childCollections: {
+              select: {
+                childCollection: {
+                  select: {
+                    id: true,
+                    title: true,
+                    type: true,
+                  }
+                }
               }
             },
-          hashtag:{
-            include:{
-             hashtag:true
-            
-            }
-          },
-          
-          profileToCollections: {
-            include: {
-              
-              collection:{
-                
-                include:{
-                  childCollections:{
-                    select:{
-                      childCollection:{
-                        select:{
-                          id:true,
-                          title:true,
-                          type:true,
-                          
-                        }
-                      }
-                    }
-                  },
-                 storyIdList:{
-                  select:{
-                    story:{
-                      select:{
-                        id:true,
-                        title:true,
-                        description:true,
-                        type:true
-                      }
-                    }
-                  
+            storyIdList: {
+              select: {
+                storyId: true,
+                story: {
+                  select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    type: true
                   }
-                 },
-            }
-              
-              
-            }
-            }},_count:{
-              select:{
-                followers:true,
-                following:true
+                }
               }
-            }}
-      })
+            },
+          }
+        }
+      }
+    },
+    _count: {
+      select: {
+        followers: true,
+        following: true
+      }
+    }
+  }
+})
 
 
 
