@@ -44,6 +44,7 @@ model Report {
   contentType       String // "comment" | "profile" | "story" | "collection"
   contentId         String
   reason            String
+    reasonDetails     String?
   status            String    @default("pending") // pending | actioned | dismissed
   createdAt         DateTime  @default(now())
   resolvedAt        DateTime?

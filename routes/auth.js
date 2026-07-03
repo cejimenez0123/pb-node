@@ -20,12 +20,14 @@ const crypto = require("crypto");
 const { verifyGoogleIdToken } = require('../utils/ verifyGoogleIdToken');
 const createNewProfileUser = require('../utils/createNewProfileUser');
 const { SPRINT_SLOTS } = require('../cron/sprint');
+const requireModerator = require('../middleware/requireModeration');
 function isHex(num) {
 
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
 }
  const CURRENT_TERMS_VERSION = "2026-07-01";
 module.exports = function (authMiddleware){
+     const authMod = [authMiddleware, requireModerator];
   const resend = new Resend(process.env.RESEND_API_KEY);
     router.get("/user",authMiddleware,async(req,res)=>{
       
@@ -847,27 +849,26 @@ else if (identityToken) {
   }
 });
 
-
 router.post("/reports", authMiddleware, async (req, res) => {
-  const { contentType, contentId, reportedProfileId, reason } = req.body;
+  const { contentType, contentId, reportedProfileId, reason, reasonDetails } = req.body;
 
   if (!contentType || !contentId || !reportedProfileId || !reason) {
     return res.status(400).json({ error: new Error("Missing required report fields") });
   }
 
+  console.log(req.user);
+
   try {
     const report = await prisma.report.create({
       data: {
-        reporterProfileId: req.user.profileId, // adjust to however your middleware attaches profile
+        reporterProfileId: req.user.profiles[0].id,
         reportedProfileId,
         contentType,
         contentId,
         reason,
+        reasonDetails: reasonDetails?.trim() || null,
       },
     });
-
-    // TODO: notify moderators — Slack webhook, email, whatever you wire up
-    console.log(`🚩 New report: ${contentType} ${contentId} by profile ${req.user.profileId}`);
 
     res.json({ report });
   } catch (error) {
@@ -883,21 +884,21 @@ router.post("/blocks", authMiddleware, async (req, res) => {
     return res.status(400).json({ error: new Error("blockedProfileId is required") });
   }
 
-  if (blockedProfileId === req.user.profileId) {
+  if (blockedProfileId === req.user.profiles[0].id) {
     return res.status(400).json({ error: new Error("You can't block yourself") });
   }
-
+  const blockerProfileId = req.user.profiles[0].id;
   try {
     const block = await prisma.block.upsert({
       where: {
         blockerProfileId_blockedProfileId: {
-          blockerProfileId: req.user.profileId,
+          blockerProfileId, 
           blockedProfileId,
         },
       },
       update: {}, // already blocked, no-op
       create: {
-        blockerProfileId: req.user.profileId,
+        blockerProfileId,
         blockedProfileId,
         reason,
       },
@@ -906,7 +907,7 @@ router.post("/blocks", authMiddleware, async (req, res) => {
     // A block is always logged as a report too, so moderators see it even if the user doesn't separately report
     await prisma.report.create({
       data: {
-        reporterProfileId: req.user.profileId,
+        reporterProfileId: req.user.profiles[0].id,
         reportedProfileId: blockedProfileId,
         contentType: "profile_block",
         contentId: blockedProfileId,
@@ -914,7 +915,7 @@ router.post("/blocks", authMiddleware, async (req, res) => {
       },
     });
 
-    console.log(`🚫 Block: profile ${req.user.profileId} blocked ${blockedProfileId}`);
+    console.log(`🚫 Block: profile ${blockerProfileId} blocked ${blockedProfileId}`);
 
     res.json({ block });
   } catch (error) {
@@ -926,7 +927,7 @@ router.post("/blocks", authMiddleware, async (req, res) => {
 router.get("/blocks", authMiddleware, async (req, res) => {
   try {
     const blocks = await prisma.block.findMany({
-      where: { blockerProfileId: req.user.profileId },
+      where: { blockerProfileId: req.user.profiles[0].id },
       select: { blockedProfileId: true },
     });
     res.json({ blockedProfileIds: blocks.map((b) => b.blockedProfileId) });
@@ -941,7 +942,7 @@ router.delete("/blocks/:blockedProfileId", authMiddleware, async (req, res) => {
     await prisma.block.delete({
       where: {
         blockerProfileId_blockedProfileId: {
-          blockerProfileId: req.user.profileId,
+          blockerProfileId: req.user.profiles[0].id,
           blockedProfileId: req.params.blockedProfileId,
         },
       },
@@ -953,6 +954,105 @@ router.delete("/blocks/:blockedProfileId", authMiddleware, async (req, res) => {
   }
 });
 
+// routes/moderationAdmin.js
+
+
+router.get("/admin/reports", authMod, async (req, res) => {
+  try {
+    const reports = await prisma.report.findMany({
+      where: { status: "pending" },
+      include: { reportedProfile: { select: { username: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const grouped = {};
+    for (const r of reports) {
+      if (!grouped[r.reportedProfileId]) {
+        grouped[r.reportedProfileId] = {
+          reportedProfileId: r.reportedProfileId,
+          username: r.reportedProfile?.username ?? "unknown",
+          reports: [],
+        };
+      }
+      grouped[r.reportedProfileId].reports.push({
+        id: r.id,
+        contentType: r.contentType,
+        contentId: r.contentId,
+        reason: r.reason,
+        reasonDetails: r.reasonDetails, // ← include details
+      });
+    }
+
+    res.json({ reports: Object.values(grouped) });
+  } catch (error) {
+    console.log(error);
+    res.status(409).json({ error });
+  }
+});
+
+// router.get("/admin/reports", authMod, async (req, res) => {
+//   try {
+//     const reports = await prisma.report.findMany({
+//       where: { status: "pending" },
+//       include: { reportedProfile: { select: { username: true } } },
+//       orderBy: { createdAt: "asc" },
+//     });
+
+//     const grouped = {};
+//     for (const r of reports) {
+//       if (!grouped[r.reportedProfileId]) {
+//         grouped[r.reportedProfileId] = {
+//           reportedProfileId: r.reportedProfileId,
+//           username: r.reportedProfile?.username ?? "unknown",
+//           reports: [],
+//         };
+//       }
+//       grouped[r.reportedProfileId].reports.push({
+//         id: r.id,
+//         contentType: r.contentType,
+//         contentId: r.contentId,
+//         reason: r.reason,
+//       });
+//     }
+
+//     res.json({ reports: Object.values(grouped) });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(409).json({ error });
+//   }
+// });
+
+router.post("/admin/ban", authMod,async (req, res) => {
+  const { reportedProfileId, reportIds } = req.body;
+  try {
+    await prisma.profile.update({
+      where: { id: reportedProfileId },
+      data: { isBanned: true },
+    });
+    await prisma.report.updateMany({
+      where: { id: { in: reportIds } },
+      data: { status: "actioned" },
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    console.log(error);
+    res.status(409).json({ error });
+  }
+});
+
+router.post("/admin/dismiss", authMod, async (req, res) => {
+  const { reportIds } = req.body;
+  try {
+    await prisma.report.updateMany({
+      where: { id: { in: reportIds } },
+      data: { status: "dismissed" },
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    console.log(error);
+    res.status(409).json({ error });
+  }
+});
 
     router.post("/newsletter",async (req,res)=>{
       try{

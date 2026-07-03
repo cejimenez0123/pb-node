@@ -17,6 +17,7 @@ const findProfile = require("./findProfile")
             }
         }
     })
+    console.log("Created profile for userId:", userId, "Profile ID:", profile.id)
        const portCol = await prisma.collection.create({data:{
       title:"Portfolio",
       purpose:"Showcase your work and collaborations",

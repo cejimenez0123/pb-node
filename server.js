@@ -23,14 +23,25 @@ const passport = require("passport")
 const hashtagRoutes = require("./routes/hashtag.js")
 const {setUpPassportLocal}= require("./middleware/authMiddleware.js")
 const { Server } = require('socket.io');
-require('dotenv').config();
+
 const activeUsers = new Map()
 const docs = require("./utils/docs.js")
 const app = express();
 const PORT = process.env.PORT
 const {storage} = require("./utils/storage.js")
 const Sentry = require("@sentry/node");
+require('dotenv').config();
 // sprintRoutes()
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[FATAL] Unhandled Rejection:', reason);
+  Sentry.captureException(reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught Exception:', err);
+  Sentry.captureException(err);
+  // optionally: process.exit(1) after logging, so your process manager restarts cleanly
+});
 try{
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
@@ -42,7 +53,6 @@ Sentry.init({
 
 const { getDownloadURL,ref } = require("firebase/storage");
 const { weeklyJob } = require("./cron/emails.js");
-const prisma = require("./db/index.js");
 
 app.use(bodyParser.urlencoded({ extended: false }))
 
