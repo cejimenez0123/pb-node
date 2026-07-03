@@ -154,6 +154,49 @@ module.exports = function ({authMiddleware}){
     const allMiddlewares = [authMiddleware,updateWriterLevelMiddleware];
      const withBlocks = [authMiddleware, attachBlockedProfiles];
      const withOptionalBlocks = [optionalAuth, attachBlockedProfiles];
+     router.get("/", withOptionalBlocks, async (req, res) => {
+  try {
+    const skip = parseInt(req.query.skip) || 0;
+    const take = parseInt(req.query.take) || 20;
+    console.log("req.blockedProfileIds", req.blockedProfileIds);
+
+    const totalCount = await prisma.story.count({
+      where: {
+        isPrivate: false,
+        ...(req.blockedProfileIds?.length
+          ? { authorId: { notIn: req.blockedProfileIds } }
+          : {}),
+      },
+    });
+
+    const stories = await prisma.story.findMany({
+      where: {
+        isPrivate: false,
+        ...(req.blockedProfileIds?.length
+          ? { authorId: { notIn: req.blockedProfileIds } }
+          : {}),
+      },
+      orderBy: { updated: "desc" },
+      skip,
+      take,
+      include: {
+        hashtags: { include: { hashtag: true } },
+        author: true,
+      },
+    });
+
+    res.json({
+      stories,
+      skip,
+      take,
+      totalCount,
+      hasMore: skip + take < totalCount,
+    });
+  } catch (error) {
+    console.log("GET /stories error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 //     router.get("/",withOptionalBlocks, async (req, res) => {
 //   try {
 //     const skip = parseInt(req.query.skip) || 0;
@@ -200,56 +243,56 @@ module.exports = function ({authMiddleware}){
 //     res.status(500).json({ error: "Internal server error" });
 //   }
 // });
-     router.get("/", withOptionalBlocks, async (req, res) => {
-    try {
-      const skip = parseInt(req.query.skip) || 0;
-      const take = parseInt(req.query.take) || 20;
+  //    router.get("/", withOptionalBlocks, async (req, res) => {
+  //   try {
+  //     const skip = parseInt(req.query.skip) || 0;
+  //     const take = parseInt(req.query.take) || 20;
+  //     console.log("req.blockedProfileIds", req.blockedProfileIds);
+  //     // 🔢 total count (for pagination UI)
+  //     const totalCount = await prisma.story.count({
+  //       where: {
+  //         isPrivate: false,
+  //         ...(req.blockedProfileIds?.length
+  //           ? { authorId: { notIn: req.blockedProfileIds } }
+  //           : {}),
+  //       },
+  //     });
 
-      // 🔢 total count (for pagination UI)
-      const totalCount = await prisma.story.count({
-        where: {
-          isPrivate: false,
-          ...(req.blockedProfileIds?.length
-            ? { authorId: { notIn: req.blockedProfileIds } }
-            : {}),
-        },
-      });
+  //     // 📄 paginated query
+  //     const stories = await prisma.story.findMany({
+  //       where: {
+  //         isPrivate: false,
+  //         ...(req.blockedProfileIds?.length
+  //           ? { authorId: { notIn: req.blockedProfileIds } }
+  //           : {}),
+  //       },
+  //       orderBy: {
+  //         updated: "desc", // 👈 required for stable pagination
+  //       },
+  //       skip,
+  //       take,
+  //       include: {
+  //         hashtags: {
+  //           include: {
+  //             hashtag: true,
+  //           },
+  //         },
+  //         author: true,
+  //       },
+  //     });
 
-      // 📄 paginated query
-      const stories = await prisma.story.findMany({
-        where: {
-          isPrivate: false,
-          ...(req.blockedProfileIds?.length
-            ? { authorId: { notIn: req.blockedProfileIds } }
-            : {}),
-        },
-        orderBy: {
-          updated: "desc", // 👈 required for stable pagination
-        },
-        skip,
-        take,
-        include: {
-          hashtags: {
-            include: {
-              hashtag: true,
-            },
-          },
-          author: true,
-        },
-      });
-
-      res.json({
-        stories,
-        skip,
-        take,
-        totalCount,
-        hasMore: skip + take < totalCount,
-      });
-    } catch (error) {
-      console.log("GET /stories error:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
+  //     res.json({
+  //       stories,
+  //       skip,
+  //       take,
+  //       totalCount,
+  //       hasMore: skip + take < totalCount,
+  //     });
+  //   } catch (error) {
+  //     console.log("GET /stories error:", error);
+  //     res.status(500).json({ error: "Internal server error" });
+  //   }
+  // });
     router.get("/collection/:id/public",async (req,res)=>{  
     try{
         const {id}=req.params
