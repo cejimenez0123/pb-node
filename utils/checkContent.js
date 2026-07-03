@@ -1,5 +1,5 @@
 // utils/moderateContent.js
-const { Filter } = require("bad-words");
+const Filter = require("bad-words");
 
 const filter = new Filter();
 filter.removeWords(

@@ -23,7 +23,7 @@
     "algoliasearch": "^5.41.0",
     "apn": "^2.2.0",
     "axios": "^1.12.2",
-    "bad-words": "^4.0.0",
+    "bad-words": "^3.0.4",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
     "cookie-session": "^2.1.0",
