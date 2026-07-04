@@ -8,6 +8,7 @@ const { default: notifyUser } = require('../utils/notifyUser');
 const sendNotification = require('../utils/sendNotifications');
 const Paths = require('../utils/Paths');
 const haversineDistance = require('../utils/haversineDistance');
+const attachBlockedProfiles = require('../middleware/attechBlockedProfiles');
 
 
 
@@ -278,43 +279,51 @@ function groupColsByProximity({ profile, items = [], radius = 50 }) {
   return result;
 }
 module.exports = function (authMiddleware) {
-// router.post('/look', authMiddleware, async (req, res) => {
+    const withBlocks = [authMiddleware, attachBlockedProfiles];
+//   router.post('/look',withBlocks, async (req, res) => {
 //   try {
 //     const { radius: queryRadius = 50, skip: rawSkip = 0, take: rawTake = 10 } = req.query;
 //     const global = req.query.global === 'true';
-//     const type = req.query.type || "feedback";        // add this
-//     const skip = parseInt(rawSkip);
-//     const take = parseInt(rawTake);
+//     const type = req.query.type || 'feedback';
+//     const skip = parseInt(rawSkip, 10);
+//     const take = parseInt(rawTake, 10);
+
 //     const { location: locale } = req.body;
-//     const profileId = req.user?.profiles[0].id;
+//     const profileId = req.user?.profiles?.[0]?.id;
 
-//     const profile = await prisma.profile.findUnique({
-//       where: { id: profileId },
-//       include: { location: true },
-//     });
-//     if (!profile) return res.status(400).json({ error: "Profile not found" });
+//     const profile = profileId
+//       ? await prisma.profile.findUnique({
+//           where: { id: profileId },
+//           include: { location: true },
+//         })
+//       : null;
 
-//     let location = locale ?? profile.location;
-//     let includesGlobe = false;
-
-//     // --- GLOBAL SEARCH ---
-//     if (global || !location) {
-//       const [groups, totalCount] = await prisma.$transaction([
+//     if (global || !locale || !profile) {
+//       const [groups, totalCount] = await Promise.all([
 //         prisma.collection.findMany({
-//           where: { type, isGlobal: true },   // type replaces hardcoded "feedback"
+//           where: { type, isGlobal: true },
 //           skip,
 //           take,
 //           include: { location: true },
 //         }),
 //         prisma.collection.count({
 //           where: { type, isGlobal: true },
-//         })
+//         }),
 //       ]);
-//       return res.send({ groups, totalCount, message: "Global search" });
+
+//       return res.send({
+//         groups,
+//         totalCount,
+//         message: 'Public/global search',
+//       });
+//     }
+
+//     const location = locale ?? profile.location;
+//     if (!location) {
+//       return res.status(400).json({ error: 'Location required for local search' });
 //     }
 
 //     const { latitude, longitude } = location;
-
 //     const userLocation =
 //       (await prisma.location.findFirst({ where: { latitude, longitude } })) ||
 //       (await prisma.location.create({ data: { latitude, longitude } }));
@@ -324,10 +333,9 @@ module.exports = function (authMiddleware) {
 //       data: { locationId: userLocation.id },
 //     });
 
-//     // --- LOCAL COLLECTIONS ---
 //     const collections = await prisma.collection.findMany({
 //       where: {
-//         type,                                          // type replaces hardcoded "feedback"
+//         type,
 //         locationId: { not: null },
 //         isGlobal: false,
 //       },
@@ -343,17 +351,16 @@ module.exports = function (authMiddleware) {
 //       rad += Number(queryRadius);
 //     }
 
-//     // --- New group only for feedback type (workshops), not library (communities) ---
-//     if (groups.length < 5 && type === "feedback") {
+//     if (groups.length < 5 && type === 'feedback') {
 //       const newCollection = await prisma.collection.create({
 //         data: {
-//           title: generate({ min: 3, max: 6, join: " " }),
+//           title: generate({ min: 3, max: 6, join: ' ' }),
 //           type,
 //           profile: { connect: { id: profileId } },
 //           location: { connect: { id: userLocation.id } },
 //           roles: {
 //             create: {
-//               role: "editor",
+//               role: 'editor',
 //               profile: { connect: { id: profileId } },
 //             },
 //           },
@@ -363,69 +370,89 @@ module.exports = function (authMiddleware) {
 //       groups.push(newCollection);
 //     }
 
-//     // --- Pad with globals if needed ---
 //     if (groups.length < 5) {
-//       includesGlobe = true;
 //       const globalGroups = await prisma.collection.findMany({
-//         where: { type, isGlobal: true },              // type replaces hardcoded "feedback"
+//         where: { type, isGlobal: true },
 //         include: { location: true, roles: { include: { profile: true } } },
 //         take: 5 - groups.length,
 //       });
 //       groups = [...groups, ...globalGroups];
 //     }
 
-//     // --- Apply pagination to final local result ---
-//     const totalCount = groups.length;
-//     const paginated = groups.slice(skip, skip + take);
-// console.log("PPPPPPPPP",paginated)
 //     return res.send({
-//       groups: paginated,
-//       totalCount,
-//       message: includesGlobe ? "Includes Global Groups" : "All Local",
+//       groups: groups.slice(skip, skip + take),
+//       totalCount: groups.length,
+//       message: 'Personalized search',
 //     });
-
 //   } catch (error) {
-//     console.error("LOOK_ERROR", error);
-//     return res.status(500).json({ error: "Server error" });
+//     console.error('LOOK_ERROR', error);
+//     return res.status(500).json({ error: 'Server error' });
 //   }
 // });
-router.post('/look', authMiddleware, async (req, res) => {
+router.post('/look', withBlocks, async (req, res) => {
   try {
     const { radius: queryRadius = 50, skip: rawSkip = 0, take: rawTake = 10 } = req.query;
     const global = req.query.global === 'true';
-    const type = req.query.type || "feedback";
-    const skip = parseInt(rawSkip);
-    const take = parseInt(rawTake);
+    const type = req.query.type || 'feedback';
+    const skip = parseInt(rawSkip, 10);
+    const take = parseInt(rawTake, 10);
+
+    const blockedProfileIds = req.blockedProfileIds ?? [];
     const { location: locale } = req.body;
-    const profileId = req.user?.profiles[0].id;
+    const profileId = req.user?.profiles?.[0]?.id;
 
-    const profile = await prisma.profile.findUnique({
-      where: { id: profileId },
-      include: { location: true },
-    });
+    const profile = profileId
+      ? await prisma.profile.findUnique({
+          where: { id: profileId },
+          include: { location: true },
+        })
+      : null;
 
-    if (!profile) return res.status(400).json({ error: "Profile not found" });
+    const blockedFilter =
+      blockedProfileIds.length > 0
+        ? {
+            roles: {
+              none: {
+                profileId: { in: blockedProfileIds },
+              },
+            },
+            profileId: { notIn: blockedProfileIds },
+          }
+        : {};
 
-    let location = locale ?? profile.location;
-    let includesGlobe = false;
-
-    // --- GLOBAL SEARCH ---
-    if (global || !location) {
-      const [groups, totalCount] = await prisma.$transaction([
+    if (global || !locale || !profile) {
+      const [groups, totalCount] = await Promise.all([
         prisma.collection.findMany({
-          where: { type, isGlobal: true },
+          where: {
+            type,
+            isGlobal: true,
+            ...blockedFilter,
+          },
           skip,
           take,
-          include: { location: true },
+          include: { location: true, roles: { include: { profile: true } } },
         }),
         prisma.collection.count({
-          where: { type, isGlobal: true },
+          where: {
+            type,
+            isGlobal: true,
+            ...blockedFilter,
+          },
         }),
       ]);
-      return res.send({ groups, totalCount, message: "Global search" });
+
+      return res.send({
+        groups,
+        totalCount,
+        message: 'Public/global search',
+      });
     }
 
-    // --- UPSERT USER LOCATION ---
+    const location = locale ?? profile.location;
+    if (!location) {
+      return res.status(400).json({ error: 'Location required for local search' });
+    }
+
     const { latitude, longitude } = location;
     const userLocation =
       (await prisma.location.findFirst({ where: { latitude, longitude } })) ||
@@ -436,12 +463,12 @@ router.post('/look', authMiddleware, async (req, res) => {
       data: { locationId: userLocation.id },
     });
 
-    // --- LOCAL COLLECTIONS ---
     const collections = await prisma.collection.findMany({
       where: {
         type,
         locationId: { not: null },
         isGlobal: false,
+        ...blockedFilter,
       },
       include: { location: true, roles: { include: { profile: true } } },
     });
@@ -451,90 +478,59 @@ router.post('/look', authMiddleware, async (req, res) => {
     const MAX_RADIUS = rad * 3;
 
     while (groups.length < 5 && rad <= MAX_RADIUS) {
-      groups = filterAvailableCollections({ profile, collections, radius: rad }) ?? [];
+      groups = filterAvailableCollections({
+        profile,
+        collections,
+        radius: rad,
+        blockedProfileIds,
+      }) ?? [];
       rad += Number(queryRadius);
     }
 
-    // --- CREATE NEW GROUP (feedback type only, workshops not communities) ---
-    if (groups.length < 5 && type === "feedback") {
+    if (groups.length < 5 && type === 'feedback') {
       const newCollection = await prisma.collection.create({
         data: {
-          title: generate({ min: 3, max: 6, join: " " }),
+          title: generate({ min: 3, max: 6, join: ' ' }),
           type,
           profile: { connect: { id: profileId } },
           location: { connect: { id: userLocation.id } },
           roles: {
             create: {
-              role: "editor",
+              role: 'editor',
               profile: { connect: { id: profileId } },
             },
           },
         },
         include: { location: true, roles: { include: { profile: true } } },
       });
-      groups.push(newCollection);
+
+      if (!blockedProfileIds.includes(newCollection.profileId)) {
+        groups.push(newCollection);
+      }
     }
 
-    // --- PAD WITH GLOBALS IF STILL SHORT ---
     if (groups.length < 5) {
-      includesGlobe = true;
       const globalGroups = await prisma.collection.findMany({
-        where: { type, isGlobal: true },
+        where: {
+          type,
+          isGlobal: true,
+          ...blockedFilter,
+        },
         include: { location: true, roles: { include: { profile: true } } },
         take: 5 - groups.length,
       });
+
       groups = [...groups, ...globalGroups];
     }
 
-    // --- ENROLL USER INTO LOCAL GROUPS THEY AREN'T ALREADY A MEMBER OF ---
-    // Global groups are intentionally excluded — those go through explicit follow on the frontend
-    const enrollmentRole = type === "feedback" ? "writer" : "commenter";
-
-    const toEnroll = groups.filter(
-      (g) => !g.isGlobal && !g.roles.some((r) => r.profileId === profileId)
-    );
-
-    if (toEnroll.length > 0) {
-      await prisma.collectionRole.createMany({
-        data: toEnroll.map((g) => ({
-          role: enrollmentRole,
-          profileId,
-          collectionId: g.id,
-        })),
-        skipDuplicates: true,
-      });
-
-      // Patch roles in-memory so the client sees membership immediately
-      groups = groups.map((g) => {
-        if (!toEnroll.find((e) => e.id === g.id)) return g;
-        return {
-          ...g,
-          roles: [
-            ...g.roles,
-            {
-              role: enrollmentRole,
-              profileId,
-              collectionId: g.id,
-              profile: { id: profileId },
-            },
-          ],
-        };
-      });
-    }
-
-    // --- PAGINATE AND RESPOND ---
-    const totalCount = groups.length;
-    const paginated = groups.slice(skip, skip + take);
-
     return res.send({
-      groups: paginated,
-      totalCount,
-      message: includesGlobe ? "Includes Global Groups" : "All Local",
+      groups: groups.slice(skip, skip + take),
+      totalCount: groups.length,
+      message: 'Personalized search',
     });
-
   } catch (error) {
-    console.error("LOOK_ERROR", error);
-    return res.status(500).json({ error: "Server error" });
+    console.error('LOOK_ERROR', error);
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 router.get("/profile/workshops",authMiddleware,async (req,res)=>{
