@@ -7,6 +7,8 @@ const { SPRINT_SLOTS } = require('../cron/sprint.js');
 const { markNotificationsRead } = require('../utils/notifyUser.js');
 const getProfileRecommendations = require("../utils/recommenders/getProfileRecommendations.js");
 const createNewProfileUser = require('../utils/createNewProfileUser.js');
+const optionalAuth = require('../middleware/optionalAuth.js');
+const attachBlockedProfiles = require('../middleware/attechBlockedProfiles.js');
 
 const deleteCol =async()=>{
     
@@ -44,19 +46,8 @@ const deleteCol =async()=>{
     await prisma.collection.delete({where:{
         id: id
     }})
-}
-const deletStory=async({id})=>{
-    let story = await prisma.story.findFirstOrThrow({where:{id:{equals:id}}})
-    await prisma.storyToCollection.deleteMany({where:{
-        storyId:{equals:story.id}
-    }}) 
-    let comments =  await prisma.comment.findMany({where:{storyId:{
-        equals:story.id
-    }}})
-    let promises =comments.map( com=>{
-return deleteCommentsRf(com)
-        
-        })
+
+
 
 await Promise.all(promises)
 
@@ -79,13 +70,43 @@ await Promise.all(promises)
  
 }
 module.exports = function (authMiddleware){
-    router.get("/",async (req,res)=>{
-        const profiles = await prisma.profile.findMany({include:{
-         
-         
+    const withOptionalBlocks = [optionalAuth, attachBlockedProfiles];
+    router.get("/",withOptionalBlocks,async (req,res)=>{
+        const profiles = await prisma.profile.findMany({where:{
+          isPrivate: { equals: false },
+          ...(req.blockedProfileIds?.length
+            ? { id: { notIn: req.blockedProfileIds } }
+            : {}),
         }})
         res.status(200).json({profiles:profiles})
     })
+    router.post("/device-token", authMiddleware, async (req, res) => {
+    try {
+        const { token, platform = "ios" } = req.body;
+        const profileId = req.user.profiles[0].id;
+
+        try {
+            await prisma.deviceToken.create({
+                data: { token, profileId, platform }
+            });
+        } catch (err) {
+            // token already exists — just update it
+            if (err.code === 'P2002') {
+                await prisma.deviceToken.updateMany({
+                    where: { token },
+                    data: { profileId, platform }
+                });
+            } else {
+                throw err;
+            }
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("DEVICE_TOKEN_ERROR", error.message);
+        res.status(500).json({ error: "Server error" });
+    }
+});
     router.post("/",async(req,res)=>{
       const { email, googleId, password, username, profilePicture, selfStatement, privacy, termsVersion, termsAcceptedAt } = req.body
         try{
@@ -128,6 +149,108 @@ module.exports = function (authMiddleware){
     
     
     })
+    router.get("/protected", authMiddleware, async (req, res) => {
+  try {
+    if (!req?.user) {
+      return res.status(403).json({ message: "No profile found." });
+    }
+
+    const currentProfile = req.user?.profiles?.[0];
+
+    if (!currentProfile?.id) {
+      return res.status(403).json({ message: "No profile found." });
+    }
+
+    const profileId = currentProfile.id;
+
+
+    const profile = await prisma.profile.findFirst({
+  where: { id: profileId },
+  include: {
+    location: true,
+    isAdmin: true,
+    user: {
+      select: {
+        id: true,
+        termsAcceptedAt: true,
+        termsVersion: true,
+        lastLogin: true
+      }
+    },
+    hashtag: {
+      include: {
+        hashtag: true
+      }
+    },
+    profileToCollections: {
+      include: {
+        collection: {
+          include: {
+            childCollections: {
+              select: {
+                childCollection: {
+                  select: {
+                    id: true,
+                    title: true,
+                    type: true,
+                  }
+                }
+              }
+            },
+            storyIdList: {
+              select: {
+                storyId: true,
+                story: {
+                  select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    type: true
+                  }
+                }
+              }
+            },
+          }
+        }
+      }
+    },
+    _count: {
+      select: {
+        followers: true,
+        following: true
+      }
+    }
+  }
+})
+
+
+
+
+
+    return res.status(200).json({
+     profile
+       
+      
+    });
+
+  } catch (error) {
+    console.error("PROTECTED ERROR:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+  
+});
+router.patch("/notifications/read", authMiddleware, async (req, res) => {
+  try {
+    const profileId = req.user.profiles[0].id;
+
+    await markNotificationsRead(profileId);
+
+    res.json({ message: "Notifications marked as read" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err });
+  }
+});
     router.get("/:id/protected",authMiddleware,async (req,res)=>{
         try{
         const currentUserId = req.user.profiles[0].id
@@ -153,13 +276,7 @@ stories:{
     },
     where:{
         
-        OR:[{isPrivate:{equals:false}},{
-            betaReaders:{
-                some:{
-                    profileId:req.params.id
-                }
-            }
-        }]
+        OR:[{isPrivate:{equals:false}}]
     },take:100
 
 },
@@ -247,10 +364,10 @@ router.put("/:id", authMiddleware, async (req, res) => {
       : undefined; // undefined = don't touch the field if not sent
 
 
-    if (location?.address?.length > 0) {
-      const parts = location.address.split(',').map((p) => p.trim());
-      city = `${parts[2]}, ${parts[parts.length - 1]}` || ""; // fix: parts[-1] → parts[parts.length - 1]
-    }
+    // if (location?.address?.length > 0) {
+    //   const parts = location.address.split(',').map((p) => p.trim());
+    //   city = `${parts[2]}, ${parts[parts.length - 1]}` || ""; // fix: parts[-1] → parts[parts.length - 1]
+    // }
 
     const locale = location?.latitude
       ? await prisma.location.upsert({
@@ -451,47 +568,10 @@ router.get("/:profileId/recommendations", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch recommendations" });
   }
 });
-router.patch("/notifications/read", authMiddleware, async (req, res) => {
-  try {
-    const profileId = req.user.profiles[0].id;
-
-    await markNotificationsRead(profileId);
-
-    res.json({ message: "Notifications marked as read" });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: err });
-  }
-});
 
 
-router.post("/device-token", authMiddleware, async (req, res) => {
-    try {
-        const { token, platform = "ios" } = req.body;
-        const profileId = req.user.profiles[0].id;
 
-        try {
-            await prisma.deviceToken.create({
-                data: { token, profileId, platform }
-            });
-        } catch (err) {
-            // token already exists — just update it
-            if (err.code === 'P2002') {
-                await prisma.deviceToken.updateMany({
-                    where: { token },
-                    data: { profileId, platform }
-                });
-            } else {
-                throw err;
-            }
-        }
 
-        res.json({ success: true });
-    } catch (error) {
-        console.error("DEVICE_TOKEN_ERROR", error.message);
-        res.status(500).json({ error: "Server error" });
-    }
-});
 router.get("/:id/alert", authMiddleware, async (req, res) => {
   try {
     const profId = req.user.profiles[0].id;
@@ -645,95 +725,7 @@ router.get("/:id/alert", authMiddleware, async (req, res) => {
 });
 
 
-router.get("/protected", authMiddleware, async (req, res) => {
-  try {
-    if (!req?.user) {
-      return res.status(403).json({ message: "No profile found." });
-    }
 
-    const currentProfile = req.user?.profiles?.[0];
-
-    if (!currentProfile?.id) {
-      return res.status(403).json({ message: "No profile found." });
-    }
-
-    const profileId = currentProfile.id;
-
-
-    const profile = await prisma.profile.findFirst({
-  where: { id: profileId },
-  include: {
-    location: true,
-  
-    user: {
-      select: {
-        id: true,
-        termsAcceptedAt: true,
-        termsVersion: true,
-        lastLogin: true
-      }
-    },
-    hashtag: {
-      include: {
-        hashtag: true
-      }
-    },
-    profileToCollections: {
-      include: {
-        collection: {
-          include: {
-            childCollections: {
-              select: {
-                childCollection: {
-                  select: {
-                    id: true,
-                    title: true,
-                    type: true,
-                  }
-                }
-              }
-            },
-            storyIdList: {
-              select: {
-                storyId: true,
-                story: {
-                  select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    type: true
-                  }
-                }
-              }
-            },
-          }
-        }
-      }
-    },
-    _count: {
-      select: {
-        followers: true,
-        following: true
-      }
-    }
-  }
-})
-
-
-
-
-
-    return res.status(200).json({
-     profile
-       
-      
-    });
-
-  } catch (error) {
-    console.error("PROTECTED ERROR:", error);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-});
 
     router.get("/:id/collection",async (req,res)=>{
 try{
