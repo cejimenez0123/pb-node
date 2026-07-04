@@ -205,129 +205,236 @@ router.put("/story", authMiddleware, async (req, res) => {
     return res.status(500).json({ error });
   }
 });
-
-    router.post("/story",authMiddleware,async(req,res)=>{
-        let {type,profileId,storyId}=req.body
-try{
-        await prisma.roleToStory.create({data:{
-            role:type,
-            profile:{
-                connect:{
-                    id:profileId
-                }
+router.post("/story", authMiddleware, async (req, res) => {
+    let { type, profileId, storyId } = req.body;
+    try {
+        let role = await prisma.roleToStory.findFirst({
+            where: {
+                AND: [{ profileId: { equals: profileId } }, { storyId: { equals: storyId } }],
             },
-            story:{
-                connect:{
-                    id:storyId
-                }
-            }
-        },include:{
-            profile:true
-        }})
-        const story = await getStory(storyId)
-        await notifyUser({
-  profileId,
-  type: "STORY_ROLE_ADDED",
-  title: "Story Access",
-  body: `You've been added as ${type} to "${story.title}"`,
-  entityId: storyId,
-  actorId: req.user.profiles[0].id,
-  route: Paths.page.createRoute(storyId)
+            include: {
+                profile: true,
+            },
+        });
+
+        const story = await getStory(storyId);
+
+        if (!role) {
+            role = await prisma.roleToStory.create({
+                data: {
+                    role: type,
+                    profile: { connect: { id: profileId } },
+                    story: { connect: { id: storyId } },
+                },
+                include: {
+                    profile: true,
+                },
+            });
+
+            await notifyUser({
+                profileId,
+                type: "STORY_ROLE_ADDED",
+                title: "Story Access",
+                body: `You've been added as ${type} to "${story.title}"`,
+                entityId: storyId,
+                actorId: req.user.profiles[0].id,
+                route: Paths.page.createRoute(storyId),
+            }).catch((err) =>
+                console.error("[notifyUser] STORY_ROLE_ADDED failed:", err)
+            );
+        }
+
+        res.json({ role, story });
+    } catch (err) {
+        console.log({ err });
+        res.status(409).json({ error: err });
+    }
 });
-        res.json({message:"Success"})
+//     router.post("/story",authMiddleware,async(req,res)=>{
+//         let {type,profileId,storyId}=req.body
+// try{
+//         await prisma.roleToStory.create({data:{
+//             role:type,
+//             profile:{
+//                 connect:{
+//                     id:profileId
+//                 }
+//             },
+//             story:{
+//                 connect:{
+//                     id:storyId
+//                 }
+//             }
+//         },include:{
+//             profile:true
+//         }})
+//         const story = await getStory(storyId)
+//         await notifyUser({
+//   profileId,
+//   type: "STORY_ROLE_ADDED",
+//   title: "Story Access",
+//   body: `You've been added as ${type} to "${story.title}"`,
+//   entityId: storyId,
+//   actorId: req.user.profiles[0].id,
+//   route: Paths.page.createRoute(storyId)
+// });
+//         res.json({message:"Success"})
 
-    }catch(err){
-        res.status(409).json({error:err})
-    }    })
-
-    router.post("/collection",authMiddleware,async(req,res)=>{
-        let {type,profileId,collectionId}=req.body
-        try{
-      let role= await prisma.roleToCollection.findFirst({where:{
-        AND:[{profileId:{
-            equals:profileId
-        }},{collectionId:{
-            equals:collectionId
-        }}]
-
-      },include:{
-        profile:true,
-        collection:true
-    }})
-    
-    if(!role){
-
-    
-    role = await prisma.roleToCollection.create({data:{
-            role:type,
-            profile:{
-                connect:{
-                    id:profileId
-                }
+//     }catch(err){
+//         res.status(409).json({error:err})
+//     }    })
+router.post("/collection", authMiddleware, async (req, res) => {
+    let { type, profileId, collectionId } = req.body;
+    try {
+        let role = await prisma.roleToCollection.findFirst({
+            where: {
+                AND: [{ profileId: { equals: profileId } }, { collectionId: { equals: collectionId } }],
             },
-            collection:{
-                connect:{
-                    id:collectionId
-                }
-            }
-        },include:{
-            profile:true,
-            collection:true
-        }})
-    
-                const col = await getCollectionById(collectionId)
-                const title = "Collection Access";
-                const body  = `You've been added as ${type} to "${col.name}"`;
-                const route = Paths.collection.createRoute(col.id);
+            include: {
+                profile: true,
+                collection: true,
+            },
+        });
 
-                await Promise.all([
-                    notifyUser({
-                        profileId,
-                        type: "COLLECTION_ROLE_ADDED",
-                        title,
-                        body,
-                        entityId: collectionId,
-                        actorId: req.user.profiles[0].id,
-                        route,
-                    }),
-                    sendNotification(profileId, title, body, {
-                        type: "COLLECTION_ROLE_ADDED",
-                        entityId: collectionId,
-                        actorId: req.user.profiles[0].id,
-                        route,
-                    }).catch((err) =>
-                        console.error("[sendNotification] COLLECTION_ROLE_ADDED failed:", err)
-                    ),
-                ]);
+        if (!role) {
+            role = await prisma.roleToCollection.create({
+                data: {
+                    role: type,
+                    profile: { connect: { id: profileId } },
+                    collection: { connect: { id: collectionId } },
+                },
+                include: {
+                    profile: true,
+                    collection: true,
+                },
+            });
+
+            const col = await getCollectionById(collectionId);
+            const title = "Collection Access";
+            const body = `You've been added as ${type} to "${col.name}"`;
+            const route = Paths.collection.createRoute(col.id);
+
+            await Promise.all([
+                notifyUser({
+                    profileId,
+                    type: "COLLECTION_ROLE_ADDED",
+                    title,
+                    body,
+                    entityId: collectionId,
+                    actorId: req.user.profiles[0].id,
+                    route,
+                }).catch((err) =>
+                    console.error("[notifyUser] COLLECTION_ROLE_ADDED failed:", err)
+                ),
+                sendNotification(profileId, title, body, {
+                    type: "COLLECTION_ROLE_ADDED",
+                    entityId: collectionId,
+                    actorId: req.user.profiles[0].id,
+                    route,
+                }).catch((err) =>
+                    console.error("[sendNotification] COLLECTION_ROLE_ADDED failed:", err)
+                ),
+            ]);
+
+            return res.json({ role, collection: col });
+        } else {
+            // Role already exists — just return current state, no duplicate notification
+            const col = await getCollectionById(collectionId);
+            return res.json({ role, collection: col });
+        }
+    } catch (error) {
+        console.log({ error });
+        res.status(409).json({ error });
+    }
+});
+//     router.post("/collection",authMiddleware,async(req,res)=>{
+//         let {type,profileId,collectionId}=req.body
+//         try{
+//       let role= await prisma.roleToCollection.findFirst({where:{
+//         AND:[{profileId:{
+//             equals:profileId
+//         }},{collectionId:{
+//             equals:collectionId
+//         }}]
+
+//       },include:{
+//         profile:true,
+//         collection:true
+//     }})
+    
+//     if(!role){
+
+    
+//     role = await prisma.roleToCollection.create({data:{
+//             role:type,
+//             profile:{
+//                 connect:{
+//                     id:profileId
+//                 }
+//             },
+//             collection:{
+//                 connect:{
+//                     id:collectionId
+//                 }
+//             }
+//         },include:{
+//             profile:true,
+//             collection:true
+//         }})
+    
+//                 const col = await getCollectionById(collectionId)
+//                 const title = "Collection Access";
+//                 const body  = `You've been added as ${type} to "${col.name}"`;
+//                 const route = Paths.collection.createRoute(col.id);
+
+//                 await Promise.all([
+//                     notifyUser({
+//                         profileId,
+//                         type: "COLLECTION_ROLE_ADDED",
+//                         title,
+//                         body,
+//                         entityId: collectionId,
+//                         actorId: req.user.profiles[0].id,
+//                         route,
+//                     }),
+//                     sendNotification(profileId, title, body, {
+//                         type: "COLLECTION_ROLE_ADDED",
+//                         entityId: collectionId,
+//                         actorId: req.user.profiles[0].id,
+//                         route,
+//                     }).catch((err) =>
+//                         console.error("[sendNotification] COLLECTION_ROLE_ADDED failed:", err)
+//                     ),
+//                 ]);
 
      
-        res.json({role,collection:col})
-    }else{
-        let collection = await prisma.collection.findFirst({where:{
-            id:collectionId
-         },include:{
-             roles:true,
-             childCollections:true,
-             storyIdList:true
-         }})
-        const col = await getCollectionById(collectionId)
-        await notifyUser({
-  profileId,
-  type: "COLLECTION_ROLE_ADDED",
-  title: "Collection Access",
-  body: `You've been added as ${type} to "${col.name}"`,
-  entityId: collectionId,
-  actorId: req.user.profiles[0].id, // whoever is making the request
-  route: Paths.collection.createRoute(col.id)
-});
-        res.json({role,collection:col})
-    } 
+//         res.json({role,collection:col})
+//     }else{
+//         let collection = await prisma.collection.findFirst({where:{
+//             id:collectionId
+//          },include:{
+//              roles:true,
+//              childCollections:true,
+//              storyIdList:true
+//          }})
+//         const col = await getCollectionById(collectionId)
+//         await notifyUser({
+//   profileId,
+//   type: "COLLECTION_ROLE_ADDED",
+//   title: "Collection Access",
+//   body: `You've been added as ${type} to "${col.name}"`,
+//   entityId: collectionId,
+//   actorId: req.user.profiles[0].id, // whoever is making the request
+//   route: Paths.collection.createRoute(col.id)
+// });
+//         res.json({role,collection:col})
+//     } 
         
-    }catch(error){
-        console.log({error})
-        res.status(409).json({error})
-    }
-    })
+//     }catch(error){
+//         console.log({error})
+//         res.status(409).json({error})
+//     }
+//     })
     router.delete("/collection/:id",authMiddleware,async(req,res)=>{
      
 try{
