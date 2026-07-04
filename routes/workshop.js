@@ -425,6 +425,7 @@ router.post('/look', withBlocks, async (req, res) => {
         prisma.collection.findMany({
           where: {
             type,
+            isPrivate:false,
             isGlobal: true,
             ...blockedFilter,
           },
@@ -466,6 +467,7 @@ router.post('/look', withBlocks, async (req, res) => {
     const collections = await prisma.collection.findMany({
       where: {
         type,
+        isPrivate:false,
         locationId: { not: null },
         isGlobal: false,
         ...blockedFilter,
@@ -513,6 +515,7 @@ router.post('/look', withBlocks, async (req, res) => {
       const globalGroups = await prisma.collection.findMany({
         where: {
           type,
+          isPrivate:false,
           isGlobal: true,
           ...blockedFilter,
         },
