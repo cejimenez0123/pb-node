@@ -30,8 +30,8 @@ async function deleteCol(id) {
 function getActiveProfileId(req, res) {
   const profileId = req.user?.profiles?.[0]?.id;
   if (!profileId) {
-    res.status(403).json({ error: "No active profile" });
-    return null;
+    return res.status(403).json({ error: "No active profile" });
+   
   }
   return profileId;
 }
@@ -44,7 +44,7 @@ module.exports = function (authMiddleware){
             ? { id: { notIn: req.blockedProfileIds } }
             : {}),
         }})
-        res.status(200).json({profiles:profiles})
+        return res.status(200).json({profiles:profiles})
     })
         router.get("/protected", authMiddleware, async (req, res) => {
   try {
@@ -158,10 +158,10 @@ if (!profileId) return res.status(403).json({ error: "No active profile" });
             }
         }
 
-        res.json({ success: true });
+        return res.json({ success: true });
     } catch (error) {
         console.error("DEVICE_TOKEN_ERROR", error.message);
-        res.status(500).json({ error: "Server error" });
+        return res.status(500).json({ error: "Server error" });
     }
 });
     router.post("/",async(req,res)=>{
@@ -196,16 +196,16 @@ const decoded = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
  const profile = await  createNewProfileUser({username,profilePicture,selfStatement,isPrivate:privacy,userId:user.id})
    
         const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
-        res.json({ profile: profile, token: verifiedToken, termsVersion: user.termsVersion })
+        return res.json({ profile: profile, token: verifiedToken, termsVersion: user.termsVersion })
  } catch (error) {
-                res.status(409).json({ error: new Error("Username already taken") })
+                return res.status(409).json({ error: new Error("Username already taken") })
             }
         } else {
             throw new Error("User not found")
         }
     } catch (error) {
         console.log(error)
-        res.status(409).json({ error })
+        return res.status(409).json({ error })
     }
     
     
@@ -218,10 +218,10 @@ if (!profileId) return;
 
     await markNotificationsRead(profileId);
 
-    res.json({ message: "Notifications marked as read" });
+    return res.json({ message: "Notifications marked as read" });
   } catch (err) {
     console.log(err);
-    res.status(500).json({ error: err });
+    return res.status(500).json({ error: err });
   }
 });
     router.get("/:id/protected",authMiddleware,async (req,res)=>{
@@ -283,11 +283,11 @@ stories:{
   }
 });
 
-        res.status(200).json({profile:profile})
+        return res.status(200).json({profile:profile})
 
     }catch(err){
      console.log(err)
-        res.status(409).json({error:err})
+        return res.status(409).json({error:err})
     }
     })
     router.get("/:id/public",async (req,res)=>{
@@ -314,11 +314,11 @@ stories:{
            
            
         }})
-        res.status(200).json({profile:profile})
+        return res.status(200).json({profile:profile})
 
     }catch(err){
      
-        res.status(409).json({error:err})
+        return res.status(409).json({error:err})
     }
     })
 router.put("/:id", authMiddleware, async (req, res) => {
@@ -407,7 +407,7 @@ if (location && (location.latitude == null || location.longitude == null)) {
       });
     }
 
-    res.json({ profile });
+    return res.json({ profile });
   } catch (e) {
 
   if (e.code === 'P2002') {
@@ -431,10 +431,10 @@ if (location && (location.latitude == null || location.longitude == null)) {
         }
        }})
 
-res.json({profiles})
+return res.json({profiles})
 }catch(err){
 console.log(err)
-res.status(409).json({error:err})
+return res.status(409).json({error:err})
 }
 })
 
@@ -487,10 +487,10 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     await prisma.profile.delete({ where: { id: profile.id } });
     await prisma.user.delete({ where: { id: req.user.id } });
 
-    res.status(200).json({ message: "Account deleted successfully" });
+    return res.status(200).json({ message: "Account deleted successfully" });
   } catch (error) {
     console.error("Delete account error:", error);
-    res.status(500).json({ error: "Failed to delete account" });
+    return res.status(500).json({ error: "Failed to delete account" });
   }
 });
 
@@ -499,11 +499,11 @@ router.get("/:profileId/recommendations", async (req, res) => {
     const { profileId } = req.params;
   const limitNum = Number(req.query.limit) || 10;
 const recommendations = await getProfileRecommendations(profileId, limitNum);
-    console.log(recommendations)
-    res.json({ profiles:recommendations });
+
+   return res.json({ profiles:recommendations });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to fetch recommendations" });
+    return res.status(500).json({ error: "Failed to fetch recommendations" });
   }
 });
 
@@ -654,11 +654,11 @@ router.get("/alert", authMiddleware, async (req, res) => {
       });
     }
 
-    res.json({ collections, comments, following, followers, notifications });
+    return res.json({ collections, comments, following, followers, notifications });
 
   } catch (err) {
     console.log(err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -674,10 +674,10 @@ try{
                 }
             }
         })
-        res.json({bookmarks})
+        return res.json({bookmarks})
     }catch(err){
         console.log(err)
-        res.status(409).json({error:err})
+        return res.status(409).json({error:err})
     }
     })
     router.post("/:id/collection/:colId",async (req,res)=>{
@@ -698,10 +698,10 @@ try{
 
             })
 
-            res.json({bookmark})
+            return res.json({bookmark})
         }catch(err){
             console.log(err)
-            res.status(409).json({error:err})
+            return res.status(409).json({error:err})
         }
     })
     return router
