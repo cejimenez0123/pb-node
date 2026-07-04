@@ -407,16 +407,18 @@ router.post('/look', withBlocks, async (req, res) => {
     }
 
     if (groups.length < 5) {
-      const globalGroups = await prisma.collection.findMany({
-        where: {
-          type,
-          isPrivate:false,
-          isGlobal: true,
-          ...blockedFilter,
-        },
-        include: { location: true, roles: { include: { profile: true } } },
-        take: 5 - groups.length,
-      });
+const candidateGroups = await prisma.collection.findMany({
+  where: {
+    type,
+    isGlobal: true,
+    ...blockedFilter,
+  },
+  include: {  roles: { include: { profile: true } } },
+});
+
+const globalGroups = candidateGroups
+  .filter(g => g.roles.length <= 5)
+  .slice(0, 5 - groups.length);
 
       groups = [...groups, ...globalGroups];
     }
