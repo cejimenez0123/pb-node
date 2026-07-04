@@ -856,7 +856,7 @@ router.post("/reports", authMiddleware, async (req, res) => {
     return res.status(400).json({ error: new Error("Missing required report fields") });
   }
 
-  console.log(req.user);
+ 
 
   try {
     const report = await prisma.report.create({
@@ -869,6 +869,21 @@ router.post("/reports", authMiddleware, async (req, res) => {
         reasonDetails: reasonDetails?.trim() || null,
       },
     });
+        const reportedProfile = await prisma.profile.findUnique({
+      where: { id: reportedProfileId },
+      select: { username: true },
+    });
+  resend.emails.send(
+      adminNotificationTemplate({
+        type: "report",
+        reporterUsername: req.user.profiles[0].username,
+        reportedUsername: reportedProfile?.username ?? "unknown",
+        reason,
+        reasonDetails,
+        contentType,
+        contentId,
+      })
+    ).catch((err) => console.error("Report notification email failed:", err));
 
     res.json({ report });
   } catch (error) {
@@ -876,38 +891,80 @@ router.post("/reports", authMiddleware, async (req, res) => {
     res.status(409).json({ error });
   }
 });
+// router.post("/blocks", authMiddleware, async (req, res) => {
+//   const { blockedProfileId, reason } = req.body;
+//   if (!blockedProfileId) {
+//     return res.status(400).json({ error: "blockedProfileId is required" });
+//   }
+//   const blockerProfileId = req.user.profiles[0].id;
+//   if (blockedProfileId === blockerProfileId) {
+//     return res.status(400).json({ error: "You can't block yourself" });
+//   }
 
+//   try {
+//     const existing = await prisma.block.findUnique({
+//       where: {
+//         blockerProfileId_blockedProfileId: {
+//           blockerProfileId,
+//           blockedProfileId,
+//         },
+//       },
+//     });
+
+//     if (existing) {
+//       // Already blocked — treat as success, no duplicate report
+//       return res.json({ block: existing });
+//     }
+
+//     const block = await prisma.block.create({
+//       data: { blockerProfileId, blockedProfileId, reason },
+//     });
+
+//     await prisma.report.create({
+//       data: {
+//         reporterProfileId: blockerProfileId,
+//         reportedProfileId: blockedProfileId,
+//         contentType: "profile_block",
+//         contentId: blockedProfileId,
+//         reason: reason || "User blocked via block action",
+//       },
+//     });
+
+//     console.log(`🚫 Block: profile ${blockerProfileId} blocked ${blockedProfileId}`);
+//     res.json({ block });
+//   } catch (error) {
+//     console.log("POST BLOCKS XL ",error);
+//     res.status(500).json({ error: "Failed to block user" });
+//   }
+// });
 router.post("/blocks", authMiddleware, async (req, res) => {
   const { blockedProfileId, reason } = req.body;
-
   if (!blockedProfileId) {
-    return res.status(400).json({ error: new Error("blockedProfileId is required") });
-  }
-
-  if (blockedProfileId === req.user.profiles[0].id) {
-    return res.status(400).json({ error: new Error("You can't block yourself") });
+    return res.status(400).json({ error: "blockedProfileId is required" });
   }
   const blockerProfileId = req.user.profiles[0].id;
+  if (blockedProfileId === blockerProfileId) {
+    return res.status(400).json({ error: "You can't block yourself" });
+  }
+
   try {
-    const block = await prisma.block.upsert({
+    const existing = await prisma.block.findUnique({
       where: {
-        blockerProfileId_blockedProfileId: {
-          blockerProfileId, 
-          blockedProfileId,
-        },
-      },
-      update: {}, // already blocked, no-op
-      create: {
-        blockerProfileId,
-        blockedProfileId,
-        reason,
+        blockerProfileId_blockedProfileId: { blockerProfileId, blockedProfileId },
       },
     });
 
-    // A block is always logged as a report too, so moderators see it even if the user doesn't separately report
+    if (existing) {
+      return res.json({ block: existing });
+    }
+
+    const block = await prisma.block.create({
+      data: { blockerProfileId, blockedProfileId, reason },
+    });
+
     await prisma.report.create({
       data: {
-        reporterProfileId: req.user.profiles[0].id,
+        reporterProfileId: blockerProfileId,
         reportedProfileId: blockedProfileId,
         contentType: "profile_block",
         contentId: blockedProfileId,
@@ -915,12 +972,25 @@ router.post("/blocks", authMiddleware, async (req, res) => {
       },
     });
 
-    console.log(`🚫 Block: profile ${blockerProfileId} blocked ${blockedProfileId}`);
+    const [blockerProfile, blockedProfile] = await Promise.all([
+      prisma.profile.findUnique({ where: { id: blockerProfileId }, select: { username: true } }),
+      prisma.profile.findUnique({ where: { id: blockedProfileId }, select: { username: true } }),
+    ]);
 
+    resend.emails.send(
+      adminNotificationTemplate({
+        type: "block",
+        reporterUsername: blockerProfile?.username ?? "unknown",
+        reportedUsername: blockedProfile?.username ?? "unknown",
+        reason,
+      })
+    ).catch((err) => console.error("Block notification email failed:", err));
+
+    console.log(`🚫 Block: profile ${blockerProfileId} blocked ${blockedProfileId}`);
     res.json({ block });
   } catch (error) {
-    console.log(error);
-    res.status(409).json({ error });
+    console.log("POST BLOCKS XL ", error);
+    res.status(500).json({ error: "Failed to block user" });
   }
 });
 
@@ -957,6 +1027,54 @@ router.get(
   }
 );
 // server/routes/blocks.js (or wherever your /auth/blocks route is)
+// GET /auth/admin/blocks
+router.get("/admin/blocks", authMod, async (req, res) => {
+  try {
+    const blocks = await prisma.block.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        blockerProfile: { select: { username: true } },
+        blockedProfile: { select: { username: true } },
+      },
+    });
+
+    const events = blocks.map((b) => ({
+      id: b.id,
+      blockerProfileId: b.blockerProfileId,
+      blockedProfileId: b.blockedProfileId,
+      blockerUsername: b.blockerProfile.username,
+      blockedUsername: b.blockedProfile.username,
+      reason: b.reason,
+      createdAt: b.createdAt,
+      acknowledged: b.acknowledged,
+    }));
+
+    res.json({ events });
+  } catch (error) {
+    console.error("Error fetching block events:", error);
+    res.status(500).json({ error: "Failed to fetch block events" });
+  }
+});
+
+// POST /auth/admin/blocks/acknowledge
+router.post("/admin/blocks/acknowledge", authMod, async (req, res) => {
+  try {
+    const { eventId } = req.body;
+    if (!eventId) {
+      return res.status(400).json({ error: "eventId is required" });
+    }
+
+    const updated = await prisma.block.update({
+      where: { id: eventId },
+      data: { acknowledged: true, acknowledgedAt: new Date() },
+    });
+
+    res.json({ ok: true, id: updated.id });
+  } catch (error) {
+    console.error("Error acknowledging block event:", error);
+    res.status(500).json({ error: "Failed to acknowledge block event" });
+  }
+});
 router.get("/blocks", authMiddleware, async (req, res) => {
   try {
     const blockerProfileId = req.user.profiles[0].id;
@@ -994,19 +1112,7 @@ router.get("/blocks", authMiddleware, async (req, res) => {
     res.status(409).json({ error });
   }
 });
-// router.get("/blocks", authMiddleware, async (req, res) => {
-//   try {
-//     const blocks = await prisma.block.findMany({
-//       where: { blockerProfileId: req.user.profiles[0].id },
-//       select: { blockedProfileId: true },
-//     });
-//     console.log(`User ${req.user.id} has blocked profiles:`, blocks.map(b => b.blockedProfileId));
-//     res.json({ blockedProfileIds: blocks.map((b) => b.blockedProfileId) });
-//   } catch (error) {
-//     console.log(error);
-//     res.status(409).json({ error });
-//   }
-// });
+
 
 router.delete("/blocks/:blockedProfileId", authMiddleware, async (req, res) => {
   try {

@@ -50,15 +50,17 @@ model Report {
   resolvedAt        DateTime?
   resolvedBy        String?
 }
-
 model Block {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  blockerProfileId String   @db.ObjectId
-  blockerProfile   Profile  @relation("BlocksInitiated", fields: [blockerProfileId], references: [id])
-  blockedProfileId String   @db.ObjectId
-  blockedProfile   Profile  @relation("BlocksReceived", fields: [blockedProfileId], references: [id])
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  blockerProfileId String    @db.ObjectId
+  blockerProfile   Profile   @relation("BlocksInitiated", fields: [blockerProfileId], references: [id])
+  blockedProfileId String    @db.ObjectId
+  blockedProfile   Profile   @relation("BlocksReceived", fields: [blockedProfileId], references: [id])
   reason           String?
-  createdAt        DateTime @default(now())
+
+  createdAt        DateTime  @default(now())
+  acknowledged     Boolean   @default(false)
+  acknowledgedAt   DateTime?
 
   @@unique([blockerProfileId, blockedProfileId])
 }

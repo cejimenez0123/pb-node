@@ -1396,86 +1396,162 @@ router.get("/recommendations/profile", authMiddleware, async (req, res) => {
 //         return res.status(500).json({ error: "Server error" });
 //     }
 // });
-    router.get("/",async (req,res)=>{
-        let {type} =req.query
-        //GET ALL PUBLIC COLLECTIONS
-        try{
-               let collections = await prisma.collection.findMany(
-            {orderBy:{
-                
-                    updated:"desc"},where:{isPrivate:{equals:false}},include:{
-                        parentCollections:{
-                            include:{
-                                parentCollection:{
-                                    select:{
-                                        id:true
-                                    }
-                                }
-                            }
-                        },
-                        profile:true,
-                    childCollections:{
-                        include:{
-                            childCollection:true
-                        }
-                    },
-                storyIdList:{
-                    include:{
-                        story:true
-                    }
-                },
-                roles:{
-                    include:{
-                        profile:true
-                    }
-                }
-            }})
-            if(type=="feedback"){
-            collections = await prisma.collection.findMany(
-            {orderBy:{
-                
-                    updated:"desc"},where:{AND:[{isPrivate:{
-                        equals:true
-                    }},{type:"feedback"},{roles:{}}]},include:{
-                        parentCollections:{
-                            include:{
-                                parentCollection:{
-                                    select:{
-                                        id:true
-                                    }
-                                }
-                            }
-                        },
-                        profile:true,
-                    childCollections:{
-                        include:{
-                            childCollection:true
-                        }
-                    },
-                storyIdList:{
-                    include:{
-                        story:true
-                    }
-                },
-                roles:{
-                    include:{
-                        profile:true
-                    }
-                }
-            }})
-             collections = collections.filter(c => c.roles.length <= 5);
-            }
-      if (type === "feedback") {
-     
+
+router.get("/", withOptionalBlocks, async (req, res) => {
+  let { type } = req.query;
+  const blockedProfileIds = req.blockedProfileIds || [];
+
+  try {
+    let collections = await prisma.collection.findMany({
+      orderBy: { updated: "desc" },
+      where: {
+        isPrivate: { equals: false },
+        ...(blockedProfileIds.length
+          ? { profileId: { notIn: blockedProfileIds } }
+          : {}),
+      },
+      include: {
+        parentCollections: {
+          include: {
+            parentCollection: {
+              select: { id: true },
+            },
+          },
+        },
+        profile: true,
+        childCollections: {
+          include: { childCollection: true },
+        },
+        storyIdList: {
+          include: { story: true },
+        },
+        roles: {
+          include: { profile: true },
+        },
+      },
+    });
+
+    if (type == "feedback") {
+      collections = await prisma.collection.findMany({
+        orderBy: { updated: "desc" },
+        where: {
+          AND: [
+            { isPrivate: { equals: true } },
+            { type: "feedback" },
+            { roles: {} },
+            ...(blockedProfileIds.length
+              ? [{ profileId: { notIn: blockedProfileIds } }]
+              : []),
+          ],
+        },
+        include: {
+          parentCollections: {
+            include: {
+              parentCollection: {
+                select: { id: true },
+              },
+            },
+          },
+          profile: true,
+          childCollections: {
+            include: { childCollection: true },
+          },
+          storyIdList: {
+            include: { story: true },
+          },
+          roles: {
+            include: { profile: true },
+          },
+        },
+      });
+      collections = collections.filter((c) => c.roles.length <= 5);
     }
 
-        res.status(200).json({data:collections})
-        }catch(error){
-            res.json({error})
-        }
+    res.status(200).json({ data: collections });
+  } catch (error) {
+    res.json({ error });
+  }
+});
+    // router.get("/",async (req,res)=>{
+    //     let {type} =req.query
+    //     //GET ALL PUBLIC COLLECTIONS
+    //     try{
+    //            let collections = await prisma.collection.findMany(
+    //         {orderBy:{
+                
+    //                 updated:"desc"},where:{isPrivate:{equals:false}},include:{
+    //                     parentCollections:{
+    //                         include:{
+    //                             parentCollection:{
+    //                                 select:{
+    //                                     id:true
+    //                                 }
+    //                             }
+    //                         }
+    //                     },
+    //                     profile:true,
+    //                 childCollections:{
+    //                     include:{
+    //                         childCollection:true
+    //                     }
+    //                 },
+    //             storyIdList:{
+    //                 include:{
+    //                     story:true
+    //                 }
+    //             },
+    //             roles:{
+    //                 include:{
+    //                     profile:true
+    //                 }
+    //             }
+    //         }})
+    //         if(type=="feedback"){
+    //         collections = await prisma.collection.findMany(
+    //         {orderBy:{
+                
+    //                 updated:"desc"},where:{AND:[{isPrivate:{
+    //                     equals:true
+    //                 }},{type:"feedback"},{roles:{}}]},include:{
+    //                     parentCollections:{
+    //                         include:{
+    //                             parentCollection:{
+    //                                 select:{
+    //                                     id:true
+    //                                 }
+    //                             }
+    //                         }
+    //                     },
+    //                     profile:true,
+    //                 childCollections:{
+    //                     include:{
+    //                         childCollection:true
+    //                     }
+    //                 },
+    //             storyIdList:{
+    //                 include:{
+    //                     story:true
+    //                 }
+    //             },
+    //             roles:{
+    //                 include:{
+    //                     profile:true
+    //                 }
+    //             }
+    //         }})
+    //          collections = collections.filter(c => c.roles.length <= 5);
+    //         }
+    //   if (type === "feedback") {
+     
+    // }
+
+    //     res.status(200).json({data:collections})
+    //     }catch(error){
+    //         res.json({error})
+    //     }
 
 
-    })
+    // })
 // router.get("/profile/:id/public", async (req, res) => {
 //   try {
 //     const skip = parseInt(req.query.skip) || 0;
@@ -1693,29 +1769,56 @@ router.get("/profile/:id/public", withOptionalBlocks, async (req, res) => {
 //     res.status(400).send({ error: err });
 //   }
 // });
-    router.get("/public/library",async (req,res)=>{
-        try{
-            const libraries = await prisma.collection.findMany({
-                orderBy:{
-                    updated:"desc"},
-            where:{
-                AND:[{isPrivate:{
-                    equals:false
-                }},{
-                    childCollections:{
-                        some: {}
-                    }
-                }]
-            }})
-            const adminCols = libraries.filter(book=>book.priority>90).sort((a,b)=>b.priority-a.priority)
+        router.get("/public/library", withOptionalBlocks, async (req, res) => {
+  const blockedProfileIds = req.blockedProfileIds || [];
+
+  try {
+    const libraries = await prisma.collection.findMany({
+      orderBy: { updated: "desc" },
+      where: {
+        AND: [
+          { isPrivate: { equals: false } },
+          { childCollections: { some: {} } },
+          ...(blockedProfileIds.length
+            ? [{ profileId: { notIn: blockedProfileIds } }]
+            : []),
+        ],
+      },
+    });
+
+    const adminCols = libraries
+      .filter((book) => book.priority > 90)
+      .sort((a, b) => b.priority - a.priority);
+    const otherCols = libraries.filter((book) => book.priority < 90);
+
+    res.json({ libraries: [...adminCols, ...otherCols] });
+  } catch (e) {
+    res.json({ error: e });
+  }
+});
+//     router.get("/public/library",async (req,res)=>{
+//         try{
+//             const libraries = await prisma.collection.findMany({
+//                 orderBy:{
+//                     updated:"desc"},
+//             where:{
+//                 AND:[{isPrivate:{
+//                     equals:false
+//                 }},{
+//                     childCollections:{
+//                         some: {}
+//                     }
+//                 }]
+//             }})
+//             const adminCols = libraries.filter(book=>book.priority>90).sort((a,b)=>b.priority-a.priority)
           
-const otherCols = libraries.filter(book=>book.priority<90)
-            res.json({libraries:[...adminCols,...otherCols]})
-        }catch(e){
+// const otherCols = libraries.filter(book=>book.priority<90)
+//             res.json({libraries:[...adminCols,...otherCols]})
+//         }catch(e){
       
-        res.json({error:e})
-        }
-    })
+//         res.json({error:e})
+//         }
+//     })
 //     router.patch("/:id/role",authMiddleware,async (req,res)=>{
 //         const {roles}=req.body
 //         try{
