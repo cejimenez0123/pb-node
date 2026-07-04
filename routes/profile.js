@@ -10,64 +10,30 @@ const createNewProfileUser = require('../utils/createNewProfileUser.js');
 const optionalAuth = require('../middleware/optionalAuth.js');
 const attachBlockedProfiles = require('../middleware/attechBlockedProfiles.js');
 
-const deleteCol =async()=>{
-    
-    await prisma.roleToCollection.deleteMany({where:{
-        collectionId:{
-            equals:id
-        }
-    }})
-
-    await prisma.userCollectionHistory.deleteMany({where:{
-        collectionId:{
-            equals:id
-        }
-    }})
-    await prisma.storyToCollection.deleteMany({where:{
-        collection:{
-            id:{equals:id}
-        }
-    }})
-    await prisma.collectionToCollection.deleteMany({where:{
-        parentCollection:{
-            id:{equals:id}
-        }
-    }})
-    await prisma.collectionToCollection.deleteMany({where:{
-        childCollection:{
-            id:{equals:id}
-        }
-    }})
-    await prisma.profileToCollection.deleteMany({where:{
-        collectionId:{
-            equals:id
-        }
-    }})
-    await prisma.collection.delete({where:{
-        id: id
-    }})
-
-
-
-await Promise.all(promises)
-
-  
-   
-    await prisma.roleToStory.deleteMany({where:{
-        storyId:{
-            equals:story.id
-        }
-    }})
-    await prisma.hashtagStory.deleteMany({where:{
-        storyId:{
-            equals:req.params.id
-        }
-    }})
-    await prisma.story.delete({  where: {
-        id:req.params.id
+async function deleteCol(id) {
+  await prisma.$transaction([
+    prisma.roleToCollection.deleteMany({ where: { collectionId: id } }),
+    prisma.userCollectionHistory.deleteMany({ where: { collectionId: id } }),
+    prisma.storyToCollection.deleteMany({ where: { collectionId: id } }),
+    prisma.collectionToCollection.deleteMany({
+      where: {
+        OR: [
+          { parentCollectionId: id },
+          { childCollectionId: id },
+        ],
       },
-    })
- 
+    }),
+    prisma.profileToCollection.deleteMany({ where: { collectionId: id } }),
+    prisma.collection.delete({ where: { id } }),
+  ]);
+}
+function getActiveProfileId(req, res) {
+  const profileId = req.user?.profiles?.[0]?.id;
+  if (!profileId) {
+    res.status(403).json({ error: "No active profile" });
+    return null;
+  }
+  return profileId;
 }
 module.exports = function (authMiddleware){
     const withOptionalBlocks = [optionalAuth, attachBlockedProfiles];
@@ -80,76 +46,7 @@ module.exports = function (authMiddleware){
         }})
         res.status(200).json({profiles:profiles})
     })
-    router.post("/device-token", authMiddleware, async (req, res) => {
-    try {
-        const { token, platform = "ios" } = req.body;
-        const profileId = req.user.profiles[0].id;
-
-        try {
-            await prisma.deviceToken.create({
-                data: { token, profileId, platform }
-            });
-        } catch (err) {
-            // token already exists — just update it
-            if (err.code === 'P2002') {
-                await prisma.deviceToken.updateMany({
-                    where: { token },
-                    data: { profileId, platform }
-                });
-            } else {
-                throw err;
-            }
-        }
-
-        res.json({ success: true });
-    } catch (error) {
-        console.error("DEVICE_TOKEN_ERROR", error.message);
-        res.status(500).json({ error: "Server error" });
-    }
-});
-    router.post("/",async(req,res)=>{
-      const { email, googleId, password, username, profilePicture, selfStatement, privacy, termsVersion, termsAcceptedAt } = req.body
-        try{
-           
-            const decoded = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
-    
-            if(decoded.applicantId){
-                if (!termsVersion || !termsAcceptedAt) {
-                return res.status(400).json({ error: new Error("Terms of Service must be accepted") })
-            }
-            const hashedPassword = await bcrypt.hash(password, 10);
-    
-                       const user = await prisma.user.update({
-                where: {
-                    id: decoded.applicantId
-                }, data: {
-                    googleId: googleId,
-                    password: hashedPassword,
-                    verified: true,
-                    termsVersion: termsVersion,
-                    termsAcceptedAt: new Date(termsAcceptedAt)
-                }
-            })
-   
-    try{
- const profile = await  createNewProfileUser({username,profilePicture,selfStatement,isPrivate:privacy,userId:user.id})
-   
-        const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
-        res.json({ profile: profile, token: verifiedToken, termsVersion: user.termsVersion })
- } catch (error) {
-                res.status(409).json({ error: new Error("Username already taken") })
-            }
-        } else {
-            throw new Error("User not found")
-        }
-    } catch (error) {
-        console.log(error)
-        res.status(409).json({ error })
-    }
-    
-    
-    })
-    router.get("/protected", authMiddleware, async (req, res) => {
+        router.get("/protected", authMiddleware, async (req, res) => {
   try {
     if (!req?.user) {
       return res.status(403).json({ message: "No profile found." });
@@ -168,7 +65,7 @@ module.exports = function (authMiddleware){
   where: { id: profileId },
   include: {
     location: true,
-    isAdmin: true,
+
     user: {
       select: {
         id: true,
@@ -239,9 +136,85 @@ module.exports = function (authMiddleware){
   }
   
 });
+    router.post("/device-token", authMiddleware, async (req, res) => {
+    try {
+        const { token, platform = "ios" } = req.body;
+const profileId = req.user?.profiles?.[0]?.id;
+if (!profileId) return res.status(403).json({ error: "No active profile" });
+
+        try {
+            await prisma.deviceToken.create({
+                data: { token, profileId, platform }
+            });
+        } catch (err) {
+            // token already exists — just update it
+            if (err.code === 'P2002') {
+                await prisma.deviceToken.updateMany({
+                    where: { token },
+                    data: { profileId, platform }
+                });
+            } else {
+                throw err;
+            }
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("DEVICE_TOKEN_ERROR", error.message);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+    router.post("/",async(req,res)=>{
+      const { email, googleId, password, username, profilePicture, selfStatement, privacy, termsVersion, termsAcceptedAt } = req.body
+        try{
+           
+           
+  const authHeader = req.headers.authorization;
+if (!authHeader?.startsWith("Bearer ")) {
+  return res.status(401).json({ error: "Missing token" });
+}
+const decoded = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
+            if(decoded.applicantId){
+                if (!termsVersion || !termsAcceptedAt) {
+                return res.status(400).json({ error: new Error("Terms of Service must be accepted") })
+            }
+            const hashedPassword = await bcrypt.hash(password, 10);
+    
+                       const user = await prisma.user.update({
+                where: {
+                    id: decoded.applicantId
+                }, data: {
+                    googleId: googleId,
+                    password: hashedPassword,
+                    verified: true,
+                    termsVersion: termsVersion,
+                    termsAcceptedAt: new Date(termsAcceptedAt)
+                }
+            })
+   
+    try{
+ const profile = await  createNewProfileUser({username,profilePicture,selfStatement,isPrivate:privacy,userId:user.id})
+   
+        const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
+        res.json({ profile: profile, token: verifiedToken, termsVersion: user.termsVersion })
+ } catch (error) {
+                res.status(409).json({ error: new Error("Username already taken") })
+            }
+        } else {
+            throw new Error("User not found")
+        }
+    } catch (error) {
+        console.log(error)
+        res.status(409).json({ error })
+    }
+    
+    
+    })
+
 router.patch("/notifications/read", authMiddleware, async (req, res) => {
   try {
-    const profileId = req.user.profiles[0].id;
+ const profileId = getActiveProfileId(req, res);
+if (!profileId) return;
 
     await markNotificationsRead(profileId);
 
@@ -253,7 +226,9 @@ router.patch("/notifications/read", authMiddleware, async (req, res) => {
 });
     router.get("/:id/protected",authMiddleware,async (req,res)=>{
         try{
-        const currentUserId = req.user.profiles[0].id
+          const currentUserId  = getActiveProfileId(req, res);
+if (!currentUserId) return;
+     
 const profile = await prisma.profile.findFirst({
   where: {
     id: req.params.id
@@ -364,10 +339,14 @@ router.put("/:id", authMiddleware, async (req, res) => {
       : undefined; // undefined = don't touch the field if not sent
 
 
-    // if (location?.address?.length > 0) {
-    //   const parts = location.address.split(',').map((p) => p.trim());
-    //   city = `${parts[2]}, ${parts[parts.length - 1]}` || ""; // fix: parts[-1] → parts[parts.length - 1]
-    // }
+ const profileId = req.params.id;
+if (!profileId) {
+  return res.status(400).json({ error: "Missing profile id" });
+}
+
+if (location && (location.latitude == null || location.longitude == null)) {
+  return res.status(400).json({ error: "Invalid location" });
+}
 
     const locale = location?.latitude
       ? await prisma.location.upsert({
@@ -458,48 +437,7 @@ console.log(err)
 res.status(409).json({error:err})
 }
 })
-// router.delete("/:id",authMiddleware,async (req,res)=>{
 
-//     const profile = req.user.profiles[0]
-//     try{
-//         let profColsId = await prisma.collection.findMany({where:{profileId:{
-//                 equals:profile.id
-//             }}})
-//          let profStoriesId = await prisma.story.findMany({where:{profileId:{
-//                 equals:profile.id
-//             }},select:{
-// id:true
-//             }})
-//         let followsId = await prisma.follow.findMany({where:{
-//             OR:[{followerId:{
-//                 equals:profile.id
-//             }},{followingId:{
-//                 equals:profile.id
-//             }}]
-//         },select:{
-//             id:true
-//         }})
-//         let userColHist = await prisma.userCollectionHistory.findMany({where:{
-//             profileId:{equals:profile.id}
-//         },select:{
-//             id:true
-//         }})
-//         let userStoryHist = await prisma.userStoryHistory.deleteMany({where:{
-//             profileId:{equals:profile.id}
-//         },select:{
-//             id:true
-//         }})
-//         let userStoryLike = await prisma.userStoryLike.findMany({where:{
-//             profileId:{equals:profile.id}
-//         },select:{
-//             id:true
-//         }})
-      
-//     }catch(error){
-
-//     }
-
-// })
 router.delete("/:id", authMiddleware, async (req, res) => {
   const profile = req.user.profiles[0];
   try {
@@ -559,8 +497,8 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 router.get("/:profileId/recommendations", async (req, res) => {
   try {
     const { profileId } = req.params;
-    const { limit } = req.query;
-    const recommendations = await getProfileRecommendations(profileId, limit);
+  const limitNum = Number(req.query.limit) || 10;
+const recommendations = await getProfileRecommendations(profileId, limitNum);
     console.log(recommendations)
     res.json({ profiles:recommendations });
   } catch (err) {
@@ -572,7 +510,7 @@ router.get("/:profileId/recommendations", async (req, res) => {
 
 
 
-router.get("/:id/alert", authMiddleware, async (req, res) => {
+router.get("/alert", authMiddleware, async (req, res) => {
   try {
     const profId = req.user.profiles[0].id;
     const profile = req.user.profiles[0];
