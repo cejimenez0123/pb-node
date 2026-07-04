@@ -319,7 +319,7 @@ router.post('/look', withBlocks, async (req, res) => {
         prisma.collection.findMany({
           where: {
             type,
-            isPrivate:false,
+           
             isGlobal: true,
             ...blockedFilter,
           },
