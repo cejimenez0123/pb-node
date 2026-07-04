@@ -15,6 +15,7 @@ const forgotPasswordTemplate = require('../html/forgotPasswordTemplate');
 const recievedReferralTemplate = require('../html/recievedReferralTemplate');
 const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken");
 // const feedbackTemplate = require("../feedbackTemplate");
+const adminNotificationTemplate = require("../html/adminNotifcationTemplate")
 const crypto = require("crypto");
 
 const { verifyGoogleIdToken } = require('../utils/ verifyGoogleIdToken');
