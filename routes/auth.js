@@ -1199,24 +1199,54 @@ router.get("/admin/reports", authMod, async (req, res) => {
 //     res.status(409).json({ error });
 //   }
 // });
+router.post("/admin/ban", authMod, async (req, res) => {
+  const { reportedProfileId, reportIds = [], blockIds = [] } = req.body;
 
-router.post("/admin/ban", authMod,async (req, res) => {
-  const { reportedProfileId, reportIds } = req.body;
   try {
-    await prisma.profile.update({
-      where: { id: reportedProfileId },
-      data: { isBanned: true },
-    });
-    await prisma.report.updateMany({
-      where: { id: { in: reportIds } },
-      data: { status: "actioned" },
-    });
+    if (reportedProfileId) {
+      await prisma.profile.update({
+        where: { id: reportedProfileId },
+        data: { isBanned: true },
+      });
+    }
+
+    if (reportIds.length) {
+      await prisma.report.updateMany({
+        where: { id: { in: reportIds } },
+        data: { status: "actioned" },
+      });
+    }
+
+    if (blockIds.length) {
+      await prisma.block.updateMany({
+        where: { id: { in: blockIds } },
+        data: { status: "actioned" },
+      });
+    }
+
     res.json({ ok: true });
   } catch (error) {
     console.log(error);
-    res.status(409).json({ error });
+    res.status(409).json({ error: error.message || error });
   }
 });
+// router.post("/admin/ban", authMod,async (req, res) => {
+//   const { reportedProfileId, reportIds } = req.body;
+//   try {
+//     await prisma.profile.update({
+//       where: { id: reportedProfileId },
+//       data: { isBanned: true },
+//     });
+//     await prisma.report.updateMany({
+//       where: { id: { in: reportIds } },
+//       data: { status: "actioned" },
+//     });
+//     res.json({ ok: true });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(409).json({ error });
+//   }
+// });
 
 router.post("/admin/dismiss", authMod, async (req, res) => {
   const { reportIds } = req.body;
