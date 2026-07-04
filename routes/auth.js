@@ -1206,7 +1206,11 @@ router.post("/admin/ban", authMod, async (req, res) => {
     if (reportedProfileId) {
       await prisma.profile.update({
         where: { id: reportedProfileId },
-        data: { isBanned: true },
+        data: {user:{
+        update:{
+          isBanned:true
+        }
+        }},
       });
     }
 
