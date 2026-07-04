@@ -1224,7 +1224,7 @@ router.post("/admin/ban", authMod, async (req, res) => {
     if (blockIds.length) {
       await prisma.block.updateMany({
         where: { id: { in: blockIds } },
-        data: { status: "actioned" },
+        // data: { status: "actioned" },
       });
     }
 
