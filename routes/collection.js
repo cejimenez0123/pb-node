@@ -902,71 +902,6 @@ router.get("/:collectionId/feed/stories", withBlocks, async (req, res) => {
 //       },
 //     });
 
-//     const stories = joins.map((j) => j.story).filter(Boolean);
-//     const totalCount = stories.length;
-
-//     if (!totalCount) return res.json({ items: [], totalCount: 0 });
-
-//     const sorted = scoreAndSort(stories, (s) => s.updated, (s) => s._count?.roles ?? 0);
-//     const items = sorted.slice(skip, skip + take);
-
-//     return res.json({ items, totalCount });
-//   } catch (err) {
-//     console.error("[collection feed stories]", err);
-//     return res.status(500).json({ message: "Something went wrong" });
-//   }
-// });
-
-// router.get("/:collectionId/feed/sub-collections", authMiddleware, async (req, res) => {
-//   const { collectionId } = req.params;
-//   const skip = parseInt(req.query.skip ?? 0);
-//   const take = Math.min(parseInt(req.query.take ?? 20), 100);
-// console.log(req.user.profiles[0]);
-//   try {
-//     const collection = await canReadCollection(collectionId, req.user.profiles[0].id);
-//     if (!collection) {
-//       return res.status(404).json({ message: "Collection not found or access denied" });
-//     }
-
-//     // Using parentCollectionId — matches your existing collectionToCollection
-//     // usage in /:id/collection/protected above
-//     const childLinks = await prisma.collectionToCollection.findMany({
-//       where: { parentCollectionId: collectionId },
-//       include: {
-//         childCollection: {
-//           include: {
-//             hashtags: { include: { hashtag: { select: { id: true, name: true } } } },
-//             _count: { select: { storyIdList: true, roles: true } },
-//           },
-//         },
-//       },
-//     });
-
-//     const subCollections = childLinks
-//       .map((l) => l.childCollection)
-//       .filter(Boolean)
-//       .map((c) => ({ ...c, _rolesCount: c._count?.roles ?? 0 }));
-
-//     const totalCount = subCollections.length;
-
-//     if (!totalCount) return res.json({ items: [], totalCount: 0 });
-
-//     const sorted = scoreAndSort(subCollections, (c) => c.updated, (c) => c._rolesCount);
-//     const items = sorted.slice(skip, skip + take);
-
-//     return res.json({ items, totalCount });
-//   } catch (err) {
-//     console.error("[collection feed sub-collections]", err);
-//     return res.status(500).json({ message: "Something went wrong" });
-//   }
-// });
-// ─── GET /collection/:collectionId/feed/sub-collection-stories ───────────────
-//
-// Returns the STORIES inside this collection's direct sub-collections,
-// flattened into one list. Each story carries _sourceCollection so the
-// frontend can label where it came from.
-//
-// Contract: { items: Story[], totalCount }
 router.get("/:collectionId/feed/sub-collections", withBlocks, async (req, res) => {
   const collectionId = req.params.collectionId;
   const skip = parseInt(req.query.skip ?? 0);
@@ -989,6 +924,13 @@ router.get("/:collectionId/feed/sub-collections", withBlocks, async (req, res) =
           include: {
             hashtags: {
               include: {
+                profile:{
+                  select:{
+                    id:true,
+                    username:true,
+                    profilePic:true,
+                  }
+                },
                 hashtag: {
                   select: { id: true, name: true },
                 },

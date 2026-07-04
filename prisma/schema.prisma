@@ -57,7 +57,7 @@ model Block {
   blockedProfileId String    @db.ObjectId
   blockedProfile   Profile   @relation("BlocksReceived", fields: [blockedProfileId], references: [id])
   reason           String?
-
+  status           String    @default("pending") // pending | actioned | dismissed
   createdAt        DateTime  @default(now())
   acknowledged     Boolean   @default(false)
   acknowledgedAt   DateTime?
