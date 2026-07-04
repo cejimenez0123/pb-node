@@ -924,18 +924,89 @@ router.post("/blocks", authMiddleware, async (req, res) => {
   }
 });
 
+router.get(
+  "/blocked",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const userId = req.user.id; // from your auth middleware
+
+      const user = await User.findById(userId)
+        .select("blockedUserIds")
+        .lean();
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // If you want full profiles of blocked users, join/populate here.
+      // Example if you store only IDs:
+      const blockedUserIds = user.blockedUserIds || [];
+
+      // Optional: populate basic info if you have a Profile model
+      // const blockedProfiles = await Profile.find({ userId: { $in: blockedUserIds } })
+      //   .select("userId username profilePic")
+      //   .lean();
+
+      res.json({ blockedUserIds });
+      // or: res.json({ blocked: blockedProfiles });
+    } catch (err) {
+      console.error("Error fetching blocked list:", err);
+      res.status(500).json({ error: "Failed to fetch blocked list" });
+    }
+  }
+);
+// server/routes/blocks.js (or wherever your /auth/blocks route is)
 router.get("/blocks", authMiddleware, async (req, res) => {
   try {
+    const blockerProfileId = req.user.profiles[0].id;
+
+    // Get blocked IDs
     const blocks = await prisma.block.findMany({
-      where: { blockerProfileId: req.user.profiles[0].id },
+      where: { blockerProfileId },
       select: { blockedProfileId: true },
     });
-    res.json({ blockedProfileIds: blocks.map((b) => b.blockedProfileId) });
+
+    const blockedProfileIds = blocks.map((b) => b.blockedProfileId);
+
+    // Fetch profile info for each blocked profile
+    const blockedProfiles = await prisma.profile.findMany({
+      where: {
+        id: { in: blockedProfileIds },
+      },
+      select: {
+        id: true,
+        username: true,
+        profilePic: true,
+      },
+    });
+
+    console.log(
+      `User ${blockerProfileId} has blocked profiles:`,
+      blockedProfiles
+    );
+
+    res.json({
+      blockedProfiles, // [{ id, username, profilePic }, ...]
+    });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(409).json({ error });
   }
 });
+// router.get("/blocks", authMiddleware, async (req, res) => {
+//   try {
+//     const blocks = await prisma.block.findMany({
+//       where: { blockerProfileId: req.user.profiles[0].id },
+//       select: { blockedProfileId: true },
+//     });
+//     console.log(`User ${req.user.id} has blocked profiles:`, blocks.map(b => b.blockedProfileId));
+//     res.json({ blockedProfileIds: blocks.map((b) => b.blockedProfileId) });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(409).json({ error });
+//   }
+// });
 
 router.delete("/blocks/:blockedProfileId", authMiddleware, async (req, res) => {
   try {

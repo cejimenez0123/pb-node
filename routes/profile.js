@@ -664,6 +664,7 @@ router.get("/protected", authMiddleware, async (req, res) => {
   where: { id: profileId },
   include: {
     location: true,
+  
     user: {
       select: {
         id: true,

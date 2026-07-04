@@ -2454,40 +2454,75 @@ console.log(error)
 
 
 
-router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
-    //DELETE STORY FROM COLLECTION
-    try{
-    const {stId}=req.params
-   let stc= await prisma.storyToCollection.findFirst({where:{
-        id:stId
-    },include:{
-        story:true
-    }})
-    await prisma.storyToCollection.delete({where:{
-        id:stId
-    }})
-   let collection = await prisma.collection.findMany({where:{
-        id:stc.collectionId
-    },include:{
-        storyIdList:{
-            include:{
-                story:true
-            }
+router.delete("/storyToCol/:collectionId/:storyId", authMiddleware, async (req, res) => {
+  // DELETE STORY FROM COLLECTION
+  try {
+    const { collectionId, storyId } = req.params;
+
+    const stc = await prisma.storyToCollection.findUnique({
+      where: { storyId_collectionId: { storyId, collectionId } },
+      include: { story: true }
+    });
+
+    if (!stc) {
+      return res.status(404).json({ error: "Bookmark not found" });
+    }
+
+    await prisma.storyToCollection.delete({
+      where: { storyId_collectionId: { storyId, collectionId } }
+    });
+
+    const collection = await prisma.collection.findMany({
+      where: { id: collectionId },
+      include: {
+        storyIdList: {
+          include: { story: true }
         },
-        childCollections:{
-            include:{
-                childCollection:true
-            }
+        childCollections: {
+          include: { childCollection: true }
         }
-    }})
+      }
+    });
 
-    res.json({collection,story:stc.story,message:"Deleted Successfully"})
-}catch(error){
+    res.json({ collection, story: stc.story, message: "Deleted Successfully" });
+  } catch (error) {
+    res.json({ error });
+  }
+});
+// router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
+//     //DELETE STORY FROM COLLECTION
+//     try{
+//     const {stId}=req.params
+//    let stc= await prisma.storyToCollection.findFirst({where:{
+//         id:stId
+//     },include:{
+//         story:true
+//     }})
+//     await prisma.storyToCollection.delete({where:{
+//         id:stId
+//     }})
+//    let collection = await prisma.collection.findMany({where:{
+//         id:stc.collectionId
+//     },include:{
+//         storyIdList:{
+//             include:{
+//                 story:true
+//             }
+//         },
+//         childCollections:{
+//             include:{
+//                 childCollection:true
+//             }
+//         }
+//     }})
 
-    res.json({error})
-}
+//     res.json({collection,story:stc.story,message:"Deleted Successfully"})
+// }catch(error){
 
-})
+//     res.json({error})
+// }
+
+// })
     router.delete("/collection/",authMiddleware,async (req,res)=>{
 
     })
