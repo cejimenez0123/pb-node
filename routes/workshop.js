@@ -1065,24 +1065,7 @@ async function findOrCreateLocation({latitude, longitude,city=""}) {
       await createStoryToCollection({ storyId, collectionId, profileId });
       await prisma.story.update({ where: { id: storyId }, data: { status:"workshop" } });
     }
-//     async function createStoryToCollection({ storyId, collectionId, profileId }) {
-//   return prisma.storyToCollection.upsert({
-//     where: {
-//       storyId_collectionId: {
-//         storyId,
-//         collectionId,
-//       },
-//     },
-//     update: {
-//       profileId,
-//     },
-//     create: {
-//       storyId,
-//       collectionId,
-//       profileId,
-//     },
-//   });
-// }
+
 async function createStoryToCollection({ storyId, collectionId, profileId }) {
   if (!storyId || !collectionId) {
     console.warn("Skipping StoryToCollection insert: missing storyId or collectionId");
