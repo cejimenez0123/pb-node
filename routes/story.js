@@ -233,39 +233,38 @@ module.exports = function ({authMiddleware}){
     router.get("/recommendations", withBlocks, async (req, res) => {
   try {
     let profile = req.user.profiles[0];
-
-    // Ensure we have a profile ID
     if (!profile || !profile.id) {
       profile = await prisma.profile.findFirst({
         where: { userId: req.user.id },
       });
     }
-
-    let recommendations = await getRecommendations(profile.id);
-
-    // If no recommendations, fallback
-    if (recommendations.length === 0) {
-      recommendations = await recommendStories(profile.id);
+    if (!profile || !profile.id) {
+      return res.status(400).json({ error: "No profile found for user" });
     }
 
-    // Fetch stories while respecting privacy/beta readers, and excluding blocked authors
+    const MIN_RECS = 10; // tune to taste
+
+    let recommendations = await getRecommendations(profile.id);
+    if (!recommendations) recommendations = [];
+
+    if (recommendations.length < MIN_RECS) {
+      const fallbackRecs = await recommendStories(profile.id);
+      // merge + dedupe instead of replacing
+      recommendations = [...new Set([...recommendations, ...(fallbackRecs || [])])];
+    }
+
     let stories = await prisma.story.findMany({
       where: {
         id: { in: recommendations },
         authorId: { notIn: req.blockedProfileIds },
         OR: [
           { isPrivate: { equals: false } },
-          {
-            betaReaders: {
-              some: { profileId: { equals: profile.id } },
-            },
-          },
+          { betaReaders: { some: { profileId: { equals: profile.id } } } },
         ],
       },
       include: { author: true },
     });
 
-    // If still empty, fetch top public stories, still excluding blocked authors
     if (stories.length === 0) {
       stories = await prisma.story.findMany({
         orderBy: { storyLikes: { _count: "desc" } },
@@ -280,9 +279,62 @@ module.exports = function ({authMiddleware}){
     res.json({ stories });
   } catch (error) {
     console.log(error);
-    res.json({ error });
+    res.status(500).json({ error: error.message || "Failed to fetch recommendations" });
   }
 });
+//     router.get("/recommendations", withBlocks, async (req, res) => {
+//   try {
+//     let profile = req.user.profiles[0];
+
+//     // Ensure we have a profile ID
+//     if (!profile || !profile.id) {
+//       profile = await prisma.profile.findFirst({
+//         where: { userId: req.user.id },
+//       });
+//     }
+
+//     let recommendations = await getRecommendations(profile.id);
+
+//     // If no recommendations, fallback
+//     if (recommendations.length === 0) {
+//       recommendations = await recommendStories(profile.id);
+//     }
+
+//     // Fetch stories while respecting privacy/beta readers, and excluding blocked authors
+//     let stories = await prisma.story.findMany({
+//       where: {
+//         id: { in: recommendations },
+//         authorId: { notIn: req.blockedProfileIds },
+//         OR: [
+//           { isPrivate: { equals: false } },
+//           {
+//             betaReaders: {
+//               some: { profileId: { equals: profile.id } },
+//             },
+//           },
+//         ],
+//       },
+//       include: { author: true },
+//     });
+
+//     // If still empty, fetch top public stories, still excluding blocked authors
+//     if (stories.length === 0) {
+//       stories = await prisma.story.findMany({
+//         orderBy: { storyLikes: { _count: "desc" } },
+//         where: {
+//           isPrivate: false,
+//           authorId: { notIn: req.blockedProfileIds },
+//         },
+//         include: { author: true },
+//       });
+//     }
+
+//     res.json({ stories });
+//   } catch (error) {
+//     console.log(error);
+//     res.json({ error });
+//   }
+// });
 //--------------- Recommender ---------------------- //
 
 const getRecommendations = async (profileId) => {
