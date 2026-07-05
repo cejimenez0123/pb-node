@@ -6,44 +6,6 @@ const Paths = require('../utils/Paths');
 const router = express.Router()
 
 module.exports = function (authMiddleware){
-    // router.post("/story",authMiddleware,async(req,res)=>{
-    //     const {profile,story}=req.body
-    //     try{
-    //    let like = await prisma.userStoryLike.create({data:{
-    //       profile:{
-    //         connect:{
-    //             id: profile.id
-    //         }
-    //       },
-    //       story:{
-    //         connect:{
-    //             id:story.id
-    //         }
-            
-    //       }
-    //     }})
-    //     await prisma.story.update({where:{
-    //         id:story.id,
-            
-    //     },data:{
-    //         priority:{
-    //             increment:1
-    //         }
-    //     }})
-    //     let updatedProfile = await prisma.profile.findFirst({where:{id:{equals:profile.id}},include:{
-    //         likedStories:true,
-    //         historyStories:true,
-    //         hashtags:true,
-    //         collections:true,
-    //         collectionHistory:true
-      
-    //     }})
-    //     res.json({profile:updatedProfile})
-    // }catch(error){
-    //     console.log({error})
-    //     res.json({error})
-    // }
-    // })
 
     router.post("/story", authMiddleware, async (req, res) => {
         const { profile, story } = req.body;

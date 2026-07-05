@@ -14,39 +14,7 @@ module.exports = function (authMiddleware) {
   const protected = [authMiddleware, updateWriterLevelMiddleware,attachBlockedProfiles];
     const withBlocks = [authMiddleware, attachBlockedProfiles];
  const withOptionalBlocks = [optionalAuth, attachBlockedProfiles];
-  // ── GET /comments?storyId=xxx ─────────────────────────────────────────────
-  // Public — used by DataElement to hydrate annotation highlights
-  // router.get("/", withOptionalBlocks,async (req, res) => {
-  //   try {
-  //     const { storyId } = req.query;
-  //     if (!storyId) return res.status(400).json({ error: "storyId required" });
 
-  //     const comments = await prisma.comment.findMany({
-  //       where: {
-  //         storyId,
-  //       OR: [
-  //   { parentId: { isSet: false } },  // field not set (MongoDB)
-  //   { parentId:{equals: null} },               // field is explicitly null
-  // ],
-          
-  //       },
-  //       include: {
-  //         profile: true,
-          
-  //         children: {
-  //           include: { profile: true },
-  //           orderBy: { created: "asc" },
-  //         },
-  //       },
-  //       orderBy: { created: "asc" },
-  //     });
-
-  //     res.json({ comments });
-  //   } catch (err) {
-      
-  //     res.status(500).json({ error: err });
-  //   }
-  // });
 router.get("/", withOptionalBlocks, async (req, res) => {
   try {
     const { storyId } = req.query;

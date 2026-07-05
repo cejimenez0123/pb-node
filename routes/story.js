@@ -283,57 +283,7 @@ module.exports = function ({authMiddleware}){
     res.json({ error });
   }
 });
-//    router.get("/recommendations", withBlocks, async (req, res) => {
-//   try {
-//     const profile = req.user.profiles[0];
-   
-//     // Ensure we have a profile ID
-//     if (!profile || !profile.id) {
-//       profile = await prisma.profile.findFirst({
-//         where: { userId: req.user.id },
-//       });
-//     }
-
-//     let recommendations = await getRecommendations(profile.id);
-
-//     // If no recommendations, fallback
-//     if (recommendations.length === 0) {
-//       recommendations = await recommendStories(profile.id);
-//     }
-
-//     // Fetch stories while respecting privacy/beta readers
-//     let stories = await prisma.story.findMany({
-//       where: {
-//         id: { in: recommendations },
-//         OR: [
-//           { isPrivate: { equals: false } },
-//           {
-//             betaReaders: {
-//               some: { profileId: { equals: profile.id } },
-//             },
-//           },
-//         ],
-//       },
-//       include: { author: true },
-//     });
-
-//     // If still empty, fetch top public stories
-//     if (stories.length === 0) {
-//       stories = await prisma.story.findMany({
-//         orderBy: { storyLikes: { _count: "desc" } },
-//         where: { isPrivate: false },
-//         include: { author: true },
-//       });
-//     }
-
-//     res.json({ stories });
-//   } catch (error) {
-//     console.log(error);
-//     res.json({ error });
-//   }
-// });
-
-// ---------------------- Recommender ---------------------- //
+//--------------- Recommender ---------------------- //
 
 const getRecommendations = async (profileId) => {
   const user = await prisma.profile.findUnique({
@@ -577,49 +527,7 @@ const where = {
         res.status(500).json({ error });
       }
     });
-//     router.get("/profile/:id/public", withOptionalBlocks, async (req, res) => {
-//   try {
-//     const skip = parseInt(req.query.skip) || 0;
-//     const take = parseInt(req.query.take) || 20;
 
-//     const profileId = req.params.id;
-
-//     const [stories, totalCount] = await Promise.all([
-//       prisma.story.findMany({
-//         where: {
-//           authorId: profileId,
-//           isPrivate: false,
-//         },
-//         include: {
-//           author: true,
-//           comments: true,
-//         },
-//         orderBy: {
-//           updated: "desc",
-//         },
-//         skip,
-//         take,
-//       }),
-
-//       prisma.story.count({
-//         where: {
-//           authorId: profileId,
-//           isPrivate: false,
-//         },
-//       }),
-//     ]);
-
-//     res.status(200).json({
-//       stories,
-//       totalCount,
-//       skip,
-//       take,
-//       hasMore: skip + take < totalCount,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ error });
-//   }
-// });
    
 
     router.get("/profile/:id/protected", withBlocks, async (req, res) => {
@@ -773,89 +681,6 @@ router.get("/:id/protected", withBlocks, async (req, res) => {
     return res.status(500).json({ error: "Internal server error." });
   }
 });
-// router.get("/:id/protected", authMiddleware, async (req, res) => {
-//   try {
-//     const userId = req.user.profiles[0].id; // Authenticated user's profile ID
-//     const storyId = req.params.id;
-
-//     const story = await prisma.story.findFirstOrThrow({
-//       where: { id: storyId },
-//       include: {
-//         author: {
-//           select: { id: true, username: true, profilePic: true },
-//         },
-//         hashtags: {
-//           include: {
-//             hashtag: {
-//               select: { id: true, name: true },
-//             },
-//           },
-//         },
-//         betaReaders: {
-//           include: {
-//             profile: true,
-//           },
-//         },
-//         collections: {
-//           include: {
-//             collection: {
-//               select: {
-//                 id: true,
-//                 title: true,
-//                 type: true,
-//                 isPrivate: true,
-//                 roles: {
-//                   select: {
-//                     profileId: true,
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         },
-//       },
-//     });
-
-//     // Block check: if viewer has blocked the author, hide the story
-//     if (req.blockedProfileIds?.length && req.blockedProfileIds.includes(story.authorId)) {
-//       return res.status(404).json({ error: "Story not found." });
-//     }
-
-//     // 1️⃣ Author can always see
-//     if (story.authorId === userId) return res.json({ story });
-
-//     // 2️⃣ Public story
-//     if (!story.isPrivate) return res.json({ story });
-
-//     // 3️⃣ Story belongs to a public collection
-//     const publicCollection = story.collections.find(
-//       (col) => col.collection && !col.collection.isPrivate
-//     );
-//     if (publicCollection) return res.json({ story });
-
-//     // 4️⃣ User has a role in any private collection
-//     const hasRoleInCollection = story.collections.some((col) =>
-//       col.collection.roles.some((role) => role.profileId === userId)
-//     );
-//     if (hasRoleInCollection) return res.json({ story });
-
-//     // 5️⃣ User is a beta reader
-//     const isBetaReader = story.betaReaders.some(
-//       (br) => br.profile.id == req.user.profiles[0].id
-//     );
-//     if (isBetaReader) return res.json({ story });
-
-//     // 6️⃣ Otherwise, deny access
-//     return res.status(403).json({ error: "Access denied: private story." });
-//   } catch (err) {
-//     console.log(err)
-//     if (err.code === "P2025") {
-//       return res.status(404).json({ error: "Story not found." });
-//     }
-//     console.error("Error fetching protected story:", err);
-//     return res.status(500).json({ error: "Internal server error." });
-//   }
-// });
 
 
     router.put("/:id",...allMiddlewares,async (req,res)=>{
@@ -1163,95 +988,6 @@ router.get("/prompts/recommended", authMiddleware, async (req, res) => {
   }
 })
 
-//     router.get("/prompts/recommended", authMiddleware, async (req, res) => {
-//   try {
-//     const profileId = req.user.profiles[0].id;
-//     const take = parseInt(req.query.take) || 6;
-
-//     // what the user has already seen — kept for deprioritization, not exclusion
-//     const history = await prisma.userStoryHistory.findMany({
-//       where: { profileId },
-//       select: { storyId: true },
-//       take: 100,
-//     });
-//     const seenIds = new Set(history.map((h) => h.storyId));
-
-//     // hashtags from stories the user liked — their taste signal
-//     const likes = await prisma.userStoryLike.findMany({
-//       where: { profileId },
-//       select: { storyId: true },
-//       take: 50,
-//     });
-//     const likedHashtags = likes.length
-//       ? await prisma.hashtagStory.findMany({
-//           where: { storyId: { in: likes.map((l) => l.storyId) } },
-//           select: { hashtagId: true },
-//         })
-//       : [];
-//     const followedHashtags = await prisma.hashtagFollower.findMany({
-//       where: { followerId: profileId },
-//       select: { hashtagId: true },
-//     });
-//     const signalIds = new Set([
-//       ...likedHashtags.map((h) => h.hashtagId),
-//       ...followedHashtags.map((h) => h.hashtagId),
-//     ]);
-
-//     // match any prompt-related hashtag: "prompt", "plumbumprompt", "prompts", etc.
-//     const promptHashtags = await prisma.hashtag.findMany({
-//       where: {
-//         name: {
-//           contains: "prompt",
-//           mode: "insensitive",
-//         },
-//       },
-//       select: { id: true },
-//     });
-//     if (!promptHashtags.length) return res.json({ prompts: [] });
-
-//     const promptHashtagIds = promptHashtags.map((h) => h.id);
-
-//     // all prompt stories — seen ones allowed back in, just deprioritized
-//     const candidates = await prisma.story.findMany({
-//       where: {
-//         isPrivate: false,
-//         hashtags: { some: { hashtagId: { in: promptHashtagIds } } },
-//       },
-//       include: {
-//         hashtags: { include: { hashtag: true } },
-//         author: true,
-//         storyLikes: { select: { id: true } },
-//       },
-//       orderBy: { updated: "desc" },
-//       take: 40,
-//     });
-
-//     // score by taste overlap + likes + recency + unseen bonus
-//     const now = Date.now();
-//     const prompts = candidates
-//       .map((story) => {
-//         const overlap = story.hashtags.filter((h) =>
-//           signalIds.has(h.hashtagId)
-//         ).length;
-//         const likeCount = story.storyLikes.length;
-//         const ageMs = now - new Date(story.updated).getTime();
-//         const recency = Math.max(0, 1 - ageMs / (1000 * 60 * 60 * 24 * 30));
-//         const unseenBonus = seenIds.has(story.id) ? 0 : 1.0;
-
-//         return {
-//           ...story,
-//           _score: overlap * 2 + likeCount * 0.5 + recency * 1.5 + unseenBonus,
-//         };
-//       })
-//       .sort((a, b) => b._score - a._score)
-//       .slice(0, take);
-
-//     res.json({ prompts });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "Failed to load prompt recommendations" });
-//   }
-// });
 
 router.get("/events/:days",async(req,res)=>{
         try{
