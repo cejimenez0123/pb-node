@@ -3,6 +3,7 @@ const prisma = require("../db");
 const { createLocation } = require('../utils/locationUtil');
 const indexNames = require('../utils/indexNames');
 const client = require('../utils/algoliaClient');
+const attachBlockedProfiles = require('../middleware/attechBlockedProfiles');
 const router = express.Router()
 const RECENCY_WEIGHT = 0.8;
 const APPROVAL_WEIGHT = 0.2;
@@ -44,7 +45,7 @@ function mergeScoredStories(items) {
     .sort((a, b) => b._score - a._score);
 }
 module.exports = function (authMiddleware){
-
+    const withBlocks = [authMiddleware, attachBlockedProfiles];
         const getCollectionContentBasedScores = async (colId) => {
             const scores = {};
 
