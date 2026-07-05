@@ -15,38 +15,72 @@ module.exports = function (authMiddleware) {
  const withOptionalBlocks = [optionalAuth, attachBlockedProfiles];
   // ── GET /comments?storyId=xxx ─────────────────────────────────────────────
   // Public — used by DataElement to hydrate annotation highlights
-  router.get("/", async (req, res) => {
-    try {
-      const { storyId } = req.query;
-      if (!storyId) return res.status(400).json({ error: "storyId required" });
+  // router.get("/", withOptionalBlocks,async (req, res) => {
+  //   try {
+  //     const { storyId } = req.query;
+  //     if (!storyId) return res.status(400).json({ error: "storyId required" });
 
-      const comments = await prisma.comment.findMany({
-        where: {
-          storyId,
-        OR: [
-    { parentId: { isSet: false } },  // field not set (MongoDB)
-    { parentId:{equals: null} },               // field is explicitly null
-  ],
+  //     const comments = await prisma.comment.findMany({
+  //       where: {
+  //         storyId,
+  //       OR: [
+  //   { parentId: { isSet: false } },  // field not set (MongoDB)
+  //   { parentId:{equals: null} },               // field is explicitly null
+  // ],
           
-        },
-        include: {
-          profile: true,
+  //       },
+  //       include: {
+  //         profile: true,
           
-          children: {
-            include: { profile: true },
-            orderBy: { created: "asc" },
-          },
-        },
-        orderBy: { created: "asc" },
-      });
+  //         children: {
+  //           include: { profile: true },
+  //           orderBy: { created: "asc" },
+  //         },
+  //       },
+  //       orderBy: { created: "asc" },
+  //     });
 
-      res.json({ comments });
-    } catch (err) {
+  //     res.json({ comments });
+  //   } catch (err) {
       
-      res.status(500).json({ error: err });
-    }
-  });
+  //     res.status(500).json({ error: err });
+  //   }
+  // });
+router.get("/", withOptionalBlocks, async (req, res) => {
+  try {
+    const { storyId } = req.query;
+    const blockedProfileIds = req.blockedProfileIds || [];
 
+    if (!storyId) {
+      return res.status(400).json({ error: "storyId required" });
+    }
+
+    const comments = await prisma.comment.findMany({
+      where: {
+        storyId,
+        OR: [
+          { parentId: { isSet: false } },
+          { parentId: { equals: null } },
+        ],
+        ...(blockedProfileIds.length
+          ? { profileId: { notIn: blockedProfileIds } }
+          : {}),
+      },
+      include: {
+        profile: true,
+        children: {
+          include: { profile: true },
+          orderBy: { created: "asc" },
+        },
+      },
+      orderBy: { created: "asc" },
+    });
+
+    res.json({ comments });
+  } catch (err) {
+    res.status(500).json({ error: err });
+  }
+});
 router.post("/:id/to-story", ...protected, async (req, res) => {
   try {
     const profileId = req.user.profiles[0].id;
