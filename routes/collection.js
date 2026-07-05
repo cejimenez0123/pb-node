@@ -4,7 +4,45 @@ const { createLocation } = require('../utils/locationUtil');
 const indexNames = require('../utils/indexNames');
 const client = require('../utils/algoliaClient');
 const router = express.Router()
+const RECENCY_WEIGHT = 0.8;
+const APPROVAL_WEIGHT = 0.2;
 
+function getApprovalScore(story) {
+  return story.approvalCount ?? story.approvals?.length ?? story._count?.approvals ?? 0;
+}
+
+function mergeScoredStories(items) {
+  const seen = new Set();
+  const unique = [];
+
+  for (const item of items) {
+    if (!item?.id || seen.has(item.id)) continue;
+    seen.add(item.id);
+    unique.push(item);
+  }
+
+  if (!unique.length) return [];
+
+  const times = unique.map((i) => new Date(i.updated ?? i.created ?? 0).getTime());
+  const min = Math.min(...times);
+  const max = Math.max(...times);
+  const range = max - min || 1;
+
+  const maxApproval = Math.max(...unique.map(getApprovalScore), 1);
+
+  return unique
+    .map((story) => {
+      const t = new Date(story.updated ?? story.created ?? 0).getTime();
+      const recency = (t - min) / range;
+      const approval = getApprovalScore(story) / maxApproval;
+
+      return {
+        ...story,
+        _score: RECENCY_WEIGHT * recency + APPROVAL_WEIGHT * approval,
+      };
+    })
+    .sort((a, b) => b._score - a._score);
+}
 module.exports = function (authMiddleware){
 
         const getCollectionContentBasedScores = async (colId) => {
@@ -780,36 +818,92 @@ router.get("/profile/:id/public", async (req, res) => {
   } catch (err) {
     res.status(400).send({ error: err });
   }
+})
+router.get("/:id/feed/stories", withBlocks, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const skip = Number(req.query.skip ?? 0);
+    const take = Number(req.query.take ?? 20);
+
+    const home = await prisma.collection.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        childCollections: {
+          select: {
+            childCollection: {
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!home) {
+      return res.status(404).json({ error: "Collection not found." });
+    }
+
+    const childIds = (home.childCollections ?? [])
+      .map((c) => c.childCollection?.id)
+      .filter(Boolean);
+
+    const [directStories, childStories] = await Promise.all([
+      prisma.story.findMany({
+        where: {
+          collections: {
+            some: { collectionId: id },
+          },
+        },
+        include: {
+          author: {
+            select: { id: true, username: true, profilePic: true },
+          },
+          collections: {
+            include: {
+              collection: {
+                select: { id: true, title: true, type: true, isPrivate: true },
+              },
+            },
+          },
+        },
+      }),
+      childIds.length
+        ? prisma.story.findMany({
+            where: {
+              collections: {
+                some: {
+                  collectionId: { in: childIds },
+                },
+              },
+            },
+            include: {
+              author: {
+                select: { id: true, username: true, profilePic: true },
+              },
+              collections: {
+                include: {
+                  collection: {
+                    select: { id: true, title: true, type: true, isPrivate: true },
+                  },
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const merged = mergeScoredStories([...directStories, ...childStories]);
+    const paged = merged.slice(skip, skip + take);
+
+    return res.json({
+      items: paged,
+      totalCount: merged.length,
+    });
+  } catch (err) {
+    console.error("Error fetching feed stories:", err);
+    return res.status(500).json({ error: "Internal server error." });
+  }
 });
-    // router.get("/profile/:id/private",authMiddleware,async (req,res)=>{
-    //     try{
-    //         let collections = await prisma.collection.findMany({where:{
-    //             profile:{
-    //                 id:{
-    //                     equals:req.params.id
-    //                 }
-    //             }
-    //         },include:{
-                
-    //             storyIdList:{
-    //                 include:{story:{include:{author:true}}}  
-    //               },
-    //            childCollections:true,
-    //            roles:{
-    //             include:{
-    //                 profile:true,
-    //             }
-    //         },
-    //         profile:true
-            
-                
-    //         }})
-           
-    //         res.status(200).json({collections})
-    //     }catch(err){
-    //         res.status(400).send({error:err})
-    //     }
-    // })
     router.get("/profile/:id/protected", authMiddleware, async (req, res) => {
   try {
     const skip = parseInt(req.query.skip) || 0;
