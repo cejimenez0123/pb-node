@@ -1,6 +1,8 @@
 const express = require('express');
 const prisma = require("../db");
 const getOfficialProfileId = require('../utils/getOfficialProfileId');
+const client = require('../utils/algoliaClient');
+const indexNames = require('../utils/indexNames');
 
 const router = express.Router();
 
@@ -69,6 +71,13 @@ module.exports = function (authMiddleware) {
         ...(authorId ? { author: { connect: { id: officialProfileId } } } : {}),
       },
     });
+  
+      
+    // }})
+    client.saveObject({indexName:indexNames.story,body:{
+  objectID:story.id,
+  title:story.id
+}})
     return { story, created: true };
   }
 
