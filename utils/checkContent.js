@@ -1,5 +1,5 @@
 // utils/moderateContent.js
-const { Filter } = require("bad-words");
+const Filter = require("bad-words");
 
 const filter = new Filter();
 filter.removeWords(
@@ -18,6 +18,7 @@ filter.removeWords(
   "piss",
   "dick",
   "cock",
+  "cunt",
   "prick",
   "douche",
   "goddamn",
@@ -25,7 +26,8 @@ filter.removeWords(
   "bugger",
   "twat",
   "nigger",
-  "nigga"
+  "nigga",
+  
 );
 
 const BLOCKED_TERMS = [
