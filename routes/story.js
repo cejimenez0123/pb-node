@@ -1086,6 +1086,33 @@ await Promise.all(promises)
     }
     })
 
+function hashSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function mulberry32(seed) {
+  return function () {
+    let t = (seed += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function seededShuffle(array, seed) {
+  const arr = [...array];
+  const rand = mulberry32(seed);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
 router.get("/prompts/recommended", authMiddleware, async (req, res) => {
   try {
@@ -1154,9 +1181,7 @@ router.get("/prompts/recommended", authMiddleware, async (req, res) => {
     const now = Date.now();
     const ranked = candidates
       .map((story) => {
-        const overlap = story.hashtags.filter((h) =>
-          signalIds.has(h.hashtagId)
-        ).length;
+        const overlap = story.hashtags.filter((h) => signalIds.has(h.hashtagId)).length;
         const likeCount = story.storyLikes.length;
         const ageMs = now - new Date(story.updated).getTime();
         const recency = Math.max(0, 1 - ageMs / (1000 * 60 * 60 * 24 * 30));
@@ -1191,130 +1216,31 @@ router.get("/prompts/recommended", authMiddleware, async (req, res) => {
       }
     }
 
-    const rest = shuffle(ranked.filter((s) => !usedIds.has(s.id)));
-    prompts.push(...rest.slice(0, Math.max(0, take - prompts.length)));
+    const remaining = ranked.filter((s) => !usedIds.has(s.id));
+    const seed = hashSeed(`${profileId}:${slotId}:${new Date().toISOString().slice(0, 10)}`);
+    const seeded = seededShuffle(remaining, seed);
+
+    const slotsLeft = take - prompts.length;
+
+    if (slotsLeft > 1) {
+      prompts.push(...seeded.slice(0, slotsLeft - 1));
+    }
+
+    const usedAfterSeed = new Set(prompts.map((p) => p.id));
+    const lastPool = remaining.filter((s) => !usedAfterSeed.has(s.id));
+
+    if (prompts.length < take && lastPool.length) {
+      const lastPick = lastPool[Math.floor(Math.random() * lastPool.length)];
+      prompts.push(lastPick);
+    }
 
     res.json({ prompts: prompts.slice(0, take) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to load prompt recommendations" });
   }
-});
-//     router.get("/prompts/recommended", authMiddleware, async (req, res) => {
-//   try {
-//     const profileId = req.user.profiles[0].id;
-//     const take = parseInt(req.query.take) || 6;
-//     const slotId = req.query.slotId || "morning"; // or derive from current time
+})
 
-//     const history = await prisma.userStoryHistory.findMany({
-//       where: { profileId },
-//       select: { storyId: true },
-//       take: 100,
-//     });
-//     const seenIds = new Set(history.map((h) => h.storyId));
-
-//     const likes = await prisma.userStoryLike.findMany({
-//       where: { profileId },
-//       select: { storyId: true },
-//       take: 50,
-//     });
-
-//     const likedHashtags = likes.length
-//       ? await prisma.hashtagStory.findMany({
-//           where: { storyId: { in: likes.map((l) => l.storyId) } },
-//           select: { hashtagId: true },
-//         })
-//       : [];
-
-//     const followedHashtags = await prisma.hashtagFollower.findMany({
-//       where: { followerId: profileId },
-//       select: { hashtagId: true },
-//     });
-
-//     const signalIds = new Set([
-//       ...likedHashtags.map((h) => h.hashtagId),
-//       ...followedHashtags.map((h) => h.hashtagId),
-//     ]);
-
-//     const promptHashtags = await prisma.hashtag.findMany({
-//       where: {
-//         name: {
-//           contains: "prompt",
-//           mode: "insensitive",
-//         },
-//       },
-//       select: { id: true },
-//     });
-
-//     if (!promptHashtags.length) return res.json({ prompts: [] });
-
-//     const promptHashtagIds = promptHashtags.map((h) => h.id);
-
-//     const candidates = await prisma.story.findMany({
-//       where: {
-//         isPrivate: false,
-//         hashtags: { some: { hashtagId: { in: promptHashtagIds } } },
-//       },
-//       include: {
-//         hashtags: { include: { hashtag: true } },
-//         author: true,
-//         storyLikes: { select: { id: true } },
-//       },
-//       orderBy: { updated: "desc" },
-//       take: 40,
-//     });
-
-//     const now = Date.now();
-//     const ranked = candidates
-//       .map((story) => {
-//         const overlap = story.hashtags.filter((h) =>
-//           signalIds.has(h.hashtagId)
-//         ).length;
-//         const likeCount = story.storyLikes.length;
-//         const ageMs = now - new Date(story.updated).getTime();
-//         const recency = Math.max(0, 1 - ageMs / (1000 * 60 * 60 * 24 * 30));
-//         const unseenBonus = seenIds.has(story.id) ? 0 : 1.0;
-
-//         return {
-//           ...story,
-//           _score: overlap * 2 + likeCount * 0.5 + recency * 1.5 + unseenBonus,
-//         };
-//       })
-//       .sort((a, b) => b._score - a._score);
-
-//     const stablePrompt = await getTodaysPrompt(slotId);
-
-//     const prompts = [];
-//     if (stablePrompt) {
-//       const stableStory = ranked.find((s) => s.id === stablePrompt.id);
-
-//       if (stableStory) {
-//         prompts.push(stableStory);
-//       } else {
-//         const fetchedStable = await prisma.story.findUnique({
-//           where: { id: stablePrompt.id },
-//           include: {
-//             hashtags: { include: { hashtag: true } },
-//             author: true,
-//             storyLikes: { select: { id: true } },
-//           },
-//         });
-
-//         if (fetchedStable) {
-//           prompts.push(fetchedStable);
-//         }
-//       }
-//     }
-
-//     const remaining = ranked.filter((s) => s.id !== stablePrompt?.id);
-//     prompts.push(...remaining);
-
-//     res.json({ prompts: prompts.slice(0, take) });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "Failed to load prompt recommendations" });
-//   }
-// });
 //     router.get("/prompts/recommended", authMiddleware, async (req, res) => {
 //   try {
 //     const profileId = req.user.profiles[0].id;
@@ -1404,6 +1330,7 @@ router.get("/prompts/recommended", authMiddleware, async (req, res) => {
 //     res.status(500).json({ error: "Failed to load prompt recommendations" });
 //   }
 // });
+
 router.get("/events/:days",async(req,res)=>{
         try{
        let days = req.params.days

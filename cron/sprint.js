@@ -79,74 +79,7 @@ async function getTodaysPrompt(slotId) {
     return null;
   }
 }
-// async function getTodaysPrompt() {
-//   try {
-//     const allPrompts = await prisma.story.findMany({
-//       where: {
-//         hashtags: { some: { hashtag: { name: { contains: 'prompt', mode: 'insensitive' } } } },
-//       },
-//       orderBy: { created: 'asc' }, // stable, consistent order
-//       select: { id: true, data: true },
-//     });
 
-//     if (!allPrompts.length) return null;
-
-//     const today = new Date();
-//     today.setHours(0, 0, 0, 0);
-
-//     const EPOCH = new Date('2024-01-01'); // fixed reference so the index is stable over time
-//     const daysSinceEpoch = Math.floor((today - EPOCH) / 86400000);
-//     const index = daysSinceEpoch % allPrompts.length;
-
-//     const prompt = allPrompts[index];
-//     if (!prompt?.data) return null;
-
-//     const raw = prompt.data.replace(/<[^>]+>/g, '').trim();
-//     const teaser = raw.length > 90 ? raw.slice(0, 87) + '…' : raw;
-
-//     console.log('[sprint-cron] getTodaysPrompt:', { promptId: prompt.id, index, total: allPrompts.length });
-//     return { id: prompt.id, teaser };
-//   } catch (err) {
-//     console.error('[sprint-cron] getTodaysPrompt failed:', err);
-//     return null;
-//   }
-// }
-
-
-// async function fireSprintNotification(slotId) {
-//   const slot = SPRINT_SLOTS[slotId];
-
-//   const [profiles, prompt] = await Promise.all([
-//     prisma.profile.findMany({
-//       where: { writingSprintSlots: { has: slotId } },
-//       select: { id: true },
-//     }),
-//     getTodaysPrompt(),
-//   ]);
-
-//   if (!profiles.length) {
-//     console.log(`[sprint-cron] ${slot.label} — no opted-in users, skipping`);
-//     return;
-//   }
-
-//   const body  = prompt?.teaser ?? "Open Plumbum for today's writing prompt."; // ← moved inside function
-//   const route = prompt.id? Paths.page.createRoute(prompt.id): Paths.notifications;
-
-//   await Promise.all(
-//     profiles.map((p) =>
-//       sendNotification(p.id, slot.label, body, {
-//         route,
-//         type: 'writing_sprint',
-//         slotId,
-//         promptId: prompt?.id ?? '',
-//       }).catch((err) =>
-//         console.error(`[sprint-cron] failed for profile ${p.id}:`, err)
-//       )
-//     )
-//   );
-
-//   console.log(`[sprint-cron] ${slot.label} → notified ${profiles.length} profile(s)`);
-// }
 async function fireSprintNotification(slotId) {
   const slot = SPRINT_SLOTS[slotId];
 
