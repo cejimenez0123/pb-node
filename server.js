@@ -53,6 +53,7 @@ Sentry.init({
 
 const { getDownloadURL,ref } = require("firebase/storage");
 const { weeklyJob } = require("./cron/emails.js");
+const prisma = require("./db/index.js");
 
 app.use(bodyParser.urlencoded({ extended: false }))
 
