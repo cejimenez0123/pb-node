@@ -161,7 +161,8 @@ const decoded = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
 
 client.saveObject({indexName:indexNames.profile,body:{
   objectID:profile.id,
-  username:profile.username
+  username:profile.username,
+  type:"profile"
 }})
         return res.json({ profile: profile, token: verifiedToken, termsVersion: user.termsVersion })
  } catch (error) {

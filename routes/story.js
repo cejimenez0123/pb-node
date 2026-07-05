@@ -1099,7 +1099,8 @@ await client.deleteObject({
 // const index = client.initIndex(indexNames.story);
 story.isPrivate && client.saveObject({indexName:indexNames.story,body:{
   objectID:story.id,
-  title:story.id
+  title:story.id,
+  type:story.type
 }})
         res.status(201).json({story})
       

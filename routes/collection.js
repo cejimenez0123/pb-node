@@ -2132,7 +2132,8 @@ objectID:data.id
         })
         client.saveObject({indexName:indexNames.collection,body:{
   objectID:collection.id,
-  title:collection.title
+  title:collection.title,
+  type:collection.type
 }})
         res.status(201).json({collection:collection})
     }else{

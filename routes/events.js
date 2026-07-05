@@ -75,8 +75,10 @@ module.exports = function (authMiddleware) {
       
     // }})
     client.saveObject({indexName:indexNames.story,body:{
+  area:evvent.area,
   objectID:story.id,
-  title:story.id
+  title:story.id,
+  type:"event"
 }})
     return { story, created: true };
   }
