@@ -5,7 +5,7 @@ const { default: notifyUser } = require('../utils/notifyUser');
 const Paths = require('../utils/Paths');
 const attachBlockedProfiles = require('../middleware/attechBlockedProfiles');
 const optionalAuth = require('../middleware/optionalAuth');
-
+const checkContent = require('../utils/checkContent.js');
 
 const router = express.Router();
 
