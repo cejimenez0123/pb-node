@@ -7,10 +7,11 @@ const getStory = require('../utils/getstory');
 const { default: safeQuery } = require('../utils/safrQuery');
 const checkContent = require('../utils/checkContent.js');
 const attachBlockedProfiles = require('../middleware/attechBlockedProfiles.js');
-
+const client = require("../utils/algoliaClient.js")
 const optionalAuth = require("../middleware/optionalAuth");
 const { getTodaysPrompt } = require('../cron/sprint.js');
 const shuffle = require('../utils/shuffle.js');
+const indexNames = require('../utils/indexNames.js');
 
 
 
@@ -978,6 +979,19 @@ try{
             author:true,
             comments:true
         }})
+
+!story.isPrivate? await client.partialUpdateObject({
+      indexName:indexNames.story,
+      objectID:story.id,
+      attributesToUpdate:{
+  title:story.title
+      }
+  
+    }):await client.deleteObject({
+      indexName:indexNames.story,
+      objectID:story.id
+ 
+    })
         res.status(200).json({story})
     }catch(error){
         console.log("put/:id story",error)
@@ -1030,7 +1044,10 @@ await Promise.all(promises)
                   },
                 })
              
-    
+await client.deleteObject({
+      indexName:indexNames.story,
+      objectID:story.id
+    })
                 res.status(202).json({story,message:"Deleted Successesfully"})
       
         }catch(error){
@@ -1079,7 +1096,13 @@ await Promise.all(promises)
             commentable:commentable,
             type:type
         }})
+// const index = client.initIndex(indexNames.story);
+!story.isPrivate && client.saveObject({indexName:indexNames.story,body:{
+  objectID:story.id,
+  title:story.id
+}})
         res.status(201).json({story})
+      
     }catch(error){
         console.log({error})
         res.json({error})

@@ -9,6 +9,9 @@ const getProfileRecommendations = require("../utils/recommenders/getProfileRecom
 const createNewProfileUser = require('../utils/createNewProfileUser.js');
 const optionalAuth = require('../middleware/optionalAuth.js');
 const attachBlockedProfiles = require('../middleware/attechBlockedProfiles.js');
+const client = require('../utils/algoliaClient.js');
+const indexNames = require('../utils/indexNames.js');
+const { object } = require('firebase-functions/v1/storage');
 
 
 function getActiveProfileId(req, res) {
@@ -155,6 +158,11 @@ const decoded = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
  const profile = await  createNewProfileUser({username,profilePicture,selfStatement,isPrivate:privacy,userId:user.id})
    
         const verifiedToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
+
+client.saveObject({indexName:indexNames.profile,body:{
+  objectID:profile.id,
+  username:profile.username
+}})
         return res.json({ profile: profile, token: verifiedToken, termsVersion: user.termsVersion })
  } catch (error) {
                 return res.status(409).json({ error: new Error("Username already taken") })
@@ -395,6 +403,15 @@ if (location && (location.latitude == null || location.longitude == null)) {
       });
     }
 
+ await client.partialUpdateObject({
+      indexName:indexNames.profile,
+      objectID:profile.id,
+      attributesToUpdate:{
+  // username:profile.username
+  username:profile.username
+      }
+  
+    })
     return res.json({ profile });
   } catch (e) {
 
@@ -474,7 +491,13 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     // Profile then user last
     await prisma.profile.delete({ where: { id: profile.id } });
     await prisma.user.delete({ where: { id: req.user.id } });
-
+await client.deleteObject({
+      indexName:indexNames.profile,
+      objectID:profile.id
+      
+      
+  
+    })
     return res.status(200).json({ message: "Account deleted successfully" });
   } catch (error) {
     console.error("Delete account error:", error);

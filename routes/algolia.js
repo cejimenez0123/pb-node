@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router()
 const {algoliasearch }= require("algoliasearch");
-
+const { de } = require('@faker-js/faker');
 const prisma = require('../db');
 module.exports = function (authMiddleware){
 const client = algoliasearch(
@@ -9,19 +9,19 @@ const client = algoliasearch(
   process.env.ALGOLIA_ADMIN_API_KEY
 );
 
-// const index = client.initIndex(process.env.ALGOLIA_INDEX_NAME);
+
 
 
 
 
 router.post("/save", async (req, res) => {
   try {
-    const { indexName, object } = req.body;
-if (!object || !indexName) {
-  return res.status(400).json({ message: "Missing indexName or object." });
-}
-const result = await client.saveObject({ indexName, objectID: object.objectID, body: object });
-   
+    const { object } = req.body;
+    if (!object || typeof object !== "object") {
+      return res.status(400).json({ message: "Missing or invalid 'object'." });
+    }
+
+    const result = await client.saveObject(object);
     res.json({ success: true, result });
   } catch (error) {
     console.error("Error saving object:", error);
@@ -30,19 +30,27 @@ const result = await client.saveObject({ indexName, objectID: object.objectID, b
 });
 
 
+router.delete("/delete/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ message: "Missing objectID in URL." });
+    }
 
-
-router.delete("/delete", async (req, res) => {
-  const { indexName, objectID } = req.body;
-  if (!indexName || !objectID) {
-    return res.status(400).json({ message: "Missing indexName or objectID." });
+    const result = await index.deleteObject(id);
+    res.json({ success: true, result });
+  } catch (error) {
+    console.error("Error deleting object:", error);
+    res.status(500).json({ error: error.message });
   }
-  const result = await client.deleteObject({ indexName, objectID });
-  res.json({ success: true, result });
 });
 router.get("/search", async (req, res) => {
    const { q = "", profileId } = req.query;
+  // const userId = req.user?.id;
 
+  // if (!q) {
+  //   return res.status(400).json({ error: "Query parameter 'q' is required" });
+  // }
   const defaultIndexes = ["profile", "story", "collection", "hashtag"];
 
   let mine = false
