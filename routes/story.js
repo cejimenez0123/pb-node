@@ -758,20 +758,11 @@ router.get("/:id/protected", withBlocks, async (req, res) => {
     if (story.authorId === userId) return res.json({ story });
     if (!story.isPrivate) return res.json({ story });
 
-    const isBetaReader = story.betaReaders.some(
-      (br) => br.profile?.id === userId
-    );
+  const isBetaReader = story.betaReaders.some(
+  (br) => br.profile?.id === userId
+);
     if (isBetaReader) return res.json({ story });
 
-    const hasRoleInCollection = story.collections.some((col) =>
-      col.collection?.roles?.some((role) => role.profileId === userId)
-    );
-    if (hasRoleInCollection) return res.json({ story });
-
-    const publicCollection = story.collections.some(
-      (col) => col.collection && !col.collection.isPrivate
-    );
-    if (publicCollection) return res.json({ story });
 
     return res.status(403).json({ error: "Access denied: private story." });
   } catch (err) {
