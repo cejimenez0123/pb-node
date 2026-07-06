@@ -97,7 +97,7 @@ async function fireSprintNotification(slotId) {
   }
 
   const body = prompt?.teaser ?? "Open Plumbum for today's writing prompt.";
-  const route = prompt?.id ? Paths.page.createRoute(prompt.id) : Paths.notifications;
+  const route = Paths.page.createRoute(prompt.id) 
 
   await Promise.all(
     profiles.map((p) =>
