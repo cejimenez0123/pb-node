@@ -179,28 +179,52 @@ client.saveObject({indexName:indexNames.profile,body:{
     
     })
     router.post("/device-token", authMiddleware, async (req, res) => {
+  try {
+    const { token, platform = "ios" } = req.body;
+    const profileId = req.user?.profiles?.[0]?.id;
+    if (!profileId) return res.status(403).json({ error: "No active profile" });
+
+    if (!token) return res.status(400).json({ error: "Missing token" });
+
     try {
-        const { token, platform = "ios" } = req.body;
-const profileId = req.user?.profiles?.[0]?.id;
-if (!profileId) return res.status(403).json({ error: "No active profile" });
-
-        try {
-         await prisma.deviceToken.upsert({
-  where: { profileId },
-  create: { token, profileId, platform },
-  update: { token, platform }
-});
-        } catch (err) {
-           console.error("DEVICE_TOKEN_ERROR 1", err.message);
-   
-        }
-
-        return res.json({ success: true });
-    } catch (error) {
-        console.error("DEVICE_TOKEN_ERROR", error.message);
-        return res.status(500).json({ error: "Server error" });
+      await prisma.deviceToken.upsert({
+        where: { token },
+        create: { token, profileId, platform },
+        update: { profileId, platform }
+      });
+    } catch (err) {
+      console.error("DEVICE_TOKEN_ERROR 1", err.message);
     }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("DEVICE_TOKEN_ERROR", error.message);
+    return res.status(500).json({ error: "Server error" });
+  }
 });
+//     router.post("/device-token", authMiddleware, async (req, res) => {
+//     try {
+//         const { token, platform = "ios" } = req.body;
+// const profileId = req.user?.profiles?.[0]?.id;
+// if (!profileId) return res.status(403).json({ error: "No active profile" });
+
+//         try {
+//          await prisma.deviceToken.upsert({
+//   where: { profileId },
+//   create: { token, profileId, platform },
+//   update: { token, platform }
+// });
+//         } catch (err) {
+//            console.error("DEVICE_TOKEN_ERROR 1", err.message);
+   
+//         }
+
+//         return res.json({ success: true });
+//     } catch (error) {
+//         console.error("DEVICE_TOKEN_ERROR", error.message);
+//         return res.status(500).json({ error: "Server error" });
+//     }
+// });
 router.patch("/notifications/read", authMiddleware, async (req, res) => {
   try {
  const profileId = getActiveProfileId(req, res);
