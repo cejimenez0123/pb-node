@@ -185,8 +185,16 @@ const profileId = req.user?.profiles?.[0]?.id;
 if (!profileId) return res.status(403).json({ error: "No active profile" });
 
         try {
-            await prisma.deviceToken.create({
-                data: { token, profileId, platform }
+            await prisma.deviceToken.upsert({
+              where:{
+                profileId:{
+                  equals:profileId
+                }
+              },
+                data: { token, profileId, platform },
+                update:{
+                  token
+                }
             });
         } catch (err) {
             // token already exists — just update it
