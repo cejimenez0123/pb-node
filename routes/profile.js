@@ -193,7 +193,8 @@ if (!profileId) return res.status(403).json({ error: "No active profile" });
               },
                 data: { token, profileId, platform },
                 update:{
-                  token
+                  token,
+                  platform
                 }
             });
         } catch (err) {
