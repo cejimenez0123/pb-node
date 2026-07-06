@@ -185,29 +185,14 @@ const profileId = req.user?.profiles?.[0]?.id;
 if (!profileId) return res.status(403).json({ error: "No active profile" });
 
         try {
-            await prisma.deviceToken.upsert({
-              where:{
-                profileId:{
-                  equals:profileId
-                }
-              },
-                data: { token, profileId, platform },
-                update:{
-                  token,
-                  platform
-                }
-            });
+         await prisma.deviceToken.upsert({
+  where: { profileId },
+  create: { token, profileId, platform },
+  update: { token, platform }
+});
         } catch (err) {
            console.error("DEVICE_TOKEN_ERROR 1", err.message);
-            // token already exists — just update it
-            // if (err.code === 'P2002') {
-            //     await prisma.deviceToken.updateMany({
-            //         where: { token },
-            //         data: { profileId, platform }
-            //     });
-            // } else {
-            //     throw err;
-            // }
+   
         }
 
         return res.json({ success: true });
