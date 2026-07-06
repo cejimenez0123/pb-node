@@ -15,7 +15,7 @@ async function sendNotification(profileId, title, body, data = {}) {
   );
 
   const message = {
-    notification: { title, body },
+    notification: { title:title+": ", body },
     data: stringifiedData,
     tokens: tokens.map(t => t.token),
   };
