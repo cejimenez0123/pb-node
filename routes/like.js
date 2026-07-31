@@ -3,6 +3,7 @@ const prisma = require("../db");
 const generateMongoId = require("./generateMongoId");
 const { default: notifyUser } = require('../utils/notifyUser');
 const Paths = require('../utils/Paths');
+const sendNotification = require('../utils/sendNotifications');
 const router = express.Router()
 
 module.exports = function (authMiddleware){
@@ -42,9 +43,11 @@ module.exports = function (authMiddleware){
 
                 if (likedStory?.authorId && likedStory.authorId !== profile.id) {
                                 const title = "Someone liked your story";
+                                const comTitle = `Fresh Story: ${story.title}`
+                                const comBody = '🔥🔥🔥'
                 const body  = `${updatedProfile.username ?? "Someone"} liked your piece`;
                 const route = Paths.page.createRoute(story.id);
-
+                       
                 await Promise.all([
                     notifyUser({
                         profileId: likedStory.authorId,
@@ -63,16 +66,38 @@ module.exports = function (authMiddleware){
                     }).catch((err) =>
                         console.error("[sendNotification] LIKE failed:", err)
                     ),
+                
                 ]);
-                    // await notifyUser({
-                    //     profileId: likedStory.authorId,
-                    //     type: "LIKE",
-                    //     title: "Someone liked your story",
-                    //     body: `${updatedProfile.username ?? "Someone"} liked your piece`,
-                    //     entityId: story.id,
-                    //     actorId: profile.id,
-                    //     route: `/story/${story.id}`
-                    // });
+                const isAdminProfile = await prisma.profile.findFirst({where:{
+                    id:{
+                        equals:profile.id
+                    }
+                },select:{
+                    id:true,
+                    isAdmin:true
+                }})
+
+                if(isAdminProfile.isAdmin){
+                let profiles =await prisma.profile.findMany({where:{
+   devices: {
+  some: { token: { not: null } }
+
+
+                    },
+                    
+                 },select:{
+                    id:true,
+                 }})
+           await Promise.all(
+  profiles.map(pro =>
+    sendNotification(pro.id, comTitle, comBody, { type: "LIKE", entityId: story.id, actorId: profile.id, route })
+      .catch(err => console.error("[broadcast sendNotification] failed:", err))
+  )
+);
+
+
+                       }
+             
                 }
             } catch (err) {
                 console.error("NOTIFICATION ERROR", err);
