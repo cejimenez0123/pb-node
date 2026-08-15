@@ -468,11 +468,11 @@ router.post("/forgot-password", async (req, res) => {
 })
 // backend route
 router.post('/accept-terms', authMiddleware, async (req, res) => {
-  const { version } = req.body;
-  await prisma.user.update({
-    where: { id: req.user.id },
-    data: { termsAcceptedAt: new Date(), termsVersion: version }
-  });
+  // const { version } = req.body;
+  // await prisma.user.update({
+  //   where: { id: req.user.id },
+  //   data: { termsAcceptedAt: new Date(), termsVersion: version }
+  // });
   res.json({ ok: true });
 });
 //     router.post("/forgot-password",async (req,res)=>{
