@@ -7,22 +7,9 @@ function baseStyles() {
   `;
 }
 
-function cardTableOpen() {
-  return `
-    <table align="center" width="600" cellpadding="0" cellspacing="0" role="presentation"
-      style="margin:20px auto; background:#ffffff; border-radius:8px;">
-      <tr>
-        <td style="padding:32px 32px 24px 32px;">
-  `;
-}
 
-function cardTableClose() {
-  return `
-        </td>
-      </tr>
-    </table>
-  `;
-}
+
+
 
 function h1(text) {
   return `<h1 style="margin:0 0 16px 0; font-family:'Lora', serif; font-size:26px; color:#2F4F2F;">${text}</h1>`;
@@ -51,25 +38,7 @@ function cta(href, label) {
   `;
 }
 
-// function footer({ manageUrl, unsubscribeUrl }) {
-//   return `
-//     ${cardTableOpen()}
-//       <table width="100%" role="presentation" cellpadding="0" cellspacing="0">
-//         <tr>
-//           <td align="center" style="font-size:12px; color:#3D6B47;">
-//             <p style="margin:0 0 10px 0;">You’re receiving this email from Plumbum.</p>
-//             <p style="margin:0 0 8px 0;">
-//               <a href="${manageUrl}" style="color:#065f46; text-decoration:underline;">Manage Preferences</a>
-//             </p>
-//             <p style="margin:0; color:#374151; font-size:13px;">
-//               Need a break? <a href="${unsubscribeUrl}" style="color:#065f46; text-decoration:underline;">Unsubscribe</a>.
-//             </p>
-//           </td>
-//         </tr>
-//       </table>
-//     ${cardTableClose()}
-//   `;
-// }
+
 
 /**
  * 1) Application Confirmation Email

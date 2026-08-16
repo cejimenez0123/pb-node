@@ -1,3 +1,6 @@
+const cardTableClose = require("./cardTableClose");
+const cardTableOpen = require("./cardTableOpen");
+
 
 function footer({ manageUrl, unsubscribeUrl }) {
   return `

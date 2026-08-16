@@ -14,36 +14,67 @@ const client = algoliasearch(
 
 
 
+// router.post("/save", async (req, res) => {
+//   try {
+//     const { object } = req.body;
+//     if (!object || typeof object !== "object") {
+//       return res.status(400).json({ message: "Missing or invalid 'object'." });
+//     }
+
+//     const result = await client.saveObject(object);
+//     res.json({ success: true, result });
+//   } catch (error) {
+//     console.error("Error saving object:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
 router.post("/save", async (req, res) => {
   try {
-    const { object } = req.body;
-    if (!object || typeof object !== "object") {
-      return res.status(400).json({ message: "Missing or invalid 'object'." });
+    const { indexName, object } = req.body;
+    if (!indexName || !object || typeof object !== "object") {
+      return res.status(400).json({ message: "Missing indexName or invalid 'object'." });
     }
 
-    const result = await client.saveObject(object);
+    const result = await client.saveObject({
+      indexName,
+      body: object, // v5 wraps the record in `body`
+    });
     res.json({ success: true, result });
   } catch (error) {
     console.error("Error saving object:", error);
     res.status(500).json({ error: error.message });
   }
 });
-
-
 router.delete("/delete/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    if (!id) {
-      return res.status(400).json({ message: "Missing objectID in URL." });
+    const { indexName } = req.query; // or req.body, your call
+    if (!id || !indexName) {
+      return res.status(400).json({ message: "Missing objectID or indexName." });
     }
 
-    const result = await index.deleteObject(id);
+    const result = await client.deleteObject({ indexName, objectID: id });
     res.json({ success: true, result });
   } catch (error) {
     console.error("Error deleting object:", error);
     res.status(500).json({ error: error.message });
   }
 });
+// router.delete("/delete/:id", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     if (!id) {
+//       return res.status(400).json({ message: "Missing objectID in URL." });
+//     }
+
+//     const result = await index.deleteObject(id);
+//     res.json({ success: true, result });
+//   } catch (error) {
+//     console.error("Error deleting object:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 router.get("/search", async (req, res) => {
    const { q = "", profileId } = req.query;
   // const userId = req.user?.id;

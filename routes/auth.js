@@ -339,7 +339,7 @@ router.post("/apply", async (req, res) => {
     });
 
   } catch (error) {
-
+console.log(error)
   // Currently just logs and returns raw error
   if (error.code === "P2002") {
     return res.status(409).json({ message: "An account with this email already exists." });
