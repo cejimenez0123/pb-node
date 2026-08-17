@@ -298,22 +298,21 @@ const take = Math.min(
     const { location: locale } = req.body;
     const profileId = req.user?.profiles?.[0]?.id;
 
-    const profile = profileId
-      ? await prisma.profile.findUnique({
+    const profile = await prisma.profile.findUnique({
           where: { id: profileId },
           include: { location: true },
         })
-      : null;
+    
 
     const blockedFilter =
       blockedProfileIds.length > 0
         ? {
             roles: {
               none: {
-                profileId: { in: [profile.id,blockedProfileIds ]},
+                profileId: { in: [profile.id,...blockedProfileIds ]},
               },
             },
-            profileId: { notIn:[profile.id, blockedProfileIds] },
+            profileId: { notIn:[profile.id,... blockedProfileIds] },
           }
         : {};
 if (global || !profile || (!locale && !profile.location)) {
@@ -529,7 +528,7 @@ const globalGroups = candidateGroups
 });
 router.get("/profile/workshops", withBlocks, async (req, res) => {
   try{
-    const profile = req.user.profiles?.[0];
+    const profile = req.user?.profiles?.[0];
  
     if (!profile) {
       return res.status(400).json({ error: "No profile found for this user" });
@@ -576,7 +575,7 @@ router.get("/profile/workshops", withBlocks, async (req, res) => {
 router.post("/group/join", withBlocks, async (req, res) => {
   try {
     const { story,  location } = req.body;
-    const profileId = req.user?.profiles[0]?.id;
+    const profileId = req.user?.profiles?.[0]?.id;
 if (!profileId) {
   return res.status(401).json({ error: "Authenticated profile required" });
 }
@@ -1151,8 +1150,8 @@ async function findOrCreateLocation({latitude, longitude,city=""}) {
   let locale = await prisma.location.findFirst({
      where: {
           location_coords: {
-            latitude: location.latitude,
-            longitude: location.longitude,
+            latitude: latitude,
+            longitude: longitude,
           },
      }}
   );
@@ -1170,8 +1169,8 @@ async function findOrCreateLocation({latitude, longitude,city=""}) {
         locale = await prisma.location.findFirst({
      where: {
           location_coords: {
-            latitude: location.latitude,
-            longitude: location.longitude,
+            latitude: latitude,
+            longitude: longitude,
           },
         },
         });
@@ -1204,40 +1203,30 @@ const profile = await prisma.profile.findUnique({
 if (!profile) {
   return res.status(404).json({ error: "Profile not found" });
 }
-       if (!location || !Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) {
-  return res.status(400).json({ error: "Valid location required" });
-}
-       const userLocation = await findOrCreateLocation({...location})
-        const prof = await prisma.profile.update({
+
+       const userLocation =   location? await findOrCreateLocation({...location}):null
+        const prof = userLocation ? await prisma.profile.update({
           where:{
             id:profile.id
       },data:{
         isActive:true,
         locationId: userLocation.id
-      }});
+      }}):await prisma.profile.update({
+          where:{
+            id:profile.id
+      },data:{
+        isActive:true,
+      
+      }})
 
     const profiles = await prisma.profile.findMany({where:{
         isActive:{
           equals:true
         }
       }})
-      if (story?.id) {
-  await assertStoryOwnership({
-    storyId: story.id,
-    profileId,
-  });
-}
-      if (story?.id) {
-        const stor = await prisma.story.update({where:{id:story.id
-        },data:{
-          status:"workshop",
-         
-        }})
-          return  res.json({ profile:prof,story:stor,profiles});
-      }else{
-        return res.json({ profile:prof,story:null,profiles});
-      }
+
     
+    return  res.json({ profile:prof});
       } catch (error) {
   console.error("ACTIVE_USERS_ERROR", error);
 
