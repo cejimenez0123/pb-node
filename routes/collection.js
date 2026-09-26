@@ -1781,140 +1781,895 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
             res.json({error})
         }
     })
-   
-  
+   router.get(
+  "/profile/protected",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const profile =
+        await prisma.profile.findFirst({
+          where: {
+            userId: req.user.id,
+          },
+          select: {
+            id: true,
+          },
+        });
 
-router.get("/profile/protected", authMiddleware, async (req, res) => {
-  try {
-    const skip = parseInt(req.query.skip) || 0;
-    const take = parseInt(req.query.take) || 20;
-    const type = req.query.type;
+      if (!profile) {
+        return res.status(404).json({
+          error: "Profile not found",
+        });
+      }
 
-    const profile = await prisma.profile.findFirst({
-      where: { userId: req.user.id },
-    });
+      const profileId = profile.id;
 
-    const profileId = profile.id;
 
-    const [cols, cTcs, sTcs] = await Promise.all([
-      prisma.collection.findMany({
-        where: { profileId },
-        select: { id: true },
-      }),
+      // ------------------------------------------------------
+      // Pagination
+      // ------------------------------------------------------
 
-      prisma.roleToCollection.findMany({
-        where: { profileId },
-        select: { collectionId: true },
-      }),
+      const parsedSkip =
+        Number.parseInt(
+          req.query.skip,
+          10
+        );
 
-      prisma.storyToCollection.findMany({
-        where: {
-          story: { authorId: profileId },
-          collection: { type: "feedback" },
+      const parsedTake =
+        Number.parseInt(
+          req.query.take,
+          10
+        );
+
+      const skip =
+        Number.isFinite(parsedSkip) &&
+        parsedSkip >= 0
+          ? parsedSkip
+          : 0;
+
+      const take =
+        Number.isFinite(parsedTake) &&
+        parsedTake > 0
+          ? Math.min(parsedTake, 100)
+          : 20;
+
+
+      // ------------------------------------------------------
+      // Query params
+      // ------------------------------------------------------
+
+      const {
+        type,
+        search = "",
+        isWorkshop,
+        scope,
+      } = req.query;
+
+
+      if (
+        scope &&
+        !["created", "member"].includes(
+          scope
+        )
+      ) {
+        return res.status(400).json({
+          error:
+            "scope must be either created or member",
+        });
+      }
+
+
+      // ------------------------------------------------------
+      // Find relevant Room IDs
+      // ------------------------------------------------------
+
+      let relevantCollectionIds = [];
+
+
+      if (scope === "created") {
+        const created =
+          await prisma.collection.findMany({
+            where: {
+              profileId,
+            },
+            select: {
+              id: true,
+            },
+          });
+
+        relevantCollectionIds =
+          created.map(
+            (collection) =>
+              collection.id
+          );
+      }
+
+
+      else if (scope === "member") {
+        const memberships =
+          await prisma.roleToCollection.findMany({
+            where: {
+              profileId,
+              approved: true,
+
+              // The creator/current owner should
+              // not also appear in "Rooms with
+              // other people".
+              role: {
+                not: "owner",
+              },
+
+              collectionId: {
+                not: null,
+              },
+            },
+
+            select: {
+              collectionId: true,
+            },
+          });
+
+        relevantCollectionIds =
+          memberships
+            .map(
+              (membership) =>
+                membership.collectionId
+            )
+            .filter(Boolean);
+      }
+
+
+      else {
+        const [
+          created,
+          memberships,
+        ] = await Promise.all([
+          prisma.collection.findMany({
+            where: {
+              profileId,
+            },
+            select: {
+              id: true,
+            },
+          }),
+
+          prisma.roleToCollection.findMany({
+            where: {
+              profileId,
+              collectionId: {
+                not: null,
+              },
+            },
+            select: {
+              collectionId: true,
+            },
+          }),
+        ]);
+
+        relevantCollectionIds = [
+          ...created.map(
+            (collection) =>
+              collection.id
+          ),
+
+          ...memberships.map(
+            (membership) =>
+              membership.collectionId
+          ),
+        ].filter(Boolean);
+      }
+
+
+      relevantCollectionIds = [
+        ...new Set(
+          relevantCollectionIds
+        ),
+      ];
+
+
+      if (
+        relevantCollectionIds.length === 0
+      ) {
+        return res.json({
+          collections: [],
+          skip,
+          take,
+          totalCount: 0,
+          hasMore: false,
+        });
+      }
+
+
+      // ------------------------------------------------------
+      // Collection filtering
+      // ------------------------------------------------------
+
+      const collectionWhere = {
+        id: {
+          in: relevantCollectionIds,
         },
-        select: { collectionId: true },
-      }),
-    ]);
-
-    const uniqueIds = [
-      ...new Set([
-        ...cols.map(c => c.id),
-        ...cTcs.map(c => c.collectionId),
-        ...sTcs.map(s => s.collectionId),
-      ]),
-    ];
-
-    // -----------------------------
-    // STEP 1: base query + filter
-    // -----------------------------
-const baseCollections = await prisma.collection.findMany({
-  where: {
-    id: { in: uniqueIds },
-    ...(type && type !== "library" ? { type } : {}),
-  },
-  select: {
-    id: true,
-    updated: true,
-    _count: {
-      select: {
-        childCollections: true,
-      },
-    },
-  },
-  orderBy: {
-    updated: "desc",
-  },
-});
-
-// -----------------------------
-// APPLY "library" FILTER RULE
-// -----------------------------
-let filteredCollections = baseCollections;
-
-if (type === "library") {
-  filteredCollections = baseCollections.filter(
-    (c) => c._count.childCollections > 1
-  );
-}
-
-// -----------------------------
-// TOTAL COUNT AFTER FILTER
-// -----------------------------
-const totalCount = filteredCollections.length;
-
-// -----------------------------
-// PAGINATION
-// -----------------------------
-const pagedIds = filteredCollections
-  .slice(skip, skip + take)
-  .map((c) => c.id);
-
-// -----------------------------
-// FINAL FETCH (FULL DATA)
-// -----------------------------
-const collections = await prisma.collection.findMany({
-  where: {
-    id: { in: pagedIds },
-  },
-  include: {
-    childCollections: {
-      include: { childCollection: true },
-    },
-    storyIdList: {
-      include: {
-        story: { include: { author: true } },
-      },
-    },
-    roles: {
-      include: { profile: true },
-    },
-    profile: true,
-  },
-  orderBy: {
-    updated: "desc",
-  },
-});
-
-    // const totalCount = baseCollections.length;
-
-    // -----------------------------
-    // STEP 2: paginate IDs properly
-    // -----------------------------
+      };
 
 
-    res.json({
-      collections,
-      skip,
-      take,
-      totalCount,
-      hasMore: skip + take < totalCount,
-    });
+      if (type) {
+        collectionWhere.type = type;
+      }
 
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error });
+
+      if (isWorkshop !== undefined) {
+        if (
+          isWorkshop !== "true" &&
+          isWorkshop !== "false"
+        ) {
+          return res.status(400).json({
+            error:
+              "isWorkshop must be true or false",
+          });
+        }
+
+        collectionWhere.isWorkshop =
+          isWorkshop === "true";
+      }
+
+
+      const normalizedSearch =
+        typeof search === "string"
+          ? search.trim()
+          : "";
+
+
+      if (normalizedSearch) {
+        collectionWhere.OR = [
+          {
+            title: {
+              contains:
+                normalizedSearch,
+              mode: "insensitive",
+            },
+          },
+
+          {
+            purpose: {
+              contains:
+                normalizedSearch,
+              mode: "insensitive",
+            },
+          },
+        ];
+      }
+
+
+      // ------------------------------------------------------
+      // Get ordered IDs first
+      // ------------------------------------------------------
+
+      const filtered =
+        await prisma.collection.findMany({
+          where: collectionWhere,
+
+          select: {
+            id: true,
+            updated: true,
+          },
+
+          orderBy: [
+            {
+              updated: "desc",
+            },
+            {
+              id: "desc",
+            },
+          ],
+        });
+
+
+      const totalCount =
+        filtered.length;
+
+      const pagedIds =
+        filtered
+          .slice(
+            skip,
+            skip + take
+          )
+          .map(
+            (collection) =>
+              collection.id
+          );
+
+
+      if (pagedIds.length === 0) {
+        return res.json({
+          collections: [],
+          skip,
+          take,
+          totalCount,
+          hasMore:
+            skip < totalCount,
+        });
+      }
+
+
+      // ------------------------------------------------------
+      // Load complete Rooms
+      // ------------------------------------------------------
+
+      const collections =
+        await prisma.collection.findMany({
+          where: {
+            id: {
+              in: pagedIds,
+            },
+          },
+
+          include: {
+            childCollections: {
+              include: {
+                childCollection: true,
+              },
+            },
+
+            storyIdList: {
+              include: {
+                story: {
+                  include: {
+                    author: true,
+                  },
+                },
+              },
+            },
+
+            roles: {
+              include: {
+                profile: true,
+              },
+            },
+
+            profile: true,
+          },
+        });
+
+
+      // Prisma's `in` query does not guarantee
+      // the requested order, so restore it.
+      const byId = new Map(
+        collections.map(
+          (collection) => [
+            collection.id,
+            collection,
+          ]
+        )
+      );
+
+
+      const orderedCollections =
+        pagedIds
+          .map(
+            (id) =>
+              byId.get(id)
+          )
+          .filter(Boolean);
+
+
+      return res.json({
+        collections:
+          orderedCollections,
+
+        skip,
+        take,
+        totalCount,
+
+        hasMore:
+          skip + take <
+          totalCount,
+      });
+
+    } catch (error) {
+      console.error(
+        "GET /profile/protected failed:",
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          "Failed to load Rooms.",
+      });
+    }
   }
-});
+);
+//   router.get("/profile/protected", authMiddleware, async (req, res) => {
+//   try {
+//     const profile = await prisma.profile.findFirst({
+//       where: { userId: req.user.id },
+//       select: { id: true },
+//     });
+
+//     if (!profile) {
+//       return res.status(404).json({
+//         error: "Profile not found",
+//       });
+//     }
+
+//     const profileId = profile.id;
+
+//     // ------------------------------------------------------------
+//     // Pagination
+//     // ------------------------------------------------------------
+
+//     const parsedSkip = Number.parseInt(req.query.skip, 10);
+//     const parsedTake = Number.parseInt(req.query.take, 10);
+
+//     const skip =
+//       Number.isFinite(parsedSkip) && parsedSkip >= 0
+//         ? parsedSkip
+//         : 0;
+
+//     // Keep the existing default of 20, but prevent invalid/huge values.
+//     const take =
+//       Number.isFinite(parsedTake) && parsedTake > 0
+//         ? Math.min(parsedTake, 100)
+//         : 20;
+
+//     // ------------------------------------------------------------
+//     // Filters
+//     // ------------------------------------------------------------
+
+//     const {
+//       type,
+//       search = "",
+//       isWorkshop,
+//       scope,
+//     } = req.query;
+
+//     const normalizedSearch =
+//       typeof search === "string"
+//         ? search.trim()
+//         : "";
+
+//     const normalizedScope =
+//       typeof scope === "string"
+//         ? scope
+//         : undefined;
+
+//     // ------------------------------------------------------------
+//     // Backwards-compatible behavior
+//     //
+//     // If no scope is supplied, preserve the existing behavior:
+//     //
+//     //   1. Collections originated by the profile
+//     //   2. Collections where the profile has a role
+//     //
+//     // We intentionally no longer add collections merely because
+//     // one of the user's Stories happens to be inside a feedback
+//     // collection. That association belongs to workshop/feedback
+//     // discovery, not membership in the user's Rooms.
+//     // ------------------------------------------------------------
+
+//     if (
+//       normalizedScope &&
+//       !["created", "member"].includes(normalizedScope)
+//     ) {
+//       return res.status(400).json({
+//         error: "Invalid scope. Expected 'created' or 'member'.",
+//       });
+//     }
+
+//     // ------------------------------------------------------------
+//     // Find the collection IDs relevant to this profile.
+//     //
+//     // created:
+//     //   Collection.profileId = original creator
+//     //
+//     // member:
+//     //   RoleToCollection.profileId = current member
+//     //   approved = true
+//     //   role != owner
+//     //
+//     // no scope:
+//     //   preserve the previous combined behavior
+//     // ------------------------------------------------------------
+
+//     let relevantCollectionIds = [];
+
+//     if (normalizedScope === "created") {
+//       const createdCollections = await prisma.collection.findMany({
+//         where: {
+//           profileId,
+//         },
+//         select: {
+//           id: true,
+//         },
+//       });
+
+//       relevantCollectionIds = createdCollections.map(
+//         (collection) => collection.id
+//       );
+//     } else if (normalizedScope === "member") {
+//       const memberships = await prisma.roleToCollection.findMany({
+//         where: {
+//           profileId,
+//           approved: true,
+//           role: {
+//             not: "owner",
+//           },
+//           collectionId: {
+//             not: null,
+//           },
+//         },
+//         select: {
+//           collectionId: true,
+//         },
+//       });
+
+//       relevantCollectionIds = memberships
+//         .map((membership) => membership.collectionId)
+//         .filter(Boolean);
+//     } else {
+//       // Existing behavior:
+//       //
+//       // - collections originated by the profile
+//       // - collections where the profile has a role
+//       //
+//       // Keep these separate, then deduplicate.
+
+//       const [createdCollections, memberships] =
+//         await Promise.all([
+//           prisma.collection.findMany({
+//             where: {
+//               profileId,
+//             },
+//             select: {
+//               id: true,
+//             },
+//           }),
+
+//           prisma.roleToCollection.findMany({
+//             where: {
+//               profileId,
+//               collectionId: {
+//                 not: null,
+//               },
+//             },
+//             select: {
+//               collectionId: true,
+//             },
+//           }),
+//         ]);
+
+//       relevantCollectionIds = [
+//         ...createdCollections.map(
+//           (collection) => collection.id
+//         ),
+//         ...memberships.map(
+//           (membership) => membership.collectionId
+//         ),
+//       ].filter(Boolean);
+//     }
+
+//     // Deduplicate IDs before querying collections.
+//     relevantCollectionIds = [
+//       ...new Set(relevantCollectionIds),
+//     ];
+
+//     // Nothing relevant to return.
+//     if (relevantCollectionIds.length === 0) {
+//       return res.json({
+//         collections: [],
+//         skip,
+//         take,
+//         totalCount: 0,
+//         hasMore: false,
+//       });
+//     }
+
+//     // ------------------------------------------------------------
+//     // Collection filters
+//     // ------------------------------------------------------------
+
+//     const collectionWhere = {
+//       id: {
+//         in: relevantCollectionIds,
+//       },
+//     };
+
+//     // `type` is a classification.
+//     //
+//     // `library` is therefore handled exactly like other collection
+//     // types. We do NOT infer library status from child count.
+//     if (type) {
+//       collectionWhere.type = type;
+//     }
+
+//     // isWorkshop is independent of Collection.type.
+//     //
+//     // Accept "true"/"false" from query params.
+//     if (isWorkshop !== undefined) {
+//       if (
+//         isWorkshop !== "true" &&
+//         isWorkshop !== "false"
+//       ) {
+//         return res.status(400).json({
+//           error: "isWorkshop must be 'true' or 'false'.",
+//         });
+//       }
+
+//       collectionWhere.isWorkshop = isWorkshop === "true";
+//     }
+
+//     // ------------------------------------------------------------
+//     // Search
+//     // ------------------------------------------------------------
+//     //
+//     // Search is intentionally applied to title and purpose.
+//     //
+//     // If you want hashtags or other fields searchable later, this
+//     // can be expanded without changing the endpoint contract.
+//     //
+//     // NOTE: Prisma/MongoDB support for case-insensitive mode depends
+//     // on the Prisma version/provider configuration. Using a regex
+//     // isn't appropriate here, so this uses Prisma's supported
+//     // contains query.
+//     // ------------------------------------------------------------
+
+//     if (normalizedSearch) {
+//       collectionWhere.OR = [
+//         {
+//           title: {
+//             contains: normalizedSearch,
+//             mode: "insensitive",
+//           },
+//         },
+//         {
+//           purpose: {
+//             contains: normalizedSearch,
+//             mode: "insensitive",
+//           },
+//         },
+//       ];
+//     }
+
+//     // ------------------------------------------------------------
+//     // Get the collections that satisfy the filters.
+//     //
+//     // We fetch the IDs + updated timestamp first so pagination and
+//     // totalCount are calculated against the filtered collection set.
+//     // This also keeps the existing in-memory pagination behavior
+//     // compatible with the MongoDB setup.
+//     // ------------------------------------------------------------
+
+//     const filteredCollections =
+//       await prisma.collection.findMany({
+//         where: collectionWhere,
+//         select: {
+//           id: true,
+//           updated: true,
+//         },
+//         orderBy: [
+//           {
+//             updated: "desc",
+//           },
+//           {
+//             id: "desc",
+//           },
+//         ],
+//       });
+
+//     const totalCount = filteredCollections.length;
+
+//     const pagedIds = filteredCollections
+//       .slice(skip, skip + take)
+//       .map((collection) => collection.id);
+
+//     if (pagedIds.length === 0) {
+//       return res.json({
+//         collections: [],
+//         skip,
+//         take,
+//         totalCount,
+//         hasMore: skip < totalCount,
+//       });
+//     }
+
+//     // ------------------------------------------------------------
+//     // Fetch the actual collection records.
+//     // ------------------------------------------------------------
+
+//     const collections =
+//       await prisma.collection.findMany({
+//         where: {
+//           id: {
+//             in: pagedIds,
+//           },
+//         },
+//         include: {
+//           childCollections: {
+//             include: {
+//               childCollection: true,
+//             },
+//           },
+
+//           storyIdList: {
+//             include: {
+//               story: {
+//                 include: {
+//                   author: true,
+//                 },
+//               },
+//             },
+//           },
+
+//           roles: {
+//             include: {
+//               profile: true,
+//             },
+//           },
+
+//           profile: true,
+//         },
+//       });
+
+//     // `findMany({ id: { in: [...] } })` does not guarantee that the
+//     // returned records are in the same order as `pagedIds`.
+//     //
+//     // Restore the pagination order explicitly.
+//     const collectionById = new Map(
+//       collections.map((collection) => [
+//         collection.id,
+//         collection,
+//       ])
+//     );
+
+//     const orderedCollections = pagedIds
+//       .map((id) => collectionById.get(id))
+//       .filter(Boolean);
+
+//     return res.json({
+//       collections: orderedCollections,
+//       skip,
+//       take,
+//       totalCount,
+//       hasMore: skip + take < totalCount,
+//     });
+//   } catch (error) {
+//     console.error("GET /profile/protected failed:", error);
+
+//     return res.status(500).json({
+//       error: "Unable to retrieve collections.",
+//     });
+//   }
+// });
+
+// router.get("/profile/protected", authMiddleware, async (req, res) => {
+//   try {
+//     const skip = parseInt(req.query.skip) || 0;
+//     const take = parseInt(req.query.take) || 20;
+//     const type = req.query.type;
+
+//     const profile = await prisma.profile.findFirst({
+//       where: { userId: req.user.id },
+//     });
+
+//     const profileId = profile.id;
+
+//     const [cols, cTcs, sTcs] = await Promise.all([
+//       prisma.collection.findMany({
+//         where: { profileId },
+//         select: { id: true },
+//       }),
+
+//       prisma.roleToCollection.findMany({
+//         where: { profileId },
+//         select: { collectionId: true },
+//       }),
+
+//       prisma.storyToCollection.findMany({
+//         where: {
+//           story: { authorId: profileId },
+//           collection: { type: "feedback" },
+//         },
+//         select: { collectionId: true },
+//       }),
+//     ]);
+
+//     const uniqueIds = [
+//       ...new Set([
+//         ...cols.map(c => c.id),
+//         ...cTcs.map(c => c.collectionId),
+//         ...sTcs.map(s => s.collectionId),
+//       ]),
+//     ];
+
+//     // -----------------------------
+//     // STEP 1: base query + filter
+//     // -----------------------------
+// const baseCollections = await prisma.collection.findMany({
+//   where: {
+//     id: { in: uniqueIds },
+//     ...(type && type !== "library" ? { type } : {}),
+//   },
+//   select: {
+//     id: true,
+//     updated: true,
+//     _count: {
+//       select: {
+//         childCollections: true,
+//       },
+//     },
+//   },
+//   orderBy: {
+//     updated: "desc",
+//   },
+// });
+
+// // -----------------------------
+// // APPLY "library" FILTER RULE
+// // -----------------------------
+// let filteredCollections = baseCollections;
+
+// if (type === "library") {
+//   filteredCollections = baseCollections.filter(
+//     (c) => c._count.childCollections > 1
+//   );
+// }
+
+// // -----------------------------
+// // TOTAL COUNT AFTER FILTER
+// // -----------------------------
+// const totalCount = filteredCollections.length;
+
+// // -----------------------------
+// // PAGINATION
+// // -----------------------------
+// const pagedIds = filteredCollections
+//   .slice(skip, skip + take)
+//   .map((c) => c.id);
+
+// // -----------------------------
+// // FINAL FETCH (FULL DATA)
+// // -----------------------------
+// const collections = await prisma.collection.findMany({
+//   where: {
+//     id: { in: pagedIds },
+//   },
+//   include: {
+//     childCollections: {
+//       include: { childCollection: true },
+//     },
+//     storyIdList: {
+//       include: {
+//         story: { include: { author: true } },
+//       },
+//     },
+//     roles: {
+//       include: { profile: true },
+//     },
+//     profile: true,
+//   },
+//   orderBy: {
+//     updated: "desc",
+//   },
+// });
+
+//     // const totalCount = baseCollections.length;
+
+//     // -----------------------------
+//     // STEP 2: paginate IDs properly
+//     // -----------------------------
+
+
+//     res.json({
+//       collections,
+//       skip,
+//       take,
+//       totalCount,
+//       hasMore: skip + take < totalCount,
+//     });
+
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json({ error });
+//   }
+// });
     router.put("/:id",async (req,res)=>{
         try{
      const {title,purpose,isPrivate,isOpenCollaboration}=req.body

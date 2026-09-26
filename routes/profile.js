@@ -545,16 +545,30 @@ router.get("/alert", authMiddleware, async (req, res) => {
   try {
     
        const profId = req.user?.profiles?.[0]?.id;
-      if (!profId) {
-      return res.status(403).json({ error: "No active profile" });
-    }
-    const profile = await prisma.profile.findFirst({where:profId,select:{
-      lastNotified:true,
-      id:true,
-      lastActive:true
-    }})
-    
-    const lastNotified = profile.lastNotified || new Date(0);
+if (!profId) {
+  return res.status(403).json({
+    error: "No active profile",
+  });
+}
+
+const profile = await prisma.profile.findFirst({
+  where: {
+    id: profId,
+  },
+  select: {
+    lastNotified: true,
+    id: true,
+    lastActive: true,
+  },
+});
+
+if (!profile) {
+  return res.status(404).json({
+    error: "Profile not found",
+  });
+}
+
+const lastNotified = profile.lastNotified || new Date(0);
 
   
 

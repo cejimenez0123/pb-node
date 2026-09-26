@@ -423,6 +423,7 @@ model Collection {
   hashtags            HashtagCollection[]
   chat                Chat?                    @relation(fields: [chatId], references: [id])
   chatId              String?                  @db.ObjectId
+  isWorkshop Boolean @default(false)
   type                CollectionType?          @default(book)
   isGlobal            Boolean                  @default(true)
   followersAre        Role?                    @default(commenter)
