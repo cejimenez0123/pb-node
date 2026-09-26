@@ -266,92 +266,498 @@ router.post("/invite", authMiddleware, async (req, res) => {
     });
   }
 });
-
-
 router.post("/apply", async (req, res) => {
-
+  const body = req.body || {};
 
   const {
     email,
     igHandle,
     fullName,
-    whyApply,
+
+    /* Current application fields */
+    writingNow,
+    writingBarriers,
+    writingBarriersOther,
+
+    sharingReasons,
+    sharingReasonsOther,
+
+    sharingWays,
+    sharingWaysOther,
+
+    sharingOutcomes,
+    sharingOutcomesOther,
+
+    sharingStory,
+    plumbumHope,
     howFindOut,
+
+    /* Legacy fields */
+    whyApply,
     communityNeeds,
     writingOutcome,
     events,
     selectedEvents,
     otherEvent,
     eventPain,
-  } = req.body;
+  } = body;
+
+  let user = null;
 
   try {
     const cleanEmail =
-      email && email.trim() ? email.trim().toLowerCase() : null;
+      email &&
+      typeof email === "string" &&
+      email.trim()
+        ? email.trim().toLowerCase()
+        : null;
 
-    const user = await prisma.user.create({
+    /*
+     * Create the applicant.
+     *
+     * New users begin as:
+     * status = PENDING
+     * applicationStatus = PENDING
+     *
+     * These are also the Prisma defaults, but we set them
+     * explicitly here so the application lifecycle is clear.
+     */
+    user = await prisma.user.create({
       data: {
         email: cleanEmail,
         preferredName: fullName,
+        status: "PENDING",
+        applicationStatus: "PENDING",
       },
     });
 
-    // IMPORTANT: ensure full payload goes into template
-    const mailOptions = applyTemplate(user, {
+    /*
+     * Pass the complete application payload to the email
+     * template. The template is responsible for normalization,
+     * rendering, and legacy compatibility.
+     */
+    const applicationBody = {
+      /* Current */
       email: cleanEmail,
       igHandle,
       fullName,
-      whyApply,
+
+      writingNow,
+      writingBarriers,
+      writingBarriersOther,
+
+      sharingReasons,
+      sharingReasonsOther,
+
+      sharingWays,
+      sharingWaysOther,
+
+      sharingOutcomes,
+      sharingOutcomesOther,
+
+      sharingStory,
+      plumbumHope,
       howFindOut,
+
+      /* Legacy */
+      whyApply,
       communityNeeds,
       writingOutcome,
       events,
       selectedEvents,
       otherEvent,
       eventPain,
+    };
+
+    const mailOptions = applyTemplate(
+      user,
+      applicationBody
+    );
+
+    const confirmationTemplate =
+      applicationConfirmationTemplate(user);
+
+    /*
+     * Send applicant confirmation.
+     */
+    const confirmRes =
+      await resend.emails.send(
+        confirmationTemplate
+      );
+
+    if (confirmRes?.error) {
+      console.error(
+        "CONFIRM EMAIL ERROR:",
+        confirmRes.error
+      );
+
+      /*
+       * The user was created, but the application could not
+       * be completed. Mark the failure before cleanup.
+       */
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          applicationStatus: "EMAIL_FAILED",
+        },
+      });
+
+      throw new Error(
+        "Unable to send application confirmation email."
+      );
+    }
+
+    /*
+     * Send application to Plumbum.
+     */
+    const applyRes =
+      await resend.emails.send(mailOptions);
+
+    if (applyRes?.error) {
+      console.error(
+        "APPLY EMAIL ERROR:",
+        applyRes.error
+      );
+
+      /*
+       * The applicant confirmation may have succeeded, but
+       * the application did not reach Plumbum.
+       */
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          applicationStatus: "EMAIL_FAILED",
+        },
+      });
+
+      throw new Error(
+        "Unable to send application notification email."
+      );
+    }
+
+    /*
+     * Both emails succeeded.
+     *
+     * The user is still pending approval, but the application
+     * itself has been successfully submitted.
+     */
+    user = await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        applicationStatus: "SUBMITTED",
+      },
     });
 
-    const template = applicationConfirmationTemplate(user);
-
-    const confirmRes = await resend.emails.send(template);
-    if (confirmRes?.error) {
-      console.error("CONFIRM EMAIL ERROR:", confirmRes.error);
-    }
-
-    const applyRes = await resend.emails.send(mailOptions);
-    if (applyRes?.error) {
-      console.error("APPLY EMAIL ERROR:", applyRes.error);
-      throw new Error(applyRes.error.message);
-    }
-
+    /*
+     * Review / approval link.
+     */
     const params = new URLSearchParams({
       applicantId: user.id,
       action: "approve",
-      email: user.email,
+      email: user.email || "",
     });
 
-    const path = `/auth/review?${params.toString()}`;
+    const path =
+      `/auth/review?${params.toString()}`;
 
     return res.status(201).json({
       path,
       user,
       message: "Applied Successfully!",
     });
-
   } catch (error) {
-console.log(error)
-  // Currently just logs and returns raw error
-  if (error.code === "P2002") {
-    return res.status(409).json({ message: "An account with this email already exists." });
-  }
-  if (error.code === "P2025") {
-    return res.status(404).json({ message: "Something went wrong creating your account." });
-  }
-  return res.status(500).json({ message: "Unable to process your application. Please try again." });
+    console.error("APPLICATION ERROR:", error);
 
+    /*
+     * If this request created a user and something failed,
+     * remove that incomplete application.
+     *
+     * This prevents a failed email submission from leaving
+     * behind a user that cannot be properly reviewed/approved.
+     */
+    if (user?.id) {
+      try {
+        await prisma.user.delete({
+          where: {
+            id: user.id,
+          },
+        });
+
+        console.log(
+          `Deleted incomplete application user: ${user.id}`
+        );
+      } catch (deleteError) {
+        console.error(
+          "FAILED TO DELETE INCOMPLETE USER:",
+          deleteError
+        );
+      }
+    }
+
+    /*
+     * Prisma unique constraint.
+     *
+     * No user was created by this request, so there is
+     * nothing to clean up.
+     */
+    if (
+      error?.code === "P2002" &&
+      error?.meta?.target === "User_email_key"
+    ) {
+      return res.status(409).json({
+        code: "APPLICATION_ALREADY_EXISTS",
+        message:
+          "We already have an application from this email.",
+      });
+    }
+
+    /*
+     * Prisma record-not-found.
+     */
+    if (error?.code === "P2025") {
+      return res.status(404).json({
+        code: "APPLICATION_NOT_FOUND",
+        message:
+          "We couldn't complete your application. Please try again.",
+      });
+    }
+
+    /*
+     * Anything else.
+     *
+     * Do not expose Prisma, Resend, database, or server
+     * internals to the applicant.
+     */
+    return res.status(500).json({
+      code: "APPLICATION_ERROR",
+      message:
+        "We couldn't submit your application right now. Please try again.",
+    });
   }
 });
-    router.post("/reset-password",async(req,res)=>{
+// router.post("/apply", async (req, res) => {
+//   const body = req.body || {};
+
+//   const {
+//     email,
+//     igHandle,
+//     fullName,
+
+//     /* Current application fields */
+//     writingNow,
+//     writingBarriers,
+//     writingBarriersOther,
+
+//     sharingReasons,
+//     sharingReasonsOther,
+
+//     sharingWays,
+//     sharingWaysOther,
+
+//     sharingOutcomes,
+//     sharingOutcomesOther,
+
+//     sharingStory,
+//     plumbumHope,
+//     howFindOut,
+
+//     /* Legacy fields */
+//     whyApply,
+//     communityNeeds,
+//     writingOutcome,
+//     events,
+//     selectedEvents,
+//     otherEvent,
+//     eventPain,
+//   } = body;
+
+//   try {
+//     const cleanEmail =
+//       email && typeof email === "string" && email.trim()
+//         ? email.trim().toLowerCase()
+//         : null;
+
+//     /*
+//      * Keep database behavior unchanged.
+//      * Application responses are sent through the review email.
+//      */
+//     const user = await prisma.user.create({
+//       data: {
+//         email: cleanEmail,
+//         preferredName: fullName,
+//       },
+//     });
+
+//     /*
+//      * Pass the complete application payload to the email
+//      * template. The template is responsible for normalization,
+//      * rendering, and legacy compatibility.
+//      */
+//     const applicationBody = {
+//       /* Current */
+//       email: cleanEmail,
+//       igHandle,
+//       fullName,
+
+//       writingNow,
+//       writingBarriers,
+//       writingBarriersOther,
+
+//       sharingReasons,
+//       sharingReasonsOther,
+
+//       sharingWays,
+//       sharingWaysOther,
+
+//       sharingOutcomes,
+//       sharingOutcomesOther,
+
+//       sharingStory,
+//       plumbumHope,
+//       howFindOut,
+
+//       /* Legacy */
+//       whyApply,
+//       communityNeeds,
+//       writingOutcome,
+//       events,
+//       selectedEvents,
+//       otherEvent,
+//       eventPain,
+//     };
+
+//     const mailOptions = applyTemplate(
+//       user,
+//       applicationBody
+//     );
+
+//     const confirmationTemplate =
+//       applicationConfirmationTemplate(user);
+
+//     /*
+//      * Send applicant confirmation.
+//      */
+//     const confirmRes =
+//       await resend.emails.send(
+//         confirmationTemplate
+//       );
+
+//     if (confirmRes?.error) {
+//       console.error(
+//         "CONFIRM EMAIL ERROR:",
+//         confirmRes.error
+//       );
+//     }
+
+//     /*
+//      * Send application to Plumbum.
+//      */
+//     const applyRes =
+//       await resend.emails.send(mailOptions);
+
+//     if (applyRes?.error) {
+//       console.error(
+//         "APPLY EMAIL ERROR:",
+//         applyRes.error
+//       );
+
+//       throw new Error(
+//         applyRes.error.message
+//       );
+//     }
+
+//     /*
+//      * Review / approval link.
+//      */
+//     const params = new URLSearchParams({
+//       applicantId: user.id,
+//       action: "approve",
+//       email: user.email || "",
+//     });
+
+//     const path =
+//       `/auth/review?${params.toString()}`;
+
+//     return res.status(201).json({
+//       path,
+//       user,
+//       message: "Applied Successfully!",
+//     });
+//   } catch (error) {
+//     console.error("APPLICATION ERROR:", error);
+
+//     /*
+//      * Prisma unique constraint.
+//      *
+//      * For this route, the important case is the User email
+//      * constraint. This means we already have a user/application
+//      * associated with this email.
+//      */
+//     if (
+//       error?.code === "P2002" &&
+//       error?.meta?.target === "User_email_key"
+//     ) {
+//       return res.status(409).json({
+//         code: "APPLICATION_ALREADY_EXISTS",
+//         message:
+//           "We already have an application from this email.",
+//       });
+//     }
+
+//     /*
+//      * Prisma record-not-found.
+//      */
+//     if (error?.code === "P2025") {
+//       return res.status(404).json({
+//         code: "APPLICATION_NOT_FOUND",
+//         message:
+//           "We couldn't complete your application. Please try again.",
+//       });
+//     }
+
+//     /*
+//      * Anything else.
+//      *
+//      * Do not expose Prisma, Resend, database, or server
+//      * internals to the applicant.
+//      */
+//     return res.status(500).json({
+//       code: "APPLICATION_ERROR",
+//       message:
+//         "We couldn't submit your application right now. Please try again.",
+//     });
+//   }
+//   // } catch (error) {
+//   //   console.log(error);
+
+//   //   if (error.code === "P2002") {
+//   //     return res.status(409).json({
+//   //       message:
+//   //         "An account with this email already exists.",
+//   //     });
+//   //   }
+
+//   //   if (error.code === "P2025") {
+//   //     return res.status(404).json({
+//   //       message:
+//   //         "Something went wrong creating your account.",
+//   //     });
+//   //   }
+
+//   //   return res.status(500).json({
+//   //     message:
+//   //       "Unable to process your application. Please try again.",
+//   //   });
+//   // }
+// });
+
+router.post("/reset-password",async(req,res)=>{
       
       try{
         const { token,password} = req.body
@@ -497,42 +903,154 @@ router.post('/accept-terms', authMiddleware, async (req, res) => {
 //                  return res.status(409).json({err,message:"If there is an account you will recieve an email"})
 //                 }
 //     })
-    router.get('/review', async (req, res) => {
- 
-   
-      try {
-        const {applicantId,action,email} = req.query;
 
-        if (action=="approve"&&email) {
-            
-         
-          let user = await prisma.user.update({where:{
-            id:applicantId,},data:{
-              subscription:"basic",
-              verified:true
-            }}) 
-      
-           
-         
+router.get("/review", async (req, res) => {
+  try {
+    const {
+      applicantId,
+      action,
+      email,
+    } = req.query;
 
-          const mailOptions = approvalTemplate(user)
-          let response = await resend.emails.send(mailOptions)
-          if(response.error){
-            throw response.error
-          }
-          res.status(200).json({ message: `User ${action}'d successfully` });
-            
-      
-          }else{
-            console.log(response.error)
-            res.json({message:"Not interested"})
-          }
-    
-  }catch (error) {
-    console.log(error)
-          res.status(409).json(error)
-  }
+    if (
+      action !== "approve" ||
+      !applicantId ||
+      !email
+    ) {
+      return res.status(400).json({
+        code: "INVALID_REVIEW_REQUEST",
+        message: "Invalid approval request.",
       });
+    }
+
+    /*
+     * Find the applicant first.
+     */
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        id: applicantId,
+      },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        code: "APPLICANT_NOT_FOUND",
+        message: "Applicant not found.",
+      });
+    }
+
+    /*
+     * Make sure the email in the review link matches
+     * the applicant we're approving.
+     */
+    if (
+      !existingUser.email ||
+      existingUser.email.toLowerCase() !==
+        String(email).toLowerCase()
+    ) {
+      return res.status(400).json({
+        code: "EMAIL_MISMATCH",
+        message: "Invalid approval request.",
+      });
+    }
+
+    /*
+     * Only approve a pending applicant.
+     */
+    if (existingUser.status === "APPROVED") {
+      return res.status(200).json({
+        message: "User has already been approved.",
+      });
+    }
+
+    /*
+     * Mark the user as approved.
+     *
+     * applicationStatus remains SUBMITTED because the
+     * application itself has already been received.
+     */
+    const user = await prisma.user.update({
+      where: {
+        id: applicantId,
+      },
+      data: {
+        status: "APPROVED",
+        subscription: "basic",
+        verified: true,
+      },
+    });
+
+    try {
+      /*
+       * Send approval email.
+       */
+      const mailOptions =
+        approvalTemplate(user);
+
+      const response =
+        await resend.emails.send(mailOptions);
+
+      if (response?.error) {
+        throw response.error;
+      }
+
+      return res.status(200).json({
+        message: "User approved successfully.",
+      });
+    } catch (emailError) {
+      console.error(
+        "APPROVAL EMAIL ERROR:",
+        emailError
+      );
+
+      /*
+       * The approval email failed, so don't leave the
+       * applicant appearing approved when they haven't
+       * actually received the next step.
+       */
+      try {
+        await prisma.user.update({
+          where: {
+            id: applicantId,
+          },
+          data: {
+            status: "PENDING",
+            verified: false,
+          },
+        });
+      } catch (rollbackError) {
+        console.error(
+          "APPROVAL ROLLBACK ERROR:",
+          rollbackError
+        );
+      }
+
+      return res.status(500).json({
+        code: "APPROVAL_EMAIL_FAILED",
+        message:
+          "The approval email could not be sent. The applicant was not approved.",
+      });
+    }
+  } catch (error) {
+    console.error(
+      "APPLICATION REVIEW ERROR:",
+      error
+    );
+
+    if (error?.code === "P2025") {
+      return res.status(404).json({
+        code: "APPLICANT_NOT_FOUND",
+        message: "Applicant not found.",
+      });
+    }
+
+    return res.status(500).json({
+      code: "APPLICATION_REVIEW_ERROR",
+      message:
+        "We couldn't complete the approval. Please try again.",
+    });
+  }
+});
       router.delete("/",authMiddleware,async(req,res)=>{
         try{
         const userId = req.user.id

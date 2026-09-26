@@ -7,32 +7,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id              String            @id @default(auto()) @map("_id") @db.ObjectId
-  email           String            @unique
-  preferredName   String            @default("")
-  googleId        String?
-  userGroups      UserGroup[]
-  uId             String?
-  subscription    SubscriptionLevel @default(basic)
-  password        String?
-  igHandle        String?
-  referredBy      Referral?         @relation(name: "ReferredByUser", fields: [referredById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  referredById    String?           @db.ObjectId
-  referralUses    ReferralUse[]
-  emailFrequency  Int?              @default(7)
-  referrals       Referral[]        @relation(name: "UserReferrals")
-  lastEmailed     DateTime?         @default(now())
-  profiles        Profile[]
-  lastLogin       DateTime?         @default(now())
-  termsAcceptedAt DateTime?
-  termsVersion    String?
-  isBanned        Boolean           @default(false)
-  bannedAt        DateTime?
-  bannedReason    String?
-  verified        Boolean           @default(false)
 
-  created DateTime? @default(now())
+
+model User {
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  email             String            @unique
+  preferredName     String            @default("")
+  googleId          String?
+  userGroups        UserGroup[]
+  uId               String?
+  subscription      SubscriptionLevel @default(basic)
+  password          String?
+  igHandle           String?
+  referredBy        Referral?         @relation(name: "ReferredByUser", fields: [referredById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  referredById      String?           @db.ObjectId
+  referralUses      ReferralUse[]
+  emailFrequency    Int?              @default(7)
+  referrals         Referral[]        @relation(name: "UserReferrals")
+  lastEmailed       DateTime?         @default(now())
+  profiles          Profile[]
+  lastLogin         DateTime?         @default(now())
+  termsAcceptedAt   DateTime?
+  termsVersion      String?
+  isBanned          Boolean           @default(false)
+  bannedAt          DateTime?
+  bannedReason      String?
+  verified          Boolean           @default(false)
+
+  status            UserStatus        @default(PENDING)
+  applicationStatus ApplicationStatus @default(PENDING)
+
+  created           DateTime?         @default(now())
 }
 
 model Report {
@@ -568,4 +573,15 @@ model Campaign {
   group Group @relation(fields: [groupId], references: [id], onDelete: Restrict)
 
   @@map("campaigns")
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+}
+
+enum ApplicationStatus {
+  PENDING
+  SUBMITTED
+  EMAIL_FAILED
 }
