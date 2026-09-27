@@ -120,46 +120,91 @@ try{
     return res.status(500).json({ error });
   }
 });
-
 router.put("/story", authMiddleware, async (req, res) => {
   try {
     const { roles = [] } = req.body;
 
     if (!roles.length) {
-      return res.json({ roles: [], story: null });
+      return res.json({
+        roles: [],
+        story: null,
+      });
     }
 
     const storyId = roles[0]?.item?.id;
 
-    const operations = roles.map((role) => {
-      const profileId = role.profile.id;
-      const currentStoryId = role.item.id;
+    if (!storyId) {
+      return res.status(400).json({
+        error: "Story ID is required.",
+      });
+    }
 
-      // 🗑 DELETE
+    const createdRoles = [];
+
+    const operations = roles.map(async (role) => {
+      const profileId = role?.profile?.id;
+      const currentStoryId = role?.item?.id;
+
+      if (!profileId || !currentStoryId) {
+        return null;
+      }
+
+      /*
+       * REVOKE ACCESS
+       */
       if (role.role === "none") {
-        return prisma.roleToStory.deleteMany({
+        await prisma.roleToStory.deleteMany({
           where: {
             profileId,
             storyId: currentStoryId,
           },
         });
+
+        return null;
       }
 
-      // 🔄 UPSERT (composite key)
-      return prisma.roleToStory.upsert({
+      /*
+       * Check whether the relationship already exists.
+       */
+      const existing = await prisma.roleToStory.findUnique({
         where: {
           profileId_storyId: {
             profileId,
             storyId: currentStoryId,
           },
         },
-        update: {
-          role: role.role,
+      });
+
+      /*
+       * CREATE
+       */
+      if (!existing) {
+        const created = await prisma.roleToStory.create({
+          data: {
+            role: role.role,
+            profileId,
+            storyId: currentStoryId,
+          },
+          include: {
+            profile: true,
+            story: true,
+          },
+        });
+
+        createdRoles.push(created);
+
+        return created;
+      }
+
+      /*
+       * UPDATE
+       */
+      return prisma.roleToStory.update({
+        where: {
+          id: existing.id,
         },
-        create: {
+        data: {
           role: role.role,
-          profileId,
-          storyId: currentStoryId,
         },
         include: {
           profile: true,
@@ -168,43 +213,149 @@ router.put("/story", authMiddleware, async (req, res) => {
       });
     });
 
-    const [newRoles, story] = await Promise.all([
-      Promise.all(operations),
-      getStory(storyId),
-    ]);
+    const newRoles = await Promise.all(operations);
 
-            const title = "Story Access";
-            const body  = `You've been added as ${type} to "${story.title}"`;
-            const route = Paths.page.createRoute(storyId);
+    const story = await getStory(storyId);
 
-            await Promise.all([
-                notifyUser({
-                    profileId,
-                    type: "STORY_ROLE_ADDED",
-                    title,
-                    body,
-                    entityId: storyId,
-                    actorId: req.user.profiles[0].id,
-                    route,
-                }),
-                sendNotification(profileId, title, body, {
-                    type: "STORY_ROLE_ADDED",
-                    entityId: storyId,
-                    actorId: req.user.profiles[0].id,
-                    route,
-                }).catch((err) =>
-                    console.error("[sendNotification] STORY_ROLE_ADDED failed:", err)
-                ),
-            ]);
+    /*
+     * Notify only people who were newly granted access.
+     */
+    await Promise.all(
+      createdRoles.map(async (createdRole) => {
+        const profileId = createdRole.profileId;
+        const type = createdRole.role;
+
+        const title = "Story Access";
+        const body = `You've been added as ${type} to "${story.title}"`;
+        const route = Paths.page.createRoute(storyId);
+
+        await Promise.all([
+          notifyUser({
+            profileId,
+            type: "STORY_ROLE_ADDED",
+            title,
+            body,
+            entityId: storyId,
+            actorId: req.user.profiles[0].id,
+            route,
+          }).catch((err) =>
+            console.error(
+              "[notifyUser] STORY_ROLE_ADDED failed:",
+              err
+            )
+          ),
+
+          sendNotification(profileId, title, body, {
+            type: "STORY_ROLE_ADDED",
+            entityId: storyId,
+            actorId: req.user.profiles[0].id,
+            route,
+          }).catch((err) =>
+            console.error(
+              "[sendNotification] STORY_ROLE_ADDED failed:",
+              err
+            )
+          ),
+        ]);
+      })
+    );
+
     return res.json({
-      roles: newRoles,
+      roles: newRoles.filter(Boolean),
       story,
     });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ error });
+
+    return res.status(500).json({
+      error,
+    });
   }
 });
+// router.put("/story", authMiddleware, async (req, res) => {
+//   try {
+//     const { roles = [] } = req.body;
+
+//     if (!roles.length) {
+//       return res.json({ roles: [], story: null });
+//     }
+
+//     const storyId = roles[0]?.item?.id;
+
+//     const operations = roles.map((role) => {
+//       const profileId = role.profile.id;
+//       const currentStoryId = role.item.id;
+
+//       // 🗑 DELETE
+//       if (role.role === "none") {
+//         return prisma.roleToStory.deleteMany({
+//           where: {
+//             profileId,
+//             storyId: currentStoryId,
+//           },
+//         });
+//       }
+
+//       // 🔄 UPSERT (composite key)
+//       return prisma.roleToStory.upsert({
+//         where: {
+//           profileId_storyId: {
+//             profileId,
+//             storyId: currentStoryId,
+//           },
+//         },
+//         update: {
+//           role: role.role,
+//         },
+//         create: {
+//           role: role.role,
+//           profileId,
+//           storyId: currentStoryId,
+//         },
+//         include: {
+//           profile: true,
+//           story: true,
+//         },
+//       });
+//     });
+
+//     const [newRoles, story] = await Promise.all([
+//       Promise.all(operations),
+//       getStory(storyId),
+//     ]);
+
+//             const title = "Story Access";
+//             const body  = `You've been added as ${type} to "${story.title}"`;
+//             const route = Paths.page.createRoute(storyId);
+
+//             await Promise.all([
+//                 notifyUser({
+//                     profileId,
+//                     type: "STORY_ROLE_ADDED",
+//                     title,
+//                     body,
+//                     entityId: storyId,
+//                     actorId: req.user.profiles[0].id,
+//                     route,
+//                 }),
+//                 sendNotification(profileId, title, body, {
+//                     type: "STORY_ROLE_ADDED",
+//                     entityId: storyId,
+//                     actorId: req.user.profiles[0].id,
+//                     route,
+//                 }).catch((err) =>
+//                     console.error("[sendNotification] STORY_ROLE_ADDED failed:", err)
+//                 ),
+//             ]);
+//     return res.json({
+//       roles: newRoles,
+//       story,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     return res.status(500).json({ error });
+//   }
+// });
 router.post("/story", authMiddleware, async (req, res) => {
     let { type, profileId, storyId } = req.body;
     try {
@@ -250,39 +401,7 @@ router.post("/story", authMiddleware, async (req, res) => {
         res.status(409).json({ error: err });
     }
 });
-//     router.post("/story",authMiddleware,async(req,res)=>{
-//         let {type,profileId,storyId}=req.body
-// try{
-//         await prisma.roleToStory.create({data:{
-//             role:type,
-//             profile:{
-//                 connect:{
-//                     id:profileId
-//                 }
-//             },
-//             story:{
-//                 connect:{
-//                     id:storyId
-//                 }
-//             }
-//         },include:{
-//             profile:true
-//         }})
-//         const story = await getStory(storyId)
-//         await notifyUser({
-//   profileId,
-//   type: "STORY_ROLE_ADDED",
-//   title: "Story Access",
-//   body: `You've been added as ${type} to "${story.title}"`,
-//   entityId: storyId,
-//   actorId: req.user.profiles[0].id,
-//   route: Paths.page.createRoute(storyId)
-// });
-//         res.json({message:"Success"})
 
-//     }catch(err){
-//         res.status(409).json({error:err})
-//     }    })
 router.post("/collection", authMiddleware, async (req, res) => {
     let { type, profileId, collectionId } = req.body;
     try {

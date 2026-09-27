@@ -14,20 +14,6 @@ const client = algoliasearch(
 
 
 
-// router.post("/save", async (req, res) => {
-//   try {
-//     const { object } = req.body;
-//     if (!object || typeof object !== "object") {
-//       return res.status(400).json({ message: "Missing or invalid 'object'." });
-//     }
-
-//     const result = await client.saveObject(object);
-//     res.json({ success: true, result });
-//   } catch (error) {
-//     console.error("Error saving object:", error);
-//     res.status(500).json({ error: error.message });
-//   }
-// });
 
 router.post("/save", async (req, res) => {
   try {

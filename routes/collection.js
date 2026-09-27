@@ -1691,96 +1691,493 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
         res.json({error})
     }
     })
-    
-    router.patch("/:id",authMiddleware,async(req,res)=>{
-        try{
-        const {id,title,purpose,isPrivate,isOpenCollaboration,storyToCol,colToCol,col,profile} = req.body
+    router.patch("/:id", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
 
-        let initCol = await prisma.collection.update({where:{
-            id:col.id
-        },data:{
-            updated:new Date(),
-            purpose:purpose,
-            title:title,
-            isPrivate,
-            isOpenCollaboration
-        },include:{
-            storyIdList:{
-                include:{story:{include:{author:true}}}  
-              },
-            childCollections:true,
-            roles:{
-                include:{
-                    profile:true,
-                }
+    const {
+      title,
+      purpose,
+      isPrivate,
+      isOpenCollaboration,
+      storyToCol = [],
+      colToCol = [],
+    } = req.body;
+console.log("PATCH COLLECTION BODY:", JSON.stringify(req.body, null, 2));
+console.log("PATCH COLLECTION PARAM ID:", id);
+console.log("PATCH STORY TO COL:", storyToCol);
+console.log("PATCH COL TO COL:", colToCol);
+    if (!id) {
+      return res.status(400).json({
+        error: "Collection id is required",
+      });
+    }
+
+    if (!Array.isArray(storyToCol)) {
+      return res.status(400).json({
+        error: "storyToCol must be an array",
+      });
+    }
+
+    if (!Array.isArray(colToCol)) {
+      return res.status(400).json({
+        error: "colToCol must be an array",
+      });
+    }
+
+    /*
+     * The collection being edited comes from the URL.
+     * Do not trust req.body.col.id.
+     */
+    const existingCollection = await prisma.collection.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        storyIdList: true,
+        childCollections: true,
+      },
+    });
+
+    if (!existingCollection) {
+      return res.status(404).json({
+        error: "Collection not found",
+      });
+    }
+
+    /*
+     * ---------------------------------------------------------
+     * Validate StoryToCollection relationships
+     * ---------------------------------------------------------
+     */
+
+    const storyIds = new Set();
+    const storyRelationshipIds = new Set();
+
+    for (let index = 0; index < storyToCol.length; index += 1) {
+      const relation = storyToCol[index];
+
+      if (!relation?.id) {
+        return res.status(400).json({
+          error: `storyToCol[${index}] is missing id`,
+        });
+      }
+
+      if (!relation?.story?.id) {
+        return res.status(400).json({
+          error: `storyToCol[${index}] is missing story.id`,
+        });
+      }
+
+      if (storyRelationshipIds.has(relation.id)) {
+        return res.status(400).json({
+          error: `Duplicate StoryToCollection id: ${relation.id}`,
+        });
+      }
+
+      if (storyIds.has(relation.story.id)) {
+        return res.status(400).json({
+          error: `Story appears more than once in this collection: ${relation.story.id}`,
+        });
+      }
+
+      storyRelationshipIds.add(relation.id);
+      storyIds.add(relation.story.id);
+    }
+
+    /*
+     * ---------------------------------------------------------
+     * Validate CollectionToCollection relationships
+     * ---------------------------------------------------------
+     */
+
+    const childCollectionIds = new Set();
+    const collectionRelationshipIds = new Set();
+
+    for (let index = 0; index < colToCol.length; index += 1) {
+      const relation = colToCol[index];
+
+      if (!relation?.id) {
+        return res.status(400).json({
+          error: `colToCol[${index}] is missing id`,
+        });
+      }
+
+      if (!relation?.childCollection?.id) {
+        return res.status(400).json({
+          error: `colToCol[${index}] is missing childCollection.id`,
+        });
+      }
+
+      if (collectionRelationshipIds.has(relation.id)) {
+        return res.status(400).json({
+          error: `Duplicate CollectionToCollection id: ${relation.id}`,
+        });
+      }
+
+      if (childCollectionIds.has(relation.childCollection.id)) {
+        return res.status(400).json({
+          error: `Child collection appears more than once: ${relation.childCollection.id}`,
+        });
+      }
+
+      /*
+       * A collection cannot contain itself.
+       */
+      if (relation.childCollection.id === id) {
+        return res.status(400).json({
+          error: "A collection cannot contain itself",
+        });
+      }
+
+      collectionRelationshipIds.add(relation.id);
+      childCollectionIds.add(relation.childCollection.id);
+    }
+
+    /*
+     * ---------------------------------------------------------
+     * Make sure the submitted relationships actually belong
+     * to this collection.
+     * ---------------------------------------------------------
+     */
+
+    const existingStoryRelationshipIds = new Set(
+      existingCollection.storyIdList.map((relation) => relation.id)
+    );
+
+    const existingCollectionRelationshipIds = new Set(
+      existingCollection.childCollections.map((relation) => relation.id)
+    );
+
+    for (const relation of storyToCol) {
+      if (!existingStoryRelationshipIds.has(relation.id)) {
+        return res.status(400).json({
+          error: `StoryToCollection relationship does not belong to this collection: ${relation.id}`,
+        });
+      }
+    }
+
+    for (const relation of colToCol) {
+      if (!existingCollectionRelationshipIds.has(relation.id)) {
+        return res.status(400).json({
+          error: `CollectionToCollection relationship does not belong to this collection: ${relation.id}`,
+        });
+      }
+    }
+
+    /*
+     * ---------------------------------------------------------
+     * Build the new shared ordering.
+     *
+     * The frontend sends one mixed list:
+     *
+     * Room
+     * Page
+     * Page
+     * Room
+     * Page
+     *
+     * Each relationship has already been assigned its index.
+     *
+     * We normalize the indexes here so the database always
+     * receives a clean 0...N-1 ordering across BOTH types.
+     * ---------------------------------------------------------
+     */
+
+    const submittedItems = [
+      ...storyToCol.map((relation) => ({
+        type: "story",
+        id: relation.id,
+        relation,
+      })),
+
+      ...colToCol.map((relation) => ({
+        type: "collection",
+        id: relation.id,
+        relation,
+      })),
+    ];
+
+    submittedItems.sort((a, b) => {
+      const aIndex =
+        Number.isInteger(a.relation.index)
+          ? a.relation.index
+          : Number.MAX_SAFE_INTEGER;
+
+      const bIndex =
+        Number.isInteger(b.relation.index)
+          ? b.relation.index
+          : Number.MAX_SAFE_INTEGER;
+
+      if (aIndex !== bIndex) {
+        return aIndex - bIndex;
+      }
+
+      return a.id.localeCompare(b.id);
+    });
+
+    /*
+     * Assign one contiguous index sequence to the entire
+     * collection, regardless of whether an item is a Page
+     * or Room.
+     */
+    const normalizedStoryToCol = [];
+    const normalizedColToCol = [];
+
+    submittedItems.forEach((item, index) => {
+      if (item.type === "story") {
+        normalizedStoryToCol.push({
+          ...item.relation,
+          index,
+        });
+      } else {
+        normalizedColToCol.push({
+          ...item.relation,
+          index,
+        });
+      }
+    });
+
+    /*
+     * ---------------------------------------------------------
+     * Transaction
+     * ---------------------------------------------------------
+     */
+
+    await prisma.$transaction(async (tx) => {
+      /*
+       * Update the Collection itself.
+       */
+      await tx.collection.update({
+        where: {
+          id,
+        },
+        data: {
+          updated: new Date(),
+          title: typeof title === "string" ? title.trim() : existingCollection.title,
+          purpose:
+            typeof purpose === "string"
+              ? purpose.trim()
+              : existingCollection.purpose,
+          isPrivate:
+            typeof isPrivate === "boolean"
+              ? isPrivate
+              : existingCollection.isPrivate,
+          isOpenCollaboration:
+            typeof isOpenCollaboration === "boolean"
+              ? isOpenCollaboration
+              : existingCollection.isOpenCollaboration,
+        },
+      });
+
+      /*
+       * -------------------------------------------------------
+       * Remove StoryToCollection relationships that no longer
+       * exist in the submitted collection.
+       * -------------------------------------------------------
+       */
+
+      const submittedStoryRelationshipIds = new Set(
+        normalizedStoryToCol.map((relation) => relation.id)
+      );
+
+      const storyRelationshipsToDelete =
+        existingCollection.storyIdList.filter(
+          (relation) =>
+            !submittedStoryRelationshipIds.has(relation.id)
+        );
+
+      if (storyRelationshipsToDelete.length > 0) {
+        await tx.storyToCollection.deleteMany({
+          where: {
+            id: {
+              in: storyRelationshipsToDelete.map(
+                (relation) => relation.id
+              ),
             },
-            profile:true
-        }})
+          },
+        });
+      }
+
+      /*
+       * -------------------------------------------------------
+       * Remove CollectionToCollection relationships that no
+       * longer exist in the submitted collection.
+       * -------------------------------------------------------
+       */
+
+      const submittedCollectionRelationshipIds = new Set(
+        normalizedColToCol.map((relation) => relation.id)
+      );
+
+      const collectionRelationshipsToDelete =
+        existingCollection.childCollections.filter(
+          (relation) =>
+            !submittedCollectionRelationshipIds.has(relation.id)
+        );
+
+      if (collectionRelationshipsToDelete.length > 0) {
+        await tx.collectionToCollection.deleteMany({
+          where: {
+            id: {
+              in: collectionRelationshipsToDelete.map(
+                (relation) => relation.id
+              ),
+            },
+          },
+        });
+      }
+
+      /*
+       * -------------------------------------------------------
+       * Update StoryToCollection indexes.
+       * -------------------------------------------------------
+       */
+
+      await Promise.all(
+        normalizedStoryToCol.map((relation) =>
+          tx.storyToCollection.update({
+            where: {
+              id: relation.id,
+            },
+            data: {
+              index: relation.index,
+            },
+          })
+        )
+      );
+
+      /*
+       * -------------------------------------------------------
+       * Update CollectionToCollection indexes.
+       * -------------------------------------------------------
+       */
+
+      await Promise.all(
+        normalizedColToCol.map((relation) =>
+          tx.collectionToCollection.update({
+            where: {
+              id: relation.id,
+            },
+            data: {
+              index: relation.index,
+            },
+          })
+        )
+      );
+    });
+
+    /*
+     * ---------------------------------------------------------
+     * Fetch the complete updated collection.
+     *
+     * This is deliberately done AFTER the transaction so the
+     * response reflects the committed database state.
+     * ---------------------------------------------------------
+     */
+
+    const updatedCol = await getCollectionById(id);
+
+    return res.json({
+      collection: updatedCol,
+    });
+  } catch (error) {
+    console.error("PATCH /collection/:id error:", error);
+
+    return res.status(500).json({
+      error: error.message || "Unable to update collection",
+    });
+  }
+});
+//     router.patch("/:id",authMiddleware,async(req,res)=>{
+//         try{
+//         const {id,title,purpose,isPrivate,isOpenCollaboration,storyToCol,colToCol,col,profile} = req.body
+
+//         let initCol = await prisma.collection.update({where:{
+//             id:col.id
+//         },data:{
+//             updated:new Date(),
+//             purpose:purpose,
+//             title:title,
+//             isPrivate,
+//             isOpenCollaboration
+//         },include:{
+//             storyIdList:{
+//                 include:{story:{include:{author:true}}}  
+//               },
+//             childCollections:true,
+//             roles:{
+//                 include:{
+//                     profile:true,
+//                 }
+//             },
+//             profile:true
+//         }})
  
 
-        let storyPromises = storyToCol.map(sTc=>{
+//         let storyPromises = storyToCol.map(sTc=>{
 
             
-            return prisma.storyToCollection.upsert({where:{id:sTc.id},   
-                update:{
-                    index:sTc.index
-                },
-                create:{
-                   profileId:sTc.profile.id,
-                   collectionId:id,
-                   storyId:sTc.story.id,
-                   index:sTc.index
-                    }
-                }
-        )
-        })
-        let colPromises = colToCol.map(cTc=>{
-            return prisma.collectionToCollection.upsert({where:{
-                id:cTc.id
-            },update:{
-                index:cTc.index
-            },create:{
-                childCollectionId:cTc.childCollection.id,
-                parentCollectionId:id,
-                index:cTc.index,
-                profileId:cTc.profile.id
-            }})
-        })
-        let tbdStory = initCol.storyIdList.filter(sTc=>{
+//             return prisma.storyToCollection.upsert({where:{id:sTc.id},   
+//                 update:{
+//                     index:sTc.index
+//                 },
+//                 create:{
+//                    profileId:sTc.profile.id,
+//                    collectionId:id,
+//                    storyId:sTc.story.id,
+//                    index:sTc.index
+//                     }
+//                 }
+//         )
+//         })
+//         let colPromises = colToCol.map(cTc=>{
+//             return prisma.collectionToCollection.upsert({where:{
+//                 id:cTc.id
+//             },update:{
+//                 index:cTc.index
+//             },create:{
+//                 childCollectionId:cTc.childCollection.id,
+//                 parentCollectionId:id,
+//                 index:cTc.index,
+//                 profileId:cTc.profile.id
+//             }})
+//         })
+//         let tbdStory = initCol.storyIdList.filter(sTc=>{
 
-            let found = storyToCol.find(storyCol=>{
-                 return storyCol.id === sTc.storyId
-             })
-             return !found
-     })
-     let tbdCol = initCol.childCollections.filter(sTc=>{
+//             let found = storyToCol.find(storyCol=>{
+//                  return storyCol.id === sTc.storyId
+//              })
+//              return !found
+//      })
+//      let tbdCol = initCol.childCollections.filter(sTc=>{
 
-         let found = colToCol.find(col=>{
-              return col.id === sTc.storyId
-          })
-          return !found
-  })
- let deleteColPromises = tbdCol.map(col=>{
-     return prisma.collectionToCollection.delete({where:{
-         id:col.id
-     }})
-  })
-  let deleteStoryromises = tbdStory.map(story=>{
-     return prisma.storyToCollection.delete({where:{
-         id:story.id
-     }})
-  })
-        await Promise.all(deleteColPromises)
-        await Promise.all(deleteStoryromises)
-       await Promise.all(storyPromises)
-       await Promise.all(colPromises)
-       let updatedCol = getCollectionById(col.id)
-            res.json({collection:updatedCol})
-        }catch(error){
-            console.log(error)
-            res.json({error})
-        }
-    })
+//          let found = colToCol.find(col=>{
+//               return col.id === sTc.storyId
+//           })
+//           return !found
+//   })
+//  let deleteColPromises = tbdCol.map(col=>{
+//      return prisma.collectionToCollection.delete({where:{
+//          id:col.id
+//      }})
+//   })
+//   let deleteStoryromises = tbdStory.map(story=>{
+//      return prisma.storyToCollection.delete({where:{
+//          id:story.id
+//      }})
+//   })
+//         await Promise.all(deleteColPromises)
+//         await Promise.all(deleteStoryromises)
+//        await Promise.all(storyPromises)
+//        await Promise.all(colPromises)
+//        let updatedCol = getCollectionById(col.id)
+//             res.json({collection:updatedCol})
+//         }catch(error){
+//             console.log(error)
+//             res.json({error})
+//         }
+//     })
    router.get(
   "/profile/protected",
   authMiddleware,
