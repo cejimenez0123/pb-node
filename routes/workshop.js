@@ -570,580 +570,780 @@ router.get("/profile/workshops", withBlocks, async (req, res) => {
 })
 //
 
+router.post(
+  "/group/join",
+  // Keep your existing middleware here:
+  // auth middleware + attachBlockedProfiles
+  async (req, res) => {
+    try {
+      const profileId = req.user?.profiles?.[0]?.id;
+      const storyId = req.body?.story?.id ?? null;
 
+      if (!profileId) {
+        return res.status(401).json({
+          error: "Profile required",
+        });
+      }
 
-router.post("/group/join", withBlocks, async (req, res) => {
-  try {
-    const { story,  location } = req.body;
-    const profileId = req.user?.profiles?.[0]?.id;
-if (!profileId) {
-  return res.status(401).json({ error: "Authenticated profile required" });
-}
-const profile = await prisma.profile.findFirst({where:{
-  id:{equals:profileId}
-}})
-    const storyId = story?.id ?? null;
-    const radius = parseFloat(req.query.radius) || 50;
-    const isGlobal = req.query.global == 'true';
-    const blockedProfileIds = req.blockedProfileIds ?? [];
+      /*
+       * ---------------------------------------------------------
+       * 1. Validate the story
+       * ---------------------------------------------------------
+       *
+       * A story entering a workshop must belong to the person
+       * requesting feedback.
+       */
+      if (storyId) {
+        await assertStoryOwnership({
+          storyId,
+          profileId,
+        });
+      }
 
-    if (!profile?.id) {
-      return res.status(400).json({ error: "Profile required" });
-    }
-
-    const prof = await prisma.profile.findUnique({
-      where: { id: profile.id },
-      include: { location: true },
-    });
-if (story?.id) {
-  await assertStoryOwnership({
-    storyId: story.id,
-    profileId,
-  });
-}
-    if (!prof) {
-      return res.status(404).json({ error: 'Profile not found' });
-    }
-
-    // ─── LOCATION RESOLUTION ─────────────────────────
-    let resolvedLocation = prof.location;
-const hasCoordinates =
-  Number.isFinite(location?.latitude) &&
-  Number.isFinite(location?.longitude);
-    if (hasCoordinates) {
-      resolvedLocation = await prisma.location.upsert({
+      /*
+       * ---------------------------------------------------------
+       * 2. Find the most recently active workshop with room
+       * ---------------------------------------------------------
+       *
+       * Workshops are persistent groups.
+       *
+       * A workshop can contain up to 6 writers.
+       * A writer does NOT leave the workshop when their story
+       * leaves the feedback pool.
+       *
+       * We determine activity from the most recently added story
+       * to the workshop.
+       */
+      const workshops = await prisma.collection.findMany({
         where: {
-          location_coords: {
-            latitude: location.latitude,
-            longitude: location.longitude,
+          type: "feedback",
+          roles: {
+            some: {},
           },
         },
-        update: {
-          latitude: location.latitude,
-          longitude: location.longitude,
-          city: location?.name?.split(",")[0] || "Unknown",
-        },
-        create: {
-          latitude: location.latitude,
-          longitude: location.longitude,
-          city: location?.name?.split(",")[0] || "Unknown",
-        },
-      });
-    }
-if (hasCoordinates && resolvedLocation?.id) {
-  await prisma.profile.update({
-    where: { id: prof.id },
-    data: {
-      locationId: resolvedLocation.id,
-    },
-  });
 
-  prof.location = resolvedLocation;
-}
-    if (!isGlobal && !resolvedLocation?.id) {
-      return res.json({
-        joined: false,
-        error: "Location required to join or create local groups.",
-      });
-    }
-
-    // ─── FIND COLLECTIONS ─────────────────────────
-    let availableCollections = [];
-
-    if (isGlobal) {
-      const blockedCollectionFilter = getBlockedCollectionFilter(blockedProfileIds);
-      const collections = await prisma.collection.findMany({
-        where: {
-  AND: [
-    { type: "feedback" },
-    { isGlobal: true },
-
-    {
-      roles: {
-        none: {
-          profileId: prof.id,
-        },
-      },
-    },
-    {
-      profileId: {
-        notIn: [
-          prof.id,
-          process.env.PLUMBUM_PROFILE_ID,
-          ...blockedProfileIds,
-        ].filter(Boolean),
-      },
-    },
-    blockedCollectionFilter,
-  ],
-},
         include: {
-          location: true,
-          childCollections: { include: { childCollection: true } },
-          roles: { include: { profile: true } },
-          storyIdList: {
-            include: { story: { include: { author: true } } },
-          },
-        },
-      });
+          roles: true,
 
-      availableCollections = collections.filter(col => col.roles.length < 6);
-    } else {
-      const profWithLocation = { ...prof, location: resolvedLocation };
-
-  const allCollections = await getEligibleCollections({
-  profileId: prof.id,
-  blockedProfileIds,
-});
-
-       availableCollections = filterAvailableCollections({
-        profile: profWithLocation,
-        collections: allCollections,
-        radius,
-        blockedProfileIds,
-      });
-    }
-
-    // ─── JOIN EXISTING ─────────────────────────
-    if (availableCollections.length > 0) {
-      const col =
-        availableCollections[
-          Math.floor(Math.random() * availableCollections.length)
-        ];
-
-      if (isGlobal) {
-       
-await addProfileToCollection({
-  profileId: prof.id,
-  collection: col,
-  role: "writer",
-});
-        if (storyId) {
-          await createStoryToCollection({
-            storyId,
-            collectionId: col.id,
-            profileId: prof.id,
-          });
-
-          await prisma.story.update({
-            where: { id: storyId },
-            data: { status: "workshop" },
-          });
-        }
-
-        const workshopCollection = await prisma.collection.findFirst({
-          where: { id: col.id },
-          include: {
-            roles: { include: { profile: true } },
-            storyIdList: {
-              include: { story: { include: { author: true } } },
+          stories: {
+            include: {
+              story: true,
+            },
+            orderBy: {
+              createdAt: "desc",
             },
           },
-        });
+        },
+      });
 
-        try {
-          const existingMembers = col.roles.filter(r => r.profileId !== prof.id);
-          const title = "New member joined";
-          const body  = "Someone joined your workshop";
-          const route = Paths.collection.createRoute(col.id);
+      /*
+       * Only workshops with fewer than 6 members are available.
+       *
+       * Do not add the current user twice.
+       */
+      const availableWorkshops = workshops
+        .filter((workshop) => {
+          const memberCount = workshop.roles.length;
 
-          await Promise.all(
-            existingMembers.map((r) =>
-              Promise.all([
-                notifyUser({
-                  profileId: r.profileId,
-                  type: "WORKSHOP_JOIN",
-                  title,
-                  body,
-                  entityId: col.id,
-                  actorId: prof.id,
-                  route,
-                }).catch((err) =>
-                  console.error("[notifyUser] WORKSHOP_JOIN failed:", err)
-                ),
-                sendNotification(r.profileId, title, body, {
-                  type: "WORKSHOP_JOIN",
-                  entityId: col.id,
-                  actorId: prof.id,
-                  route,
-                }).catch((err) =>
-                  console.error("[sendNotification] WORKSHOP_JOIN failed:", err)
-                ),
-              ])
-            )
+          const alreadyMember = workshop.roles.some(
+            (role) => role.profileId === profileId
           );
-        } catch (err) {
-          console.error("[notify] existing members WORKSHOP_JOIN failed:", err);
-        }
 
-        return res.json({
-          joined: true,
-          created: false,
-          collection: workshopCollection,
+          return memberCount < 6 && !alreadyMember;
+        })
+        .sort((a, b) => {
+          /*
+           * Most recently active workshop first.
+           *
+           * The newest story added to the workshop determines
+           * its activity.
+           */
+          const aLatest =
+            a.stories?.[0]?.createdAt
+              ? new Date(a.stories[0].createdAt).getTime()
+              : 0;
+
+          const bLatest =
+            b.stories?.[0]?.createdAt
+              ? new Date(b.stories[0].createdAt).getTime()
+              : 0;
+
+          return bLatest - aLatest;
         });
+
+      let collection = availableWorkshops[0] ?? null;
+      let created = false;
+
+      /*
+       * ---------------------------------------------------------
+       * 3. No available workshop → create one
+       * ---------------------------------------------------------
+       */
+      if (!collection) {
+        collection = await createNewWorkshopCollection({
+          profile: req.user.profiles[0],
+          isGlobal: true,
+        });
+
+        await addProfileToCollection({
+          profileId,
+          collection,
+          role: "owner",
+        });
+
+        created = true;
       } else {
-
-const roleRecord = await addProfileToCollection({
-  profileId: prof.id,
-  collection: col,
-  role: "editor",
-});
-
-        if (storyId) {
-          await attachStory({
-            storyId,
-            collectionId: col.id,
-            profileId: prof.id,
-          });
-        }
-
-        // Notify existing members — same defensive pattern as the global branch above.
-        try {
-          const existingMembers = col.roles.filter(r => r.profileId !== prof.id);
-          const title = "New member joined";
-          const body  = "Someone joined your workshop";
-          const route = Paths.collection.createRoute(col.id);
-
-          await Promise.all(
-            existingMembers.map((r) =>
-              Promise.all([
-                notifyUser({
-                  profileId: r.profileId,
-                  type: "WORKSHOP_JOIN",
-                  title,
-                  body,
-                  entityId: col.id,
-                  actorId: prof.id,
-                  route,
-                }).catch((err) =>
-                  console.error("[notifyUser] WORKSHOP_JOIN failed:", err)
-                ),
-                sendNotification(r.profileId, title, body, {
-                  type: "WORKSHOP_JOIN",
-                  entityId: col.id,
-                  actorId: prof.id,
-                  route,
-                }).catch((err) =>
-                  console.error("[sendNotification] WORKSHOP_JOIN failed:", err)
-                ),
-              ])
-            )
-          );
-        } catch (err) {
-          console.error("[notify] existing members WORKSHOP_JOIN failed:", err);
-        }
-
-        return res.json({
-          joined: true,
-          created: false,
-          collection: roleRecord.collection,
+        /*
+         * -------------------------------------------------------
+         * 4. Add the writer to the existing workshop
+         * -------------------------------------------------------
+         */
+        await addProfileToCollection({
+          profileId,
+          collection,
+          role: "editor",
         });
       }
-    }
 
-    // ─── CREATE NEW ─────────────────────────
-    let newCollection;
-
-    if (isGlobal) {
-      newCollection = await createNewWorkshopCollection({
-        profile: prof,
-        isGlobal,
-      });
-
-      if (!newCollection) {
-        return res
-          .status(500)
-          .json({ error: "Failed to create workshop collection" });
-      }
-
-      await prisma.roleToCollection.upsert({
-        where: {
-          profileId_collectionId: {
-            profileId: prof.id,
-            collectionId: newCollection.id,
-          },
-        },
-        update: {
-          role: "owner",
-        },
-        create: {
-          profileId: prof.id,
-          collectionId: newCollection.id,
-          role: "owner",
-        },
-      });
-
+      /*
+       * ---------------------------------------------------------
+       * 5. Move the story out of the feedback pool
+       * ---------------------------------------------------------
+       *
+       * "workshop" means:
+       *
+       *     waiting for workshop placement
+       *
+       * Once placed:
+       *
+       *     fragment = no longer waiting
+       *
+       * The writer remains a member of the workshop.
+       */
       if (storyId) {
-        await createStoryToCollection({
-          storyId,
-          collectionId: newCollection.id,
-          profileId: prof.id,
+        await prisma.storyToCollection.upsert({
+          where: {
+            storyId_collectionId: {
+              storyId,
+              collectionId: collection.id,
+            },
+          },
+
+          create: {
+            storyId,
+            collectionId: collection.id,
+          },
+
+          update: {},
         });
 
         await prisma.story.update({
-          where: { id: storyId },
-          data: { status: "workshop" },
+          where: {
+            id: storyId,
+          },
+
+          data: {
+            status: "fragment",
+          },
         });
       }
 
-      const stories = await prisma.story.findMany({
-        where: {
-          status: "workshop",
-          authorId: { not: prof.id },
-        },
-        include: {
-          author: {
-            include: {
-              location: true,
-            },
-          },
-        },
-        orderBy: {
-          updated: "desc",
-        },
+      /*
+       * ---------------------------------------------------------
+       * 6. Fetch the finished workshop
+       * ---------------------------------------------------------
+       */
+      const updatedCollection = await findCollection({
+        id: collection.id,
       });
 
-      const shuffled = shuffle(stories);
-      const selectedStories = pickUniqueAuthors(shuffled, 6);
-
-      let addedCount = 0;
-
-      for (const s of selectedStories) {
-        if (addedCount >= 6) break;
-
-        const existing = await prisma.storyToCollection.findFirst({
-          where: {
-            storyId: s.id,
-            collectionId: newCollection.id,
-          },
-        });
-
-        if (existing) continue;
-
-        await prisma.roleToStory.upsert({
-          where: {
-            profileId_storyId: {
-              profileId: prof.id,
-              storyId: s.id,
-            },
-          },
-          create: {
-            role: "commenter",
-            storyId: s.id,
-            profileId: prof.id,
-          },
-          update: {
-            storyId: s.id,
-            profileId: prof.id,
-            role: "commenter",
-          },
-        });
-
-        await prisma.roleToCollection.upsert({
-          where: {
-            profileId_collectionId: {
-              profileId: s.authorId,
-              collectionId: newCollection.id,
-            },
-          },
-          update: {},
-          create: {
-            collectionId: newCollection.id,
-            profileId: s.authorId,
-            role: "writer",
-          },
-        });
-
-        try {
-          const title = "Added to a new workshop";
-          const body  = "Your story was added to a new workshop — come say hi";
-          const route = Paths.collection.createRoute(newCollection.id);
-
-          await Promise.all([
-            notifyUser({
-              profileId: s.authorId,
-              type: "WORKSHOP_JOIN",
-              title,
-              body,
-              entityId: newCollection.id,
-              actorId: prof.id,
-              route,
-            }).catch((err) =>
-              console.error("[notifyUser] WORKSHOP_JOIN failed:", err)
-            ),
-            sendNotification(s.authorId, title, body, {
-              type: "WORKSHOP_JOIN",
-              entityId: newCollection.id,
-              actorId: prof.id,
-              route,
-            }).catch((err) =>
-              console.error("[sendNotification] WORKSHOP_JOIN failed:", err)
-            ),
-          ]);
-        } catch (err) {
-          console.error("[notify] new workshop author notify failed:", err);
-        }
-
-        await createStoryToCollection({
-          storyId: s.id,
-          collectionId: newCollection.id,
-        });
-
-        addedCount++;
-      }
-
-      if (addedCount === 0) {
-        const pool = await getActiveProfilesPool({
-  excludeProfileId: prof.id,
-  blockedProfileIds,
-});
-        await notifyFreshWorkshopNeedsWriters({
-          collection: newCollection,
-          owner: prof,
-          recipients: pool,
-        }).catch((err) =>
-          console.error("[notify] fresh global workshop failed:", err)
-        );
-      }
-    } else {
-      if (!resolvedLocation?.id) {
-        throw new Error("Invalid location");
-      }
-
-      const adminProfiles = await prisma.profile.findMany({
-        where: { isAdmin: true },
+      return res.json({
+        joined: true,
+        created,
+        collection: updatedCollection,
       });
-
-      const adminProfile = adminProfiles.length
-        ? adminProfiles[Math.floor(Math.random() * adminProfiles.length)]
-        : null;
-
-      newCollection = await prisma.collection.create({
-        data: {
-          type: "feedback",
-          location: { connect: { id: resolvedLocation.id } },
-          title: generate({ min: 3, max: 6, join: " " }),
-          isGlobal: false,
-          followersAre: "writer",
-          profile: { connect: { id: prof.id } },
-          roles: {
-            create: {
-              role: "owner",
-              profile: { connect: { id: prof.id } },
-            },
-          },
-        },
-        include: {
-          roles: { include: { profile: true } },
-          location: true,
-        },
-      });
-
-      if (adminProfile) {
-        await prisma.roleToCollection.upsert({
-          where: {
-            profileId_collectionId: {
-              profileId: adminProfile.id,
-              collectionId: newCollection.id,
-            },
-          },
-          update: { role: "writer" },
-          create: {
-            profileId: adminProfile.id,
-            collectionId: newCollection.id,
-            role: "writer",
-          },
-        });
-
-        // Admin owner never needs a notify here — an admin was just added
-        // as a member, not the workshop's owner. This tells them they were
-        // added, same shape as the "existing members" notify elsewhere.
-        try {
-          const title = "Added to a new workshop";
-          const body  = "You were added as the first member of a new local workshop";
-          const route = Paths.collection.createRoute(newCollection.id);
-
-          await Promise.all([
-            notifyUser({
-              profileId: adminProfile.id,
-              type: "WORKSHOP_JOIN",
-              title,
-              body,
-              entityId: newCollection.id,
-              actorId: prof.id,
-              route,
-            }).catch((err) =>
-              console.error("[notifyUser] WORKSHOP_JOIN failed:", err)
-            ),
-            sendNotification(adminProfile.id, title, body, {
-              type: "WORKSHOP_JOIN",
-              entityId: newCollection.id,
-              actorId: prof.id,
-              route,
-            }).catch((err) =>
-              console.error("[sendNotification] WORKSHOP_JOIN failed:", err)
-            ),
-          ]);
-        } catch (err) {
-          console.error("[notify] admin WORKSHOP_JOIN failed:", err);
-        }
-      }
-
-      if (storyId) {
-        await attachStory({
-          storyId,
-          collectionId: newCollection.id,
-          profileId: prof.id,
-        });
-      }
-const nearby = await getNearbyActiveProfiles({
-  location: resolvedLocation,
-  radius,
-  excludeProfileId: prof.id,
-  blockedProfileIds,
-});
-      // Pull in other nearby writers too, beyond the admin.
-      // const nearby = await getNearbyActiveProfiles({
-      //   location: resolvedLocation,
-      //   radius,
-      //   excludeProfileId: prof.id,
-      // });
-      await notifyFreshWorkshopNeedsWriters({
-        collection: newCollection,
-        owner: prof,
-        recipients: nearby,
-      }).catch((err) =>
-        console.error("[notify] fresh local workshop failed:", err)
-      );
-    }
-
-    newCollection = await prisma.collection.findFirst({
-      where: { id: newCollection.id },
-      include: {
-        roles: { include: { profile: true } },
-        storyIdList: {
-          include: { story: { include: { author: true } } },
-        },
-      },
-    });
-
-    return res.json({
-      joined: true,
-      created: true,
-      collection: newCollection,
-    });
-
-  // } catch (error) {
     } catch (error) {
-  console.error("GROUP ERROR:", error);
+      console.error("Error joining workshop:", error);
 
-  return res.status(error.statusCode || 500).json({
-    error: error.message || "Server error",
-  });
-}
+      return res.status(500).json({
+        error: error.message || "Unable to join workshop",
+      });
+    }
+  }
+);
 
-  // }
-});
+// router.post("/group/join", withBlocks, async (req, res) => {
+//   try {
+//     const { story,  location } = req.body;
+//     const profileId = req.user?.profiles?.[0]?.id;
+// if (!profileId) {
+//   return res.status(401).json({ error: "Authenticated profile required" });
+// }
+// const profile = await prisma.profile.findFirst({where:{
+//   id:{equals:profileId}
+// }})
+//     const storyId = story?.id ?? null;
+//     const radius = parseFloat(req.query.radius) || 50;
+//     const isGlobal = req.query.global == 'true';
+//     const blockedProfileIds = req.blockedProfileIds ?? [];
+
+//     if (!profile?.id) {
+//       return res.status(400).json({ error: "Profile required" });
+//     }
+
+//     const prof = await prisma.profile.findUnique({
+//       where: { id: profile.id },
+//       include: { location: true },
+//     });
+// if (story?.id) {
+//   await assertStoryOwnership({
+//     storyId: story.id,
+//     profileId,
+//   });
+// }
+//     if (!prof) {
+//       return res.status(404).json({ error: 'Profile not found' });
+//     }
+
+//     // ─── LOCATION RESOLUTION ─────────────────────────
+//     let resolvedLocation = prof.location;
+// const hasCoordinates =
+//   Number.isFinite(location?.latitude) &&
+//   Number.isFinite(location?.longitude);
+//     if (hasCoordinates) {
+//       resolvedLocation = await prisma.location.upsert({
+//         where: {
+//           location_coords: {
+//             latitude: location.latitude,
+//             longitude: location.longitude,
+//           },
+//         },
+//         update: {
+//           latitude: location.latitude,
+//           longitude: location.longitude,
+//           city: location?.name?.split(",")[0] || "Unknown",
+//         },
+//         create: {
+//           latitude: location.latitude,
+//           longitude: location.longitude,
+//           city: location?.name?.split(",")[0] || "Unknown",
+//         },
+//       });
+//     }
+// if (hasCoordinates && resolvedLocation?.id) {
+//   await prisma.profile.update({
+//     where: { id: prof.id },
+//     data: {
+//       locationId: resolvedLocation.id,
+//     },
+//   });
+
+//   prof.location = resolvedLocation;
+// }
+//     if (!isGlobal && !resolvedLocation?.id) {
+//       return res.json({
+//         joined: false,
+//         error: "Location required to join or create local groups.",
+//       });
+//     }
+
+//     // ─── FIND COLLECTIONS ─────────────────────────
+//     let availableCollections = [];
+
+//     if (isGlobal) {
+//       const blockedCollectionFilter = getBlockedCollectionFilter(blockedProfileIds);
+//       const collections = await prisma.collection.findMany({
+//         where: {
+//   AND: [
+//     { type: "feedback" },
+//     { isGlobal: true },
+
+//     {
+//       roles: {
+//         none: {
+//           profileId: prof.id,
+//         },
+//       },
+//     },
+//     {
+//       profileId: {
+//         notIn: [
+//           prof.id,
+//           process.env.PLUMBUM_PROFILE_ID,
+//           ...blockedProfileIds,
+//         ].filter(Boolean),
+//       },
+//     },
+//     blockedCollectionFilter,
+//   ],
+// },
+//         include: {
+//           location: true,
+//           childCollections: { include: { childCollection: true } },
+//           roles: { include: { profile: true } },
+//           storyIdList: {
+//             include: { story: { include: { author: true } } },
+//           },
+//         },
+//       });
+
+//       availableCollections = collections.filter(col => col.roles.length < 6);
+//     } else {
+//       const profWithLocation = { ...prof, location: resolvedLocation };
+
+//   const allCollections = await getEligibleCollections({
+//   profileId: prof.id,
+//   blockedProfileIds,
+// });
+
+//        availableCollections = filterAvailableCollections({
+//         profile: profWithLocation,
+//         collections: allCollections,
+//         radius,
+//         blockedProfileIds,
+//       });
+//     }
+
+//     // ─── JOIN EXISTING ─────────────────────────
+//     if (availableCollections.length > 0) {
+//       const col =
+//         availableCollections[
+//           Math.floor(Math.random() * availableCollections.length)
+//         ];
+
+//       if (isGlobal) {
+       
+// await addProfileToCollection({
+//   profileId: prof.id,
+//   collection: col,
+//   role: "writer",
+// });
+//         if (storyId) {
+//           await createStoryToCollection({
+//             storyId,
+//             collectionId: col.id,
+//             profileId: prof.id,
+//           });
+
+//           await prisma.story.update({
+//             where: { id: storyId },
+//             data: { status: "workshop" },
+//           });
+//         }
+
+//         const workshopCollection = await prisma.collection.findFirst({
+//           where: { id: col.id },
+//           include: {
+//             roles: { include: { profile: true } },
+//             storyIdList: {
+//               include: { story: { include: { author: true } } },
+//             },
+//           },
+//         });
+
+//         try {
+//           const existingMembers = col.roles.filter(r => r.profileId !== prof.id);
+//           const title = "New member joined";
+//           const body  = "Someone joined your workshop";
+//           const route = Paths.collection.createRoute(col.id);
+
+//           await Promise.all(
+//             existingMembers.map((r) =>
+//               Promise.all([
+//                 notifyUser({
+//                   profileId: r.profileId,
+//                   type: "WORKSHOP_JOIN",
+//                   title,
+//                   body,
+//                   entityId: col.id,
+//                   actorId: prof.id,
+//                   route,
+//                 }).catch((err) =>
+//                   console.error("[notifyUser] WORKSHOP_JOIN failed:", err)
+//                 ),
+//                 sendNotification(r.profileId, title, body, {
+//                   type: "WORKSHOP_JOIN",
+//                   entityId: col.id,
+//                   actorId: prof.id,
+//                   route,
+//                 }).catch((err) =>
+//                   console.error("[sendNotification] WORKSHOP_JOIN failed:", err)
+//                 ),
+//               ])
+//             )
+//           );
+//         } catch (err) {
+//           console.error("[notify] existing members WORKSHOP_JOIN failed:", err);
+//         }
+
+//         return res.json({
+//           joined: true,
+//           created: false,
+//           collection: workshopCollection,
+//         });
+//       } else {
+
+// const roleRecord = await addProfileToCollection({
+//   profileId: prof.id,
+//   collection: col,
+//   role: "editor",
+// });
+
+//         if (storyId) {
+//           await attachStory({
+//             storyId,
+//             collectionId: col.id,
+//             profileId: prof.id,
+//           });
+//         }
+
+//         // Notify existing members — same defensive pattern as the global branch above.
+//         try {
+//           const existingMembers = col.roles.filter(r => r.profileId !== prof.id);
+//           const title = "New member joined";
+//           const body  = "Someone joined your workshop";
+//           const route = Paths.collection.createRoute(col.id);
+
+//           await Promise.all(
+//             existingMembers.map((r) =>
+//               Promise.all([
+//                 notifyUser({
+//                   profileId: r.profileId,
+//                   type: "WORKSHOP_JOIN",
+//                   title,
+//                   body,
+//                   entityId: col.id,
+//                   actorId: prof.id,
+//                   route,
+//                 }).catch((err) =>
+//                   console.error("[notifyUser] WORKSHOP_JOIN failed:", err)
+//                 ),
+//                 sendNotification(r.profileId, title, body, {
+//                   type: "WORKSHOP_JOIN",
+//                   entityId: col.id,
+//                   actorId: prof.id,
+//                   route,
+//                 }).catch((err) =>
+//                   console.error("[sendNotification] WORKSHOP_JOIN failed:", err)
+//                 ),
+//               ])
+//             )
+//           );
+//         } catch (err) {
+//           console.error("[notify] existing members WORKSHOP_JOIN failed:", err);
+//         }
+
+//         return res.json({
+//           joined: true,
+//           created: false,
+//           collection: roleRecord.collection,
+//         });
+//       }
+//     }
+
+//     // ─── CREATE NEW ─────────────────────────
+//     let newCollection;
+
+//     if (isGlobal) {
+//       newCollection = await createNewWorkshopCollection({
+//         profile: prof,
+//         isGlobal,
+//       });
+
+//       if (!newCollection) {
+//         return res
+//           .status(500)
+//           .json({ error: "Failed to create workshop collection" });
+//       }
+
+//       await prisma.roleToCollection.upsert({
+//         where: {
+//           profileId_collectionId: {
+//             profileId: prof.id,
+//             collectionId: newCollection.id,
+//           },
+//         },
+//         update: {
+//           role: "owner",
+//         },
+//         create: {
+//           profileId: prof.id,
+//           collectionId: newCollection.id,
+//           role: "owner",
+//         },
+//       });
+
+//       if (storyId) {
+//         await createStoryToCollection({
+//           storyId,
+//           collectionId: newCollection.id,
+//           profileId: prof.id,
+//         });
+
+//         await prisma.story.update({
+//           where: { id: storyId },
+//           data: { status: "workshop" },
+//         });
+//       }
+
+//       const stories = await prisma.story.findMany({
+//         where: {
+//           status: "workshop",
+//           authorId: { not: prof.id },
+//         },
+//         include: {
+//           author: {
+//             include: {
+//               location: true,
+//             },
+//           },
+//         },
+//         orderBy: {
+//           updated: "desc",
+//         },
+//       });
+
+//       const shuffled = shuffle(stories);
+//       const selectedStories = pickUniqueAuthors(shuffled, 6);
+
+//       let addedCount = 0;
+
+//       for (const s of selectedStories) {
+//         if (addedCount >= 6) break;
+
+//         const existing = await prisma.storyToCollection.findFirst({
+//           where: {
+//             storyId: s.id,
+//             collectionId: newCollection.id,
+//           },
+//         });
+
+//         if (existing) continue;
+
+//         await prisma.roleToStory.upsert({
+//           where: {
+//             profileId_storyId: {
+//               profileId: prof.id,
+//               storyId: s.id,
+//             },
+//           },
+//           create: {
+//             role: "commenter",
+//             storyId: s.id,
+//             profileId: prof.id,
+//           },
+//           update: {
+//             storyId: s.id,
+//             profileId: prof.id,
+//             role: "commenter",
+//           },
+//         });
+
+//         await prisma.roleToCollection.upsert({
+//           where: {
+//             profileId_collectionId: {
+//               profileId: s.authorId,
+//               collectionId: newCollection.id,
+//             },
+//           },
+//           update: {},
+//           create: {
+//             collectionId: newCollection.id,
+//             profileId: s.authorId,
+//             role: "writer",
+//           },
+//         });
+
+//         try {
+//           const title = "Added to a new workshop";
+//           const body  = "Your story was added to a new workshop — come say hi";
+//           const route = Paths.collection.createRoute(newCollection.id);
+
+//           await Promise.all([
+//             notifyUser({
+//               profileId: s.authorId,
+//               type: "WORKSHOP_JOIN",
+//               title,
+//               body,
+//               entityId: newCollection.id,
+//               actorId: prof.id,
+//               route,
+//             }).catch((err) =>
+//               console.error("[notifyUser] WORKSHOP_JOIN failed:", err)
+//             ),
+//             sendNotification(s.authorId, title, body, {
+//               type: "WORKSHOP_JOIN",
+//               entityId: newCollection.id,
+//               actorId: prof.id,
+//               route,
+//             }).catch((err) =>
+//               console.error("[sendNotification] WORKSHOP_JOIN failed:", err)
+//             ),
+//           ]);
+//         } catch (err) {
+//           console.error("[notify] new workshop author notify failed:", err);
+//         }
+
+//         await createStoryToCollection({
+//           storyId: s.id,
+//           collectionId: newCollection.id,
+//         });
+
+//         addedCount++;
+//       }
+
+//       if (addedCount === 0) {
+//         const pool = await getActiveProfilesPool({
+//   excludeProfileId: prof.id,
+//   blockedProfileIds,
+// });
+//         await notifyFreshWorkshopNeedsWriters({
+//           collection: newCollection,
+//           owner: prof,
+//           recipients: pool,
+//         }).catch((err) =>
+//           console.error("[notify] fresh global workshop failed:", err)
+//         );
+//       }
+//     } else {
+//       if (!resolvedLocation?.id) {
+//         throw new Error("Invalid location");
+//       }
+
+//       const adminProfiles = await prisma.profile.findMany({
+//         where: { isAdmin: true },
+//       });
+
+//       const adminProfile = adminProfiles.length
+//         ? adminProfiles[Math.floor(Math.random() * adminProfiles.length)]
+//         : null;
+
+//       newCollection = await prisma.collection.create({
+//         data: {
+//           type: "feedback",
+//           location: { connect: { id: resolvedLocation.id } },
+//           title: generate({ min: 3, max: 6, join: " " }),
+//           isGlobal: false,
+//           followersAre: "writer",
+//           profile: { connect: { id: prof.id } },
+//           roles: {
+//             create: {
+//               role: "owner",
+//               profile: { connect: { id: prof.id } },
+//             },
+//           },
+//         },
+//         include: {
+//           roles: { include: { profile: true } },
+//           location: true,
+//         },
+//       });
+
+//       if (adminProfile) {
+//         await prisma.roleToCollection.upsert({
+//           where: {
+//             profileId_collectionId: {
+//               profileId: adminProfile.id,
+//               collectionId: newCollection.id,
+//             },
+//           },
+//           update: { role: "writer" },
+//           create: {
+//             profileId: adminProfile.id,
+//             collectionId: newCollection.id,
+//             role: "writer",
+//           },
+//         });
+
+//         // Admin owner never needs a notify here — an admin was just added
+//         // as a member, not the workshop's owner. This tells them they were
+//         // added, same shape as the "existing members" notify elsewhere.
+//         try {
+//           const title = "Added to a new workshop";
+//           const body  = "You were added as the first member of a new local workshop";
+//           const route = Paths.collection.createRoute(newCollection.id);
+
+//           await Promise.all([
+//             notifyUser({
+//               profileId: adminProfile.id,
+//               type: "WORKSHOP_JOIN",
+//               title,
+//               body,
+//               entityId: newCollection.id,
+//               actorId: prof.id,
+//               route,
+//             }).catch((err) =>
+//               console.error("[notifyUser] WORKSHOP_JOIN failed:", err)
+//             ),
+//             sendNotification(adminProfile.id, title, body, {
+//               type: "WORKSHOP_JOIN",
+//               entityId: newCollection.id,
+//               actorId: prof.id,
+//               route,
+//             }).catch((err) =>
+//               console.error("[sendNotification] WORKSHOP_JOIN failed:", err)
+//             ),
+//           ]);
+//         } catch (err) {
+//           console.error("[notify] admin WORKSHOP_JOIN failed:", err);
+//         }
+//       }
+
+//       if (storyId) {
+//         await attachStory({
+//           storyId,
+//           collectionId: newCollection.id,
+//           profileId: prof.id,
+//         });
+//       }
+// const nearby = await getNearbyActiveProfiles({
+//   location: resolvedLocation,
+//   radius,
+//   excludeProfileId: prof.id,
+//   blockedProfileIds,
+// });
+//       // Pull in other nearby writers too, beyond the admin.
+//       // const nearby = await getNearbyActiveProfiles({
+//       //   location: resolvedLocation,
+//       //   radius,
+//       //   excludeProfileId: prof.id,
+//       // });
+//       await notifyFreshWorkshopNeedsWriters({
+//         collection: newCollection,
+//         owner: prof,
+//         recipients: nearby,
+//       }).catch((err) =>
+//         console.error("[notify] fresh local workshop failed:", err)
+//       );
+//     }
+
+//     newCollection = await prisma.collection.findFirst({
+//       where: { id: newCollection.id },
+//       include: {
+//         roles: { include: { profile: true } },
+//         storyIdList: {
+//           include: { story: { include: { author: true } } },
+//         },
+//       },
+//     });
+
+//     return res.json({
+//       joined: true,
+//       created: true,
+//       collection: newCollection,
+//     });
+
+//   // } catch (error) {
+//     } catch (error) {
+//   console.error("GROUP ERROR:", error);
+
+//   return res.status(error.statusCode || 500).json({
+//     error: error.message || "Server error",
+//   });
+// }
+
+//   // }
+// });
 async function findOrCreateLocation({latitude, longitude,city=""}) {
   // 1. Try to find existing location
  
