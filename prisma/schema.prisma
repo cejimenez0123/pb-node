@@ -83,7 +83,7 @@ model Story {
   priority         Int?                @default(0)
   googleCalendarId String?
   approvalScore    Int                 @default(0)
-  feedbackRequested   Boolean  @default(false)
+
   feedbackRequestedAt  DateTime?
   storyLikes       UserStoryLike[]
   storyHistory     UserStoryHistory[]
@@ -97,6 +97,7 @@ model Story {
 
   @@index([updated])
   @@index([created])
+    @@index([feedbackRequestedAt])
   @@index([authorId, updated(sort: Desc)])
 }
 
