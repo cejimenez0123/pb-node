@@ -1469,6 +1469,10 @@ try{
             data,
             isPrivate,
             status:status??(needsFeedback?"workshop":"fragment"),
+            feedbackRequestedAt:
+          nextStatus === "workshop"
+            ? new Date()
+            : null,
             commentable,
             description,
             type,
