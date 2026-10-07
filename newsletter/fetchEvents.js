@@ -6,15 +6,23 @@ async function fetchPublicEvents(calendarId,days=7) {
     daysLater.setDate(now.getDate() + days);
   
     try {
-      const res = await calendar({version:"v3"}).events.list({
-        calendarId,
-        key: process.env.GOOGLE_API_KEY,
-        timeMin: now.toISOString(),
-        timeMax: daysLater.toISOString(),
-        singleEvents: true,
-        orderBy: 'startTime',
-      });
-  
+      // const res = await calendar({version:"v3"}).events.list({
+      //   calendarId,
+      //   key: process.env.GOOGLE_API_KEY,
+      //   timeMin: now.toISOString(),
+      //   timeMax: daysLater.toISOString(),
+      //   singleEvents: true,
+      //   orderBy: 'startTime',
+      // });
+  const res = await calendar({ version: "v3" }).events.list({
+  calendarId,
+  key: process.env.GOOGLE_API_KEY,
+  timeMin: now.toISOString(),
+  timeMax: daysLater.toISOString(),
+  singleEvents: true,
+  orderBy: "startTime",
+  maxResults: 40,
+});
       const events = res?.data?.items || [];
   
       if (events.length) {

@@ -1771,7 +1771,7 @@ router.get("/prompts/recommended", authMiddleware, async (req, res) => {
 router.get("/events/:days",async(req,res)=>{
         try{
        let days = req.params.days
-
+console.log("fetching events for days:", days)
       let events = await fetchEvents(days)
       res.json({events})
         }catch(err){
