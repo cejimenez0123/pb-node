@@ -1316,64 +1316,7 @@ const otherCols = libraries.filter(book=>book.priority<90)
         res.json({error:e})
         }
     })
-    router.patch("/:id/role",async (req,res)=>{
-        const {roles}=req.body
-        try{
-          
-        let updated= roles.map(role=>{
-
-            if(role.role=="role"){
-                if(role.id){
-                return prisma.roleToStory.delete({where:{id:role.id}})
-                }
-            }else{
-                if(roles.role && roles.id.length>10){
-            return prisma.roleToCollection.upsert({
-                where:{
-                    id:role.id
-                },
-                update:{
-                    role:role.role,
-                },
-                create:{
-                    role:role.role,
-                    profileId:role.profile.id,
-                    collectionId:role.item.id
-                }
-               , include:{
-                    collection:true,
-                    profile:true
-                }})
-            }else{
-                return prisma.roleToCollection.create({data:{
-                    role:role.role,
-                    profile:{
-                        connect:{
-                            id:role.profile.id
-                        }
-                    },
-                    collection:{
-                        connect:{
-                            id:role.item.id
-                        }
-                    }
-                },include:{
-                    collection:true,
-                    profile:true
-                }})
-            }}
-            })
-    let newRoles = await Promise.all(updated)
    
-    res.json({roles:newRoles.filter(role=>!!role)})
-
-        }catch(error){
-            console.log(error)
-            res.json({error})
-        }
-
-        
-    })
     router.get("/:id/profile/:profileId",async (req,res)=>{
         try{
            let found = prisma.roleToCollection.findUniqueOrThrow({
@@ -1954,93 +1897,78 @@ router.delete("/storyToCol/:stId",authMiddleware,async (req,res)=>{
         res.json({error})
     }
     })
-    router.patch("/:id", authMiddleware, async (req, res) => {
+    const canEditCollection = (collection, profileId) => {
+  if (!collection || !profileId) return false;
+
+  if (collection.profileId === profileId) return true;
+
+  return (collection.roles || []).some(
+    (role) =>
+      role.profileId === profileId &&
+      role.approved === true &&
+      ["owner", "editor"].includes(role.role)
+  );
+};
+
+router.patch("/:id/content", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    const profileId = req.user?.profiles?.[0]?.id;
 
-    const {
-      title,
-      purpose,
-      isPrivate,
-      isOpenCollaboration,
-      storyToCol = [],
-      colToCol = [],
-    } = req.body;
-console.log("PATCH COLLECTION BODY:", JSON.stringify(req.body, null, 2));
-console.log("PATCH COLLECTION PARAM ID:", id);
-console.log("PATCH STORY TO COL:", storyToCol);
-console.log("PATCH COL TO COL:", colToCol);
-    if (!id) {
+    if (!profileId) {
+      return res.status(401).json({ error: "Profile not found." });
+    }
+
+    const { storyToCol, colToCol } = req.body;
+
+    if (!Array.isArray(storyToCol) || !Array.isArray(colToCol)) {
       return res.status(400).json({
-        error: "Collection id is required",
+        error: "storyToCol and colToCol must both be arrays.",
       });
     }
 
-    if (!Array.isArray(storyToCol)) {
-      return res.status(400).json({
-        error: "storyToCol must be an array",
-      });
-    }
-
-    if (!Array.isArray(colToCol)) {
-      return res.status(400).json({
-        error: "colToCol must be an array",
-      });
-    }
-
-    /*
-     * The collection being edited comes from the URL.
-     * Do not trust req.body.col.id.
-     */
     const existingCollection = await prisma.collection.findUnique({
-      where: {
-        id,
-      },
+      where: { id },
       include: {
         storyIdList: true,
         childCollections: true,
+        roles: true,
       },
     });
 
     if (!existingCollection) {
-      return res.status(404).json({
-        error: "Collection not found",
+      return res.status(404).json({ error: "Collection not found." });
+    }
+
+    if (!canEditCollection(existingCollection, profileId)) {
+      return res.status(403).json({
+        error: "You cannot edit this Room's contents.",
       });
     }
 
-    /*
-     * ---------------------------------------------------------
-     * Validate StoryToCollection relationships
-     * ---------------------------------------------------------
-     */
+    // --------------------------------------------------
+    // Validate Page relationships
+    // --------------------------------------------------
 
     const storyIds = new Set();
     const storyRelationshipIds = new Set();
 
-    for (let index = 0; index < storyToCol.length; index += 1) {
-      const relation = storyToCol[index];
-
-      if (!relation?.id) {
+    for (const [index, relation] of storyToCol.entries()) {
+      if (!relation?.id || !relation?.story?.id) {
         return res.status(400).json({
-          error: `storyToCol[${index}] is missing id`,
-        });
-      }
-
-      if (!relation?.story?.id) {
-        return res.status(400).json({
-          error: `storyToCol[${index}] is missing story.id`,
+          error: `storyToCol[${index}] requires id and story.id.`,
         });
       }
 
       if (storyRelationshipIds.has(relation.id)) {
         return res.status(400).json({
-          error: `Duplicate StoryToCollection id: ${relation.id}`,
+          error: `Duplicate Page relationship: ${relation.id}`,
         });
       }
 
       if (storyIds.has(relation.story.id)) {
         return res.status(400).json({
-          error: `Story appears more than once in this collection: ${relation.story.id}`,
+          error: `Page appears more than once: ${relation.story.id}`,
         });
       }
 
@@ -2048,312 +1976,387 @@ console.log("PATCH COL TO COL:", colToCol);
       storyIds.add(relation.story.id);
     }
 
-    /*
-     * ---------------------------------------------------------
-     * Validate CollectionToCollection relationships
-     * ---------------------------------------------------------
-     */
+    // --------------------------------------------------
+    // Validate child Room relationships
+    // --------------------------------------------------
 
-    const childCollectionIds = new Set();
+    const childIds = new Set();
     const collectionRelationshipIds = new Set();
 
-    for (let index = 0; index < colToCol.length; index += 1) {
-      const relation = colToCol[index];
-
-      if (!relation?.id) {
+    for (const [index, relation] of colToCol.entries()) {
+      if (!relation?.id || !relation?.childCollection?.id) {
         return res.status(400).json({
-          error: `colToCol[${index}] is missing id`,
-        });
-      }
-
-      if (!relation?.childCollection?.id) {
-        return res.status(400).json({
-          error: `colToCol[${index}] is missing childCollection.id`,
+          error: `colToCol[${index}] requires id and childCollection.id.`,
         });
       }
 
       if (collectionRelationshipIds.has(relation.id)) {
         return res.status(400).json({
-          error: `Duplicate CollectionToCollection id: ${relation.id}`,
+          error: `Duplicate Room relationship: ${relation.id}`,
         });
       }
 
-      if (childCollectionIds.has(relation.childCollection.id)) {
+      if (childIds.has(relation.childCollection.id)) {
         return res.status(400).json({
-          error: `Child collection appears more than once: ${relation.childCollection.id}`,
+          error: `Child Room appears more than once: ${relation.childCollection.id}`,
         });
       }
 
-      /*
-       * A collection cannot contain itself.
-       */
       if (relation.childCollection.id === id) {
         return res.status(400).json({
-          error: "A collection cannot contain itself",
+          error: "A Room cannot contain itself.",
         });
       }
 
       collectionRelationshipIds.add(relation.id);
-      childCollectionIds.add(relation.childCollection.id);
+      childIds.add(relation.childCollection.id);
     }
 
-    /*
-     * ---------------------------------------------------------
-     * Make sure the submitted relationships actually belong
-     * to this collection.
-     * ---------------------------------------------------------
-     */
+    // --------------------------------------------------
+    // Confirm submitted relationships belong to this Room
+    // --------------------------------------------------
 
-    const existingStoryRelationshipIds = new Set(
+    const existingStoryIds = new Set(
       existingCollection.storyIdList.map((relation) => relation.id)
     );
 
-    const existingCollectionRelationshipIds = new Set(
+    const existingChildIds = new Set(
       existingCollection.childCollections.map((relation) => relation.id)
     );
 
     for (const relation of storyToCol) {
-      if (!existingStoryRelationshipIds.has(relation.id)) {
+      if (!existingStoryIds.has(relation.id)) {
         return res.status(400).json({
-          error: `StoryToCollection relationship does not belong to this collection: ${relation.id}`,
+          error: `Page relationship does not belong to this Room: ${relation.id}`,
         });
       }
     }
 
     for (const relation of colToCol) {
-      if (!existingCollectionRelationshipIds.has(relation.id)) {
+      if (!existingChildIds.has(relation.id)) {
         return res.status(400).json({
-          error: `CollectionToCollection relationship does not belong to this collection: ${relation.id}`,
+          error: `Room relationship does not belong to this Room: ${relation.id}`,
         });
       }
     }
 
-    /*
-     * ---------------------------------------------------------
-     * Build the new shared ordering.
-     *
-     * The frontend sends one mixed list:
-     *
-     * Room
-     * Page
-     * Page
-     * Room
-     * Page
-     *
-     * Each relationship has already been assigned its index.
-     *
-     * We normalize the indexes here so the database always
-     * receives a clean 0...N-1 ordering across BOTH types.
-     * ---------------------------------------------------------
-     */
+    // --------------------------------------------------
+    // Normalize shared Page + Room ordering
+    // --------------------------------------------------
 
     const submittedItems = [
       ...storyToCol.map((relation) => ({
         type: "story",
-        id: relation.id,
         relation,
       })),
-
       ...colToCol.map((relation) => ({
         type: "collection",
-        id: relation.id,
         relation,
       })),
     ];
 
     submittedItems.sort((a, b) => {
-      const aIndex =
-        Number.isInteger(a.relation.index)
-          ? a.relation.index
-          : Number.MAX_SAFE_INTEGER;
+      const aIndex = Number(a.relation.index);
+      const bIndex = Number(b.relation.index);
 
-      const bIndex =
-        Number.isInteger(b.relation.index)
-          ? b.relation.index
-          : Number.MAX_SAFE_INTEGER;
+      const validA = Number.isInteger(aIndex);
+      const validB = Number.isInteger(bIndex);
 
-      if (aIndex !== bIndex) {
+      if (validA && validB && aIndex !== bIndex) {
         return aIndex - bIndex;
       }
 
-      return a.id.localeCompare(b.id);
+      if (validA !== validB) {
+        return validA ? -1 : 1;
+      }
+
+      return a.relation.id.localeCompare(b.relation.id);
     });
 
-    /*
-     * Assign one contiguous index sequence to the entire
-     * collection, regardless of whether an item is a Page
-     * or Room.
-     */
     const normalizedStoryToCol = [];
     const normalizedColToCol = [];
 
     submittedItems.forEach((item, index) => {
+      const normalized = {
+        id: item.relation.id,
+        index,
+      };
+
       if (item.type === "story") {
-        normalizedStoryToCol.push({
-          ...item.relation,
-          index,
-        });
+        normalizedStoryToCol.push(normalized);
       } else {
-        normalizedColToCol.push({
-          ...item.relation,
-          index,
-        });
+        normalizedColToCol.push(normalized);
       }
     });
 
-    /*
-     * ---------------------------------------------------------
-     * Transaction
-     * ---------------------------------------------------------
-     */
+    // --------------------------------------------------
+    // Remove relationships omitted from the submitted list
+    // --------------------------------------------------
 
-    await prisma.$transaction(async (tx) => {
-      /*
-       * Update the Collection itself.
-       */
-      await tx.collection.update({
+    const submittedStoryIds = new Set(
+      normalizedStoryToCol.map((relation) => relation.id)
+    );
+
+    const submittedChildIds = new Set(
+      normalizedColToCol.map((relation) => relation.id)
+    );
+
+    const storyIdsToDelete = existingCollection.storyIdList
+      .filter((relation) => !submittedStoryIds.has(relation.id))
+      .map((relation) => relation.id);
+
+    const childIdsToDelete = existingCollection.childCollections
+      .filter((relation) => !submittedChildIds.has(relation.id))
+      .map((relation) => relation.id);
+
+    // --------------------------------------------------
+    // Persist changes
+    // --------------------------------------------------
+    // No $transaction here: this avoids relying on MongoDB
+    // transaction support in the current Prisma setup.
+
+    if (storyIdsToDelete.length) {
+      await prisma.storyToCollection.deleteMany({
         where: {
-          id,
-        },
-        data: {
-          updated: new Date(),
-          title: typeof title === "string" ? title.trim() : existingCollection.title,
-          purpose:
-            typeof purpose === "string"
-              ? purpose.trim()
-              : existingCollection.purpose,
-          isPrivate:
-            typeof isPrivate === "boolean"
-              ? isPrivate
-              : existingCollection.isPrivate,
-          isOpenCollaboration:
-            typeof isOpenCollaboration === "boolean"
-              ? isOpenCollaboration
-              : existingCollection.isOpenCollaboration,
+          id: { in: storyIdsToDelete },
         },
       });
+    }
 
-      /*
-       * -------------------------------------------------------
-       * Remove StoryToCollection relationships that no longer
-       * exist in the submitted collection.
-       * -------------------------------------------------------
-       */
+    if (childIdsToDelete.length) {
+      await prisma.collectionToCollection.deleteMany({
+        where: {
+          id: { in: childIdsToDelete },
+        },
+      });
+    }
 
-      const submittedStoryRelationshipIds = new Set(
-        normalizedStoryToCol.map((relation) => relation.id)
-      );
+    await Promise.all([
+      ...normalizedStoryToCol.map((relation) =>
+        prisma.storyToCollection.update({
+          where: { id: relation.id },
+          data: { index: relation.index },
+        })
+      ),
 
-      const storyRelationshipsToDelete =
-        existingCollection.storyIdList.filter(
-          (relation) =>
-            !submittedStoryRelationshipIds.has(relation.id)
-        );
+      ...normalizedColToCol.map((relation) =>
+        prisma.collectionToCollection.update({
+          where: { id: relation.id },
+          data: { index: relation.index },
+        })
+      ),
+    ]);
 
-      if (storyRelationshipsToDelete.length > 0) {
-        await tx.storyToCollection.deleteMany({
-          where: {
-            id: {
-              in: storyRelationshipsToDelete.map(
-                (relation) => relation.id
-              ),
-            },
-          },
-        });
-      }
-
-      /*
-       * -------------------------------------------------------
-       * Remove CollectionToCollection relationships that no
-       * longer exist in the submitted collection.
-       * -------------------------------------------------------
-       */
-
-      const submittedCollectionRelationshipIds = new Set(
-        normalizedColToCol.map((relation) => relation.id)
-      );
-
-      const collectionRelationshipsToDelete =
-        existingCollection.childCollections.filter(
-          (relation) =>
-            !submittedCollectionRelationshipIds.has(relation.id)
-        );
-
-      if (collectionRelationshipsToDelete.length > 0) {
-        await tx.collectionToCollection.deleteMany({
-          where: {
-            id: {
-              in: collectionRelationshipsToDelete.map(
-                (relation) => relation.id
-              ),
-            },
-          },
-        });
-      }
-
-      /*
-       * -------------------------------------------------------
-       * Update StoryToCollection indexes.
-       * -------------------------------------------------------
-       */
-
-      await Promise.all(
-        normalizedStoryToCol.map((relation) =>
-          tx.storyToCollection.update({
-            where: {
-              id: relation.id,
-            },
-            data: {
-              index: relation.index,
-            },
-          })
-        )
-      );
-
-      /*
-       * -------------------------------------------------------
-       * Update CollectionToCollection indexes.
-       * -------------------------------------------------------
-       */
-
-      await Promise.all(
-        normalizedColToCol.map((relation) =>
-          tx.collectionToCollection.update({
-            where: {
-              id: relation.id,
-            },
-            data: {
-              index: relation.index,
-            },
-          })
-        )
-      );
+    await prisma.collection.update({
+      where: { id },
+      data: { updated: new Date() },
     });
 
-    /*
-     * ---------------------------------------------------------
-     * Fetch the complete updated collection.
-     *
-     * This is deliberately done AFTER the transaction so the
-     * response reflects the committed database state.
-     * ---------------------------------------------------------
-     */
+    const collection = await getCollectionById(id);
 
-    const updatedCol = await getCollectionById(id);
-
-    return res.json({
-      collection: updatedCol,
-    });
+    return res.status(200).json({ collection });
   } catch (error) {
-    console.error("PATCH /collection/:id error:", error);
+    console.error("PATCH Room content failed:", error);
 
     return res.status(500).json({
-      error: error.message || "Unable to update collection",
+      error: error.message || "Unable to update Room contents.",
     });
   }
 });
 
-   router.get(
+router.patch("/:id", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const profileId = req.user?.profiles?.[0]?.id;
+
+    if (!profileId) {
+      return res.status(401).json({
+        error: "Profile not found.",
+      });
+    }
+
+    const existingCollection = await prisma.collection.findUnique({
+      where: { id },
+      include: { roles: true },
+    });
+
+    if (!existingCollection) {
+      return res.status(404).json({
+        error: "Collection not found.",
+      });
+    }
+
+    if (!canEditCollection(existingCollection, profileId)) {
+      return res.status(403).json({
+        error: "You cannot edit this Room.",
+      });
+    }
+
+    const {
+      title,
+      purpose,
+      isPrivate,
+      isOpenCollaboration,
+      followersAre,
+    } = req.body;
+
+    const data = {};
+
+    // ------------------------------------------
+    // Validate Room details
+    // ------------------------------------------
+
+    if (title !== undefined) {
+      if (typeof title !== "string" || !title.trim()) {
+        return res.status(400).json({
+          error: "Room title cannot be empty.",
+        });
+      }
+
+      data.title = title.trim();
+    }
+
+    if (purpose !== undefined) {
+      if (typeof purpose !== "string") {
+        return res.status(400).json({
+          error: "Purpose must be a string.",
+        });
+      }
+
+      data.purpose = purpose.trim();
+    }
+
+    if (isPrivate !== undefined) {
+      if (typeof isPrivate !== "boolean") {
+        return res.status(400).json({
+          error: "isPrivate must be a boolean.",
+        });
+      }
+
+      data.isPrivate = isPrivate;
+    }
+
+    if (isOpenCollaboration !== undefined) {
+      if (typeof isOpenCollaboration !== "boolean") {
+        return res.status(400).json({
+          error: "isOpenCollaboration must be a boolean.",
+        });
+      }
+
+      data.isOpenCollaboration = isOpenCollaboration;
+    }
+
+    // ------------------------------------------
+    // Validate follower role
+    // ------------------------------------------
+
+    if (followersAre !== undefined) {
+      const validFollowerRoles = [
+        "owner",
+        "reader",
+        "editor",
+        "commenter",
+        "writer",
+      ];
+
+      if (!validFollowerRoles.includes(followersAre)) {
+        return res.status(400).json({
+          error: "Invalid followersAre role.",
+        });
+      }
+
+      data.followersAre = followersAre;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({
+        error: "No Room details were provided.",
+      });
+    }
+
+    data.updated = new Date();
+
+    // ------------------------------------------
+    // Persist Room details
+    // ------------------------------------------
+
+    const updatedCollection = await prisma.collection.update({
+      where: { id },
+      data,
+    });
+
+    // ------------------------------------------
+    // Synchronize Algolia visibility and title
+    // ------------------------------------------
+
+    const wasPrivate = existingCollection.isPrivate;
+    const isNowPrivate = updatedCollection.isPrivate;
+
+    const titleChanged =
+      data.title !== undefined &&
+      data.title !== existingCollection.title;
+
+    try {
+      // Public -> Private:
+      // Remove the Room from public search.
+      if (!wasPrivate && isNowPrivate) {
+        await client.deleteObject({
+          indexName: indexNames.collection,
+          objectID: updatedCollection.id,
+        });
+      }
+
+      // Private -> Public:
+      // Add the Room back to public search.
+      else if (wasPrivate && !isNowPrivate) {
+        await client.saveObject({
+          indexName: indexNames.collection,
+          body: {
+            ...updatedCollection,
+            objectID: updatedCollection.id,
+          },
+        });
+      }
+
+      // Public -> Public:
+      // Update the title if it changed.
+      else if (!isNowPrivate && titleChanged) {
+        await client.partialUpdateObject({
+          indexName: indexNames.collection,
+          objectID: updatedCollection.id,
+          attributesToUpdate: {
+            title: updatedCollection.title,
+          },
+        });
+      }
+    } catch (indexError) {
+      console.error(
+        "Collection Algolia synchronization failed:",
+        indexError
+      );
+    }
+
+    // ------------------------------------------
+    // Return hydrated Room
+    // ------------------------------------------
+
+    const collection = await getCollectionById(id);
+
+    return res.status(200).json({
+      collection,
+    });
+  } catch (error) {
+    console.error("PATCH Room details failed:", error);
+
+    return res.status(500).json({
+      error: error.message || "Unable to update Room details.",
+    });
+  }
+});
+
+
+
+router.get(
   "/profile/protected",
   authMiddleware,
   async (req, res) => {
@@ -3284,9 +3287,15 @@ async function getCollectionById(id) {
 
   // ✅ Delete them from the database
   if (orphanedEntries.length > 0) {
-    const orphanIds = orphanedEntries.map((entry) => entry.id);
-   await prisma.story.deleteMany({where:{id:{in:orphanIds}}})
-   
+  //   const orphanIds = orphanedEntries.map((entry) => entry.id);
+  //  await prisma.story.deleteMany({where:{id:{in:orphanIds}}})
+   const orphanIds = orphanedEntries.map((entry) => entry.id);
+
+await prisma.storyToCollection.deleteMany({
+  where: {
+    id: { in: orphanIds },
+  },
+});
     // Remove them from the local object as well
     collection.storyIdList = collection.storyIdList.filter((s) => s.story);
   }

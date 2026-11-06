@@ -358,22 +358,12 @@ if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
   });
 }
     const userLocation =
-      (await prisma.location.findFirst({  where: {
-          location_coords: {
-            latitude: location.latitude,
-            longitude: location.longitude,
-          },
-        },})) ||
+      (await prisma.location.findUnique({where:{
+        location_coords:{
+          latitude,longitude
+        }
+      }})) ||
       (await prisma.location.create({ data: { latitude, longitude } }));
-
-    // await prisma.profile.update({
-    //   where: { id: profileId },
-    //   data: { locationId: userLocation.id },
-//     // });
-// await prisma.profile.update({
-//   where: { id: profileId },
-//   data: { locationId: userLocation.id },
-// });
 
 
 
@@ -397,12 +387,7 @@ const step = Number.isFinite(parsedRadius) && parsedRadius > 0
     const MAX_RADIUS = step * 3;
 
     while (groups.length < 5 && rad <= MAX_RADIUS) {
-      // groups = filterAvailableCollections({
-      //   profile,
-      //   collections,
-      //   radius: rad,
-      //   blockedProfileIds,
-      // }) ?? [];
+ 
       groups = filterAvailableCollections({
   profile: { ...profile, location },
   collections,
