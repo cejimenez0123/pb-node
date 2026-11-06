@@ -2164,7 +2164,7 @@ router.patch("/:id/content", authMiddleware, async (req, res) => {
   }
 });
 
-router.patch("/:id", authMiddleware, async (req, res) => {
+router.patch("/:id/details", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const profileId = req.user?.profiles?.[0]?.id;
