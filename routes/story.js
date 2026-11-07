@@ -159,31 +159,59 @@ module.exports = function ({authMiddleware}){
      const withOptionalBlocks = [optionalAuth, attachBlockedProfiles];
      router.get("/", withOptionalBlocks, async (req, res) => {
   try {
-    const skip = parseInt(req.query.skip) || 0;
-    const take = parseInt(req.query.take) || 20;
-    console.log("req.blockedProfileIds", req.blockedProfileIds);
+    const skip = Math.max(0, parseInt(req.query.skip, 10) || 0);
+    const take = Math.min(
+      100,
+      Math.max(1, parseInt(req.query.take, 10) || 20)
+    );
+
+    const validStatuses = [
+      "draft",
+      "fragment",
+      "finished",
+      "workshop",
+    ];
+
+    const status = req.query.status;
+
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({
+        error: "Invalid story status.",
+        validStatuses,
+      });
+    }
+
+    const where = {
+      isPrivate: false,
+
+      ...(status ? { status } : {}),
+
+      ...(req.blockedProfileIds?.length
+        ? {
+            authorId: {
+              notIn: req.blockedProfileIds,
+            },
+          }
+        : {}),
+    };
 
     const totalCount = await prisma.story.count({
-      where: {
-        isPrivate: false,
-        ...(req.blockedProfileIds?.length
-          ? { authorId: { notIn: req.blockedProfileIds } }
-          : {}),
-      },
+      where,
     });
 
     const stories = await prisma.story.findMany({
-      where: {
-        isPrivate: false,
-        ...(req.blockedProfileIds?.length
-          ? { authorId: { notIn: req.blockedProfileIds } }
-          : {}),
+      where,
+      orderBy: {
+        updated: "desc",
       },
-      orderBy: { updated: "desc" },
       skip,
       take,
       include: {
-        hashtags: { include: { hashtag: true } },
+        hashtags: {
+          include: {
+            hashtag: true,
+          },
+        },
         author: true,
       },
     });
@@ -197,9 +225,55 @@ module.exports = function ({authMiddleware}){
     });
   } catch (error) {
     console.log("GET /stories error:", error);
-    res.status(500).json({ error: "Internal server error" });
+
+    res.status(500).json({
+      error: "Internal server error",
+    });
   }
 });
+//      router.get("/", withOptionalBlocks, async (req, res) => {
+//   try {
+//     const skip = parseInt(req.query.skip) || 0;
+//     const take = parseInt(req.query.take) || 20;
+//     console.log("req.blockedProfileIds", req.blockedProfileIds);
+
+//     const totalCount = await prisma.story.count({
+//       where: {
+//         isPrivate: false,
+//         ...(req.blockedProfileIds?.length
+//           ? { authorId: { notIn: req.blockedProfileIds } }
+//           : {}),
+//       },
+//     });
+
+//     const stories = await prisma.story.findMany({
+//       where: {
+//         isPrivate: false,
+//         ...(req.blockedProfileIds?.length
+//           ? { authorId: { notIn: req.blockedProfileIds } }
+//           : {}),
+//       },
+//       orderBy: { updated: "desc" },
+//       skip,
+//       take,
+//       include: {
+//         hashtags: { include: { hashtag: true } },
+//         author: true,
+//       },
+//     });
+
+//     res.json({
+//       stories,
+//       skip,
+//       take,
+//       totalCount,
+//       hasMore: skip + take < totalCount,
+//     });
+//   } catch (error) {
+//     console.log("GET /stories error:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
 
 
     router.get("/collection/:id/public",async (req,res)=>{  
