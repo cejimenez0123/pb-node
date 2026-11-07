@@ -85,6 +85,7 @@ module.exports = function (authMiddleware){
             },
             storyIdList: {
               select: {
+                id:true,
                 storyId: true,
                 story: {
                   select: {

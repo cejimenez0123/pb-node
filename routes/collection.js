@@ -1699,76 +1699,190 @@ console.log(error)
     res.json({error})
 }}
 )
-router.post("/:id/story",authMiddleware,async (req,res)=>{
-    //ADD story TO COLLECTION
-    try{
-    const {id}=req.params
-    const {list,profile}=req.body
-    const newList = list.filter(story=>story!=null)
-    
-    let promises = newList.map(story=>{
-        return prisma.storyToCollection.create({
-            data:{
-                story:{
-                    connect:{
-                        id:story.id
-                    }
-                },
-                collection:{
-                    connect:{
-                        id:id
-                    }
-                }
-                ,profile:{
-                    connect:{
-                        id:profile.id
-                    }
-                }
-        
-            },include:{
-                story:{
-                    include:{
-                        author:true
-                    }
-                }
-            }
-        })
-    })
-    let joint = await Promise.all(promises)
-    let col = await prisma.collection.update({where:{id:id},data:{
-        updated:new Date()
-    },include:{
-        storyIdList:{
-            include:{story:{include:{author:true}}}  
+router.post("/:id/story", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { list = [], profile } = req.body;
+
+    if (!Array.isArray(list) || !profile?.id) {
+      return res.status(400).json({
+        error: "A valid story list and profile are required.",
+      });
+    }
+
+    // Normalize strings and Story objects into story IDs.
+    const storyIds = [
+      ...new Set(
+        list
+          .filter(Boolean)
+          .map((item) =>
+            typeof item === "string" ? item : item?.id
+          )
+          .filter(Boolean)
+      ),
+    ];
+
+    if (!storyIds.length) {
+      return res.status(400).json({
+        error: "No valid story IDs provided.",
+      });
+    }
+
+    // Only create relationships that don't already exist.
+    const existing = await prisma.storyToCollection.findMany({
+      where: {
+        collectionId: id,
+        storyId: { in: storyIds },
+      },
+      select: {
+        storyId: true,
+      },
+    });
+
+    const existingIds = new Set(
+      existing.map((item) => item.storyId)
+    );
+
+    const newStoryIds = storyIds.filter(
+      (storyId) => !existingIds.has(storyId)
+    );
+
+    await Promise.all(
+      newStoryIds.map((storyId) =>
+        prisma.storyToCollection.create({
+          data: {
+            story: {
+              connect: { id: storyId },
+            },
+            collection: {
+              connect: { id },
+            },
+            profile: {
+              connect: { id: profile.id },
+            },
           },
-        childCollections:true,
-        roles:{
-            include:{
-                profile:true,
-            }
+        })
+      )
+    );
+
+    const col = await prisma.collection.update({
+      where: { id },
+      data: {
+        updated: new Date(),
+      },
+      include: {
+        storyIdList: {
+          include: {
+            story: {
+              include: {
+                author: true,
+              },
+            },
+          },
         },
-        profile:true
-    }})
+        childCollections: true,
+        roles: {
+          include: {
+            profile: true,
+          },
+        },
+        profile: true,
+      },
+    });
+
+    const stories = await prisma.story.findMany({
+      where: {
+        id: { in: storyIds },
+      },
+      include: {
+        collections: {
+          select: {
+            id: true,
+            collectionId: true,
+          },
+        },
+      },
+    });
+
+    return res.json({ collection: col, stories });
+  } catch (error) {
+    console.error("Add stories to collection error:", error);
+
+    return res.status(500).json({
+      error: error.message || "Failed to add stories to collection.",
+    });
+  }
+});
+// router.post("/:id/story",authMiddleware,async (req,res)=>{
+//     //ADD story TO COLLECTION
+//     try{
+//     const {id}=req.params
+//     const {list,profile}=req.body
+//     const newList = list.filter(story=>story!=null)
     
-   let stories = await prisma.story.findMany({where:{
-    id:{
-        in:list.map(i=>i.id)
-    }
-   },include:{
-    collections:{
-        select:{
-            id:true,
-            collectionId:true
-        }
-    }
-   }})
-    res.json({collection:col,stories})
-}catch(error){
-    console.log({error})
-    res.json({error})
-}
-}
-)
+//     let promises = newList.map(story=>{
+//         return prisma.storyToCollection.create({
+//             data:{
+//                 story:{
+//                     connect:{
+//                         id:story.id
+//                     }
+//                 },
+//                 collection:{
+//                     connect:{
+//                         id:id
+//                     }
+//                 }
+//                 ,profile:{
+//                     connect:{
+//                         id:profile.id
+//                     }
+//                 }
+        
+//             },include:{
+//                 story:{
+//                     include:{
+//                         author:true
+//                     }
+//                 }
+//             }
+//         })
+//     })
+//     let joint = await Promise.all(promises)
+//     let col = await prisma.collection.update({where:{id:id},data:{
+//         updated:new Date()
+//     },include:{
+//         storyIdList:{
+//             include:{story:{include:{author:true}}}  
+//           },
+//         childCollections:true,
+//         roles:{
+//             include:{
+//                 profile:true,
+//             }
+//         },
+//         profile:true
+//     }})
+    
+//    let stories = await prisma.story.findMany({where:{
+//     id:{
+//         in:list.map(i=>i.id)
+//     }
+//    },include:{
+//     collections:{
+//         select:{
+//             id:true,
+//             collectionId:true
+//         }
+//     }
+//    }})
+//     res.json({collection:col,stories})
+// }catch(error){
+//     console.log({error})
+//     res.json({error})
+// }
+// }
+// )
     router.delete("/colToCol/:id",async (req,res)=>{
         //REMOVE COLLECTION FROM COLLECTION
         const {id}=req.params
@@ -3246,11 +3360,20 @@ async function getCollectionById(id) {
     where: { id },
     include: {
     
-      storyIdList: {
-        include: {
-          story: { include: { author: true } },
-        },
-      },
+storyIdList: {
+  select: {
+    id: true,
+    storyId: true,
+    collectionId: true,
+    profileId: true,
+    story: {
+      include: {
+        author: true
+      }
+    }
+  }
+}
+,
       parentCollections: {
         include: {
           parentCollection: {
