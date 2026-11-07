@@ -11,21 +11,77 @@ module.exports = function (authMiddleware) {
   const EVENT_STORY_STATUS = "fragment"; // set to your "published event" StoryStatus
 
   // html body stored in story.data, built from the transformed event
-  function buildEventStoryData(event) {
-    const parts = [];
-    if (event.description) parts.push(`<p>${event.description}</p>`);
+  function escapeHtml(value = "") {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[char]));
+}
 
-    const meta = [];
-    if (event.startTime)     meta.push(`<li><strong>When:</strong> ${event.startTime}</li>`);
-    if (event.location)      meta.push(`<li><strong>Where:</strong> ${event.location}</li>`);
-    if (event.area)          meta.push(`<li><strong>Area:</strong> ${event.area}</li>`);
-    if (event.organizerLink) meta.push(`<li><a href="${event.organizerLink}" target="_blank" rel="noopener">More info</a></li>`);
-    if (event.googleLink)    meta.push(`<li><a href="${event.googleLink}" target="_blank" rel="noopener">Google Calendar</a></li>`);
-    if (meta.length) parts.push(`<ul>${meta.join("")}</ul>`);
+function buildEventStoryData(event) {
+  const parts = [];
 
-    return parts.join("\n");
+  if (event.description) {
+    parts.push(`<p>${escapeHtml(event.description)}</p>`);
   }
 
+  const meta = [];
+
+  // Support Google Calendar's native start format and your transformed format.
+  const start =
+    event.start?.dateTime ||
+    event.start?.date ||
+    event.startTime ||
+    "";
+
+  if (start) {
+    meta.push(`
+      <li>
+        <strong>When:</strong>
+        <time class="event-start" datetime="${escapeHtml(start)}">
+          ${escapeHtml(start)}
+        </time>
+      </li>
+    `);
+  }
+
+  if (event.location) {
+    meta.push(`<li><strong>Where:</strong> ${escapeHtml(event.location)}</li>`);
+  }
+
+  if (event.area) {
+    meta.push(`<li><strong>Area:</strong> ${escapeHtml(event.area)}</li>`);
+  }
+
+  if (event.organizerLink) {
+    meta.push(`
+      <li>
+        <a href="${escapeHtml(event.organizerLink)}" target="_blank" rel="noopener">
+          More info
+        </a>
+      </li>
+    `);
+  }
+
+  if (event.googleLink) {
+    meta.push(`
+      <li>
+        <a href="${escapeHtml(event.googleLink)}" target="_blank" rel="noopener">
+          Google Calendar
+        </a>
+      </li>
+    `);
+  }
+
+  if (meta.length) {
+    parts.push(`<ul>${meta.join("")}</ul>`);
+  }
+
+  return parts.join("\n");
+}
   // find-or-create hashtags by name, then ensure HashtagStory links
   async function attachHashtags(storyId, hashtags = []) {
     for (const raw of hashtags) {
@@ -48,40 +104,84 @@ module.exports = function (authMiddleware) {
       }
     }
   }
+async function upsertEventStory(event, authorId) {
+  const googleCalendarId = event.googleCalendarId || event.id;
 
+  if (!googleCalendarId) {
+    throw new Error("Event missing googleCalendarId / id");
+  }
+
+  const existing = await prisma.story.findFirst({
+    where: { googleCalendarId },
+  });
+
+  if (existing) {
+    return { story: existing, created: false };
+  }
+
+  const officialProfileId = await getOfficialProfileId();
+
+  const story = await prisma.story.create({
+    data: {
+      title: event.summary || event.shortSummary || "Untitled event",
+      description: event.description || "",
+      data: buildEventStoryData(event),
+      isPrivate: false,
+      commentable: true,
+      type: "html",
+      status: EVENT_STORY_STATUS,
+      googleCalendarId,
+      author: {
+        connect: { id: officialProfileId },
+      },
+    },
+  });
+
+  await client.saveObject({
+    indexName: indexNames.story,
+    body: {
+      area: event.area || "",
+      objectID: story.id,
+      title: story.title,
+      type: "event",
+    },
+  });
+
+  return { story, created: true };
+}
   // create the shared story the first time this googleCalendarId is seen,
   // otherwise reuse the existing one
-  async function upsertEventStory(event, authorId) {
-    const googleCalendarId = event.googleCalendarId || event.id;
-    if (!googleCalendarId) throw new Error("event missing googleCalendarId / id");
+//   async function upsertEventStory(event, authorId) {
+//     const googleCalendarId = event.googleCalendarId || event.id;
+//     if (!googleCalendarId) throw new Error("event missing googleCalendarId / id");
 
-    const existing = await prisma.story.findFirst({ where: { googleCalendarId } });
-    if (existing) return { story: existing, created: false };
-    const officialProfileId = await getOfficialProfileId();
-    const story = await prisma.story.create({
-      data: {
-        title: event.summary || event.shortSummary || "Untitled event",
-        description: event.description || "",
-        data: buildEventStoryData(event),
-        isPrivate: false,
-        commentable: true,
-        type: "html",
-        status: EVENT_STORY_STATUS,
-        googleCalendarId,
-        ...(authorId ? { author: { connect: { id: officialProfileId } } } : {}),
-      },
-    });
+//     const existing = await prisma.story.findFirst({ where: { googleCalendarId } });
+//     if (existing) return { story: existing, created: false };
+//     const officialProfileId = await getOfficialProfileId();
+//     const story = await prisma.story.create({
+//       data: {
+//         title: event.summary || event.shortSummary || "Untitled event",
+//         description: event.description || "",
+//         data: buildEventStoryData(event),
+//         isPrivate: false,
+//         commentable: true,
+//         type: "html",
+//         status: EVENT_STORY_STATUS,
+//         googleCalendarId,
+//         ...(authorId ? { author: { connect: { id: officialProfileId } } } : {}),
+//       },
+//     });
   
       
-    // }})
-    client.saveObject({indexName:indexNames.story,body:{
-  area:evvent.area,
-  objectID:story.id,
-  title:story.id,
-  type:"event"
-}})
-    return { story, created: true };
-  }
+//     // }})
+//     client.saveObject({indexName:indexNames.story,body:{
+//  area: event.area,
+//   objectID:story.id,
+//   title:story.id,
+//   type:"event"
+// }})
+//     return { story, created: true };
+//   }
 
   // find this profile's events collection (create one if they don't have it yet)
   async function getProfileEventsCollectionId(profileId) {
