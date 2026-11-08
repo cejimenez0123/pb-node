@@ -1,8 +1,10 @@
 const express = require('express');
 const prisma = require("../db");
 const comment = require('./comment');
-const { default: notifyUser } = require('../utils/notifyUser');
+const notifyUser = require('../utils/notifyUser');
+
 const Paths = require('../utils/Paths');
+const sendNotification = require('../utils/sendNotifications');
 
 
 
@@ -28,15 +30,7 @@ try{
                     }
                 }
             }})
-    //  await notifyUser({
-    //             profileId: follow.followingId,
-    //             type: "FOLLOW",
-    //             title: "New follower",
-    //             body: `${follower.username ?? "Someone"} started following you`,
-    //             entityId: follower.id,
-    //             actorId: follower.id,
-    //             route: `/profile/${follower.id}`
-    //         });
+
 
       const title = "New follower";
       const body  = `${follower.username ?? "Someone"} started following you`;
@@ -64,8 +58,10 @@ try{
        res.json({follow}) 
 
 }catch(error){
-    console.log(error)
-    res.json({error})
+  console.log(error)
+return res.status(500).json({
+  error: error.message || "Unable to create follow.",
+});
 }
 
         })
@@ -97,8 +93,10 @@ try{
        res.json({profile,followed}) 
 
 }catch(error){
-    console.log(error)
-    res.json({error})
+   console.log(error)
+return res.status(500).json({
+  error: error.message || "Unable to create follow.",
+});
 }
 
         })

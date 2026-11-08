@@ -1,7 +1,7 @@
 const express = require('express');
 const prisma = require("../db");
 const generateMongoId = require("./generateMongoId");
-const { default: notifyUser } = require('../utils/notifyUser');
+const notifyUser = require('../utils/notifyUser');
 const Paths = require('../utils/Paths');
 const sendNotification = require('../utils/sendNotifications');
 const router = express.Router()

@@ -307,37 +307,116 @@ stories:{
         return res.status(409).json({error:err})
     }
     })
-    router.get("/:id/public",async (req,res)=>{
-        try{
+
+router.get("/:id/public", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "A profile ID is required.",
+        error: "MISSING_PROFILE_ID",
+      });
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { id },
+      include: {
+        location: true,
+        _count: {
+          select: {
+            followers: true,
+            following: true,
+          },
+        },
+        stories: {
+          where: {
+            isPrivate: false,
+          },
+        },
+        collections: {
+          where: {
+            isPrivate: false,
+          },
+        },
+      },
+    });
+
+    // Profile does not exist
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "This profile could not be found.",
+        error: "PROFILE_NOT_FOUND",
+      });
+    }
+
+    // Profile exists but is private
+    if (profile.isPrivate) {
+      return res.status(200).json({
+        success: true,
+        isPrivate: true,
+        message: "This profile is private.",
+        profile: {
+          id: profile.id,
+          username: profile.username,
+          profilePic: profile.profilePic,
+          isPrivate: true,
+        },
+      });
+    }
+
+    // Public profile
+    return res.status(200).json({
+      success: true,
+      isPrivate: false,
+      message: "Profile retrieved successfully.",
+      profile,
+    });
+
+  } catch (err) {
+    console.error("GET PUBLIC PROFILE ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong while retrieving this profile.",
+      error: "PROFILE_FETCH_FAILED",
+    });
+  }
+});
+
+    // router.get("/:id/public",async (req,res)=>{
+    //     try{
         
-        const profile = await prisma.profile.findFirst({where:{
-            id: req.params.id
-        },include:{
-            location:true,
-            _count:{
-                select:{
-                    followers:true,
-                    following:true,
-                }
-            },
-            stories:{
-                where:{isPrivate:{equals:false}}
-            },
-            collections:{
-                where:{isPrivate:{equals:false}}
+    //     const profile = await prisma.profile.findFirst({where:{
+    //         id: req.params.id
+    //     },include:{
+    //         location:true,
+    //         _count:{
+    //             select:{
+    //                 followers:true,
+    //                 following:true,
+    //             }
+    //         },
+    //         stories:{
+    //             where:{isPrivate:{equals:false}}
+    //         },
+    //         collections:{
+    //             where:{isPrivate:{equals:false}}
   
-                }
+    //             }
             
            
            
-        }})
-        return res.status(200).json({profile:profile})
+    //     }})
+    //     return res.status(200).json({profile:profile})
 
-    }catch(err){
+    // }catch(err){
      
-        return res.status(409).json({error:err})
-    }
-    })
+    //     return res.status(409).json({error:err})
+    // }
+    // })
 router.put("/:id", authMiddleware, async (req, res) => {
   const {
     username,

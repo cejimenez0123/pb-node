@@ -1,7 +1,7 @@
 const express = require('express');
 const prisma = require("../db");
 const updateWriterLevelMiddleware = require('../middleware/updateWriterLevelMiddleware');
-const { default: notifyUser } = require('../utils/notifyUser');
+const notifyUser = require('../utils/notifyUser');
 const Paths = require('../utils/Paths');
 const attachBlockedProfiles = require('../middleware/attechBlockedProfiles');
 const optionalAuth = require('../middleware/optionalAuth');

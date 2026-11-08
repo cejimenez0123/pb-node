@@ -5,7 +5,7 @@ const router = express.Router()
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs");
 const getStory = require('../utils/getstory');
-const { default: notifyUser } = require('../utils/notifyUser');
+const notifyUser = require('../utils/notifyUser');
 const Paths = require('../utils/Paths');
 
 module.exports = function (authMiddleware){
@@ -272,90 +272,8 @@ router.put("/story", authMiddleware, async (req, res) => {
     });
   }
 });
-// router.put("/story", authMiddleware, async (req, res) => {
-//   try {
-//     const { roles = [] } = req.body;
 
-//     if (!roles.length) {
-//       return res.json({ roles: [], story: null });
-//     }
 
-//     const storyId = roles[0]?.item?.id;
-
-//     const operations = roles.map((role) => {
-//       const profileId = role.profile.id;
-//       const currentStoryId = role.item.id;
-
-//       // 🗑 DELETE
-//       if (role.role === "none") {
-//         return prisma.roleToStory.deleteMany({
-//           where: {
-//             profileId,
-//             storyId: currentStoryId,
-//           },
-//         });
-//       }
-
-//       // 🔄 UPSERT (composite key)
-//       return prisma.roleToStory.upsert({
-//         where: {
-//           profileId_storyId: {
-//             profileId,
-//             storyId: currentStoryId,
-//           },
-//         },
-//         update: {
-//           role: role.role,
-//         },
-//         create: {
-//           role: role.role,
-//           profileId,
-//           storyId: currentStoryId,
-//         },
-//         include: {
-//           profile: true,
-//           story: true,
-//         },
-//       });
-//     });
-
-//     const [newRoles, story] = await Promise.all([
-//       Promise.all(operations),
-//       getStory(storyId),
-//     ]);
-
-//             const title = "Story Access";
-//             const body  = `You've been added as ${type} to "${story.title}"`;
-//             const route = Paths.page.createRoute(storyId);
-
-//             await Promise.all([
-//                 notifyUser({
-//                     profileId,
-//                     type: "STORY_ROLE_ADDED",
-//                     title,
-//                     body,
-//                     entityId: storyId,
-//                     actorId: req.user.profiles[0].id,
-//                     route,
-//                 }),
-//                 sendNotification(profileId, title, body, {
-//                     type: "STORY_ROLE_ADDED",
-//                     entityId: storyId,
-//                     actorId: req.user.profiles[0].id,
-//                     route,
-//                 }).catch((err) =>
-//                     console.error("[sendNotification] STORY_ROLE_ADDED failed:", err)
-//                 ),
-//             ]);
-//     return res.json({
-//       roles: newRoles,
-//       story,
-//     });
-//   } catch (error) {
-//     console.log(error);
-//     return res.status(500).json({ error });
-//   }
-// });
 router.post("/story", authMiddleware, async (req, res) => {
     let { type, profileId, storyId } = req.body;
     try {
