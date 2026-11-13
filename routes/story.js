@@ -415,6 +415,8 @@ const getRecommendations = async (profileId) => {
 
   return recommendations;
 };
+
+
 router.get("/profile/protected", authMiddleware, async (req, res) => {
   try {
     const profile = await prisma.profile.findFirst({
@@ -431,43 +433,48 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
 
     const profileId = profile.id;
 
-    const skip = Number.parseInt(req.query.skip, 10) || 0;
+    // Normalize pagination parameters.
+    const parsedSkip = Number.parseInt(req.query.skip, 10);
+    const parsedTake = Number.parseInt(req.query.take, 10);
 
-    const take = Math.min(
-      Number.parseInt(req.query.take, 10) || 50,
-      100
-    );
+    const skip = Number.isFinite(parsedSkip)
+      ? Math.max(0, parsedSkip)
+      : 0;
+
+    const take = Number.isFinite(parsedTake)
+      ? Math.min(Math.max(parsedTake, 1), 100)
+      : 50;
 
     const status = req.query.status;
 
     const rawSearch = req.query.search || "";
-    const search = rawSearch.trim();
+    const search = String(rawSearch).trim();
+
+    const normalizedSearch = search.toLowerCase();
 
     const type = req.query.type;
 
-    /*
-     * ============================================================
-     * COLLECTION-BASED PROFILE SECTIONS
-     * ============================================================
-     *
-     * These sections are determined by ProfileToCollection:
-     *
-     * home
-     * events
-     * portfolio
-     *
-     * The actual Stories are contained inside the Collection
-     * through Collection.storyIdList.
-     *
-     * Archive is intentionally NOT included here because its
-     * existing behavior is Story-based below.
-     */
     const collectionTypes = [
       "home",
       "events",
       "portfolio",
     ];
 
+    /*
+     * ============================================================
+     * COLLECTION-BASED PROFILE SECTIONS
+     * ============================================================
+     *
+     * Home and Events:
+     *   One item = one ProfileToCollection relationship.
+     *   Each item contains its nested Stories.
+     *
+     * Portfolio:
+     *   One item = one Story.
+     *   Each Story retains its parent Collection metadata.
+     *
+     * Search and status filtering are applied before pagination.
+     */
     if (collectionTypes.includes(type)) {
       const profileCollections =
         await prisma.profileToCollection.findMany({
@@ -478,7 +485,6 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
 
           select: {
             id: true,
-            collectionId: true,
 
             collection: {
               select: {
@@ -530,9 +536,78 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
         });
 
       /*
-       * One item = one ProfileToCollection relationship.
+       * ==========================================================
+       * PORTFOLIO: INDIVIDUAL STORY ITEMS
+       * ==========================================================
+       */
+      if (type === "portfolio") {
+        let items = profileCollections.flatMap((row) => {
+          if (!row.collection) {
+            return [];
+          }
+
+          const collection = {
+            id: row.collection.id,
+            title: row.collection.title,
+            purpose: row.collection.purpose,
+            isPrivate: row.collection.isPrivate,
+            type: row.collection.type,
+          };
+
+          return row.collection.storyIdList
+            .map((storyLink) => storyLink.story)
+            .filter(Boolean)
+            .map((story) => ({
+              ...story,
+
+              // Preserve the relationship to the portfolio collection.
+              profileCollectionId: row.id,
+
+              // Preserve parent collection information.
+              collection,
+            }));
+        });
+
+        // Search individual Stories.
+        if (normalizedSearch) {
+          items = items.filter((story) =>
+            story.title
+              ?.toLowerCase()
+              .includes(normalizedSearch)
+          );
+        }
+
+        // Filter individual Stories by status.
+        if (status) {
+          items = items.filter(
+            (story) => story.status === status
+          );
+        }
+
+        // Paginate individual Stories.
+        const totalCount = items.length;
+
+        const paginatedItems = items.slice(
+          skip,
+          skip + take
+        );
+
+        return res.status(200).json({
+          items: paginatedItems,
+          stories: paginatedItems,
+          skip,
+          take,
+          totalCount,
+          hasMore: skip + paginatedItems.length < totalCount,
+        });
+      }
+
+      /*
+       * ==========================================================
+       * HOME / EVENTS: COLLECTION ITEMS
+       * ==========================================================
        *
-       * The collection contains all of its Stories.
+       * Keep the existing collection-based response structure.
        */
       let items = profileCollections
         .filter((row) => row.collection)
@@ -552,15 +627,8 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
             .filter(Boolean),
         }));
 
-      /*
-       * Search applies to Stories inside the collections.
-       *
-       * A collection remains visible if at least one of its
-       * Stories matches the search.
-       */
-      if (search) {
-        const normalizedSearch = search.toLowerCase();
-
+      // Search within each collection's Stories.
+      if (normalizedSearch) {
         items = items
           .map((item) => ({
             ...item,
@@ -574,10 +642,7 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
           .filter((item) => item.stories.length > 0);
       }
 
-      /*
-       * Status filtering also applies to Stories inside
-       * the collection.
-       */
+      // Filter Stories by status within each collection.
       if (status) {
         items = items
           .map((item) => ({
@@ -590,15 +655,7 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
           .filter((item) => item.stories.length > 0);
       }
 
-      /*
-       * Pagination happens at the Collection level.
-       *
-       * Example:
-       * take=8
-       *
-       * means 8 collections, with each collection containing
-       * however many Stories belong to it.
-       */
+      // Paginate collections, not individual Stories.
       const totalCount = items.length;
 
       const paginatedItems = items.slice(
@@ -608,21 +665,11 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
 
       return res.status(200).json({
         items: paginatedItems,
-
-        /*
-         * Keep `stories` for compatibility with the existing
-         * PaginatedList / frontend response shape.
-         *
-         * These are collection items, not individual Stories.
-         */
         stories: paginatedItems,
-
         skip,
         take,
         totalCount,
-
-        hasMore:
-          skip + paginatedItems.length < totalCount,
+        hasMore: skip + paginatedItems.length < totalCount,
       });
     }
 
@@ -631,15 +678,11 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
      * NORMAL STORIES / ARCHIVE
      * ============================================================
      *
-     * This preserves the existing Story-based behavior.
+     * Preserve existing Archive behavior.
      *
      * A Story is included if the profile is:
-     *
      * - the author
-     * OR
      * - a beta reader
-     *
-     * This is currently the behavior used by Archive.
      */
     const where = {
       OR: [
@@ -694,21 +737,17 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
       },
     });
 
-    const totalCount =
-      await prisma.story.count({
-        where,
-      });
+    const totalCount = await prisma.story.count({
+      where,
+    });
 
     return res.status(200).json({
       items: stories,
       stories,
-
       skip,
       take,
       totalCount,
-
-      hasMore:
-        skip + stories.length < totalCount,
+      hasMore: skip + stories.length < totalCount,
     });
   } catch (error) {
     console.error(
@@ -721,283 +760,10 @@ router.get("/profile/protected", authMiddleware, async (req, res) => {
     });
   }
 });
-// router.get("/profile/protected", authMiddleware, async (req, res) => {
-//   try {
-//     const profile = await prisma.profile.findFirst({
-//       where: {
-//         userId: req.user.id,
-//       },
-//     });
 
-//     if (!profile) {
-//       return res.status(404).json({
-//         message: "Profile not found",
-//       });
-//     }
 
-//     const profileId = profile.id;
 
-//     const skip = Number.parseInt(req.query.skip, 10) || 0;
 
-//     const take = Math.min(
-//       Number.parseInt(req.query.take, 10) || 50,
-//       100
-//     );
-
-//     const status = req.query.status;
-
-//     const rawSearch = req.query.search || "";
-//     const search = rawSearch.trim();
-
-//     const isEvents = req.query.type === "events";
-
-//     /*
-//      * ============================================================
-//      * EVENTS
-//      * ============================================================
-//      *
-//      * Event collections are determined by:
-//      *
-//      * ProfileToCollection.type === "events"
-//      *
-//      * The actual content of each event comes from:
-//      *
-//      * Collection.storyIdList
-//      *
-//      * which is the StoryToCollection relationship.
-//      */
-//     if (isEvents) {
-//       const eventProfileCollections =
-//         await prisma.profileToCollection.findMany({
-//           where: {
-//             profileId,
-//             type: "events",
-//           },
-
-//           select: {
-//             id: true,
-//             collectionId: true,
-
-//             collection: {
-//               select: {
-//                 id: true,
-//                 title: true,
-//                 purpose: true,
-//                 isPrivate: true,
-//                 type: true,
-
-//                 storyIdList: {
-//                   orderBy: {
-//                     index: "asc",
-//                   },
-
-//                   select: {
-//                     id: true,
-//                     storyId: true,
-//                     index: true,
-
-//                     story: {
-//                       select: {
-//                         id: true,
-//                         title: true,
-//                         description: true,
-//                         status: true,
-//                         isPrivate: true,
-//                         googleCalendarId: true,
-//                         updated: true,
-//                         created: true,
-
-//                         author: {
-//                           select: {
-//                             id: true,
-//                             username: true,
-//                             profilePic: true,
-//                           },
-//                         },
-//                       },
-//                     },
-//                   },
-//                 },
-//               },
-//             },
-//           },
-
-//           orderBy: {
-//             created: "desc",
-//           },
-//         });
-
-//       /*
-//        * Build the EventSection response.
-//        *
-//        * One item = one event collection.
-//        * Each item contains all Stories inside that collection.
-//        */
-//       let items = eventProfileCollections
-//         .filter((row) => row.collection)
-//         .map((row) => ({
-//           profileCollectionId: row.id,
-
-//           collection: {
-//             id: row.collection.id,
-//             title: row.collection.title,
-//             purpose: row.collection.purpose,
-//             isPrivate: row.collection.isPrivate,
-//             type: row.collection.type,
-//           },
-
-//           stories: row.collection.storyIdList
-//             .map((storyLink) => storyLink.story)
-//             .filter(Boolean),
-//         }));
-
-//       /*
-//        * Search Stories inside the event collections.
-//        *
-//        * If a search is supplied, only event collections containing
-//        * at least one matching Story are returned.
-//        */
-//       if (search) {
-//         const normalizedSearch = search.toLowerCase();
-
-//         items = items
-//           .map((item) => ({
-//             ...item,
-
-//             stories: item.stories.filter((story) =>
-//               story.title
-//                 ?.toLowerCase()
-//                 .includes(normalizedSearch)
-//             ),
-//           }))
-//           .filter((item) => item.stories.length > 0);
-//       }
-
-//       /*
-//        * Filter Stories by status if requested.
-//        */
-//       if (status) {
-//         items = items
-//           .map((item) => ({
-//             ...item,
-
-//             stories: item.stories.filter(
-//               (story) => story.status === status
-//             ),
-//           }))
-//           .filter((item) => item.stories.length > 0);
-//       }
-
-//       /*
-//        * Pagination happens at the EVENT COLLECTION level.
-//        *
-//        * This means:
-//        *
-//        * take=8
-//        *
-//        * means 8 event collections, not 8 individual Stories.
-//        */
-//       const totalCount = items.length;
-
-//       const paginatedItems = items.slice(
-//         skip,
-//         skip + take
-//       );
-
-//       return res.status(200).json({
-//         items: paginatedItems,
-//         stories: paginatedItems,
-//         skip,
-//         take,
-//         totalCount,
-//         hasMore:
-//           skip + paginatedItems.length < totalCount,
-//       });
-//     }
-
-//     /*
-//      * ============================================================
-//      * NORMAL STORIES / ARCHIVE
-//      * ============================================================
-//      *
-//      * Keep the existing behavior.
-//      */
-//     const where = {
-//       OR: [
-//         {
-//           authorId: profileId,
-//         },
-//         {
-//           betaReaders: {
-//             some: {
-//               profileId,
-//             },
-//           },
-//         },
-//       ],
-
-//       ...(search
-//         ? {
-//             title: {
-//               contains: search,
-//               mode: "insensitive",
-//             },
-//           }
-//         : {}),
-
-//       ...(status
-//         ? {
-//             status,
-//           }
-//         : {}),
-//     };
-
-//     const stories = await prisma.story.findMany({
-//       where,
-//       take,
-//       skip,
-//       orderBy: {
-//         updated: "desc",
-//       },
-
-//       select: {
-//         id: true,
-//         title: true,
-//         status: true,
-//         updated: true,
-//         created: true,
-//         isPrivate: true,
-//         type: true,
-//         description: true,
-//         authorId: true,
-//       },
-//     });
-
-//     const totalCount =
-//       await prisma.story.count({
-//         where,
-//       });
-
-//     return res.status(200).json({
-//       items: stories,
-//       stories,
-//       skip,
-//       take,
-//       totalCount,
-//       hasMore:
-//         skip + stories.length < totalCount,
-//     });
-//   } catch (error) {
-//     console.error(
-//       "GET /profile/protected error:",
-//       error
-//     );
-
-//     return res.status(500).json({
-//       error: "Internal server error",
-//     });
-//   }
-// });
 router.get(
   "/collection/:id/protected",
   authMiddleware,
