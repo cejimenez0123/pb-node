@@ -35,23 +35,17 @@ module.exports = function (authMiddleware){
     });
         return res.status(200).json({profiles:profiles})
     })
+    // getCurrentProfile
         router.get("/me", authMiddleware, async (req, res) => {
   try {
-    if (!req?.user) {
-      return res.status(403).json({ message: "No profile found." });
-    }
-
-    const currentProfile = req.user?.profiles?.[0];
-
-    if (!currentProfile?.id) {
-      return res.status(403).json({ message: "No profile found." });
-    }
-
-    const profileId = currentProfile.id;
+    let userId = req.user.id
+ 
 
 
     const profile = await prisma.profile.findFirst({
-  where: { id: profileId },
+  where: { userId:{
+    equals:userId
+  } },
   include: {
     location: true,
 
@@ -217,6 +211,7 @@ if (!profileId) return;
     return res.status(500).json({ error: err });
   }
 });
+// Get Friend's Profile
     router.get("/protected/:id",authMiddleware,async (req,res)=>{
         try{
        const currentUserId = req.user?.profiles?.[0]?.id;
@@ -582,27 +577,6 @@ if (location && (location.latitude == null || location.longitude == null)) {
 }
 });
 
-    router.get("/user/:id/public",async (req,res)=>{
-       try{
-    const profiles = await prisma.profile.findMany({
-      where: {
-        userId: req.params.id,
-        isPrivate: false,
-      },
-      include: {
-        followers: {
-          include: { follower: true },
-        },
-      },
-    });
-
-return res.json({profiles})
-}catch(err){
-console.log(err)
-return res.status(409).json({error:err})
-}
-})
-
 router.delete("/me", authMiddleware, async (req, res) => {
   const profile = req.user?.profiles[0];
   try {
@@ -681,7 +655,7 @@ const recommendations = await getProfileRecommendations(profileId, limitNum);
 
 
 
-router.get("/alert", authMiddleware, async (req, res) => {
+router.get("/me/alert", authMiddleware, async (req, res) => {
   try {
     
        const profId = req.user?.profiles?.[0]?.id;
