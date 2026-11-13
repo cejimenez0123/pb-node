@@ -2669,13 +2669,7 @@ const allRelevantCollections = await prisma.collection.findMany({
   },
 });
 
-console.log(
-  "ALL RELEVANT COLLECTIONS:",
-  allRelevantCollections.map((collection) => ({
-    ...collection,
-    isWorkshop: collection.isWorkshop,
-  }))
-);
+
       if (
         relevantCollectionIds.length === 0
       ) {
@@ -2786,19 +2780,7 @@ console.log(
               collection.id
           );
 
-console.log(
-  "FILTER:",
-  {
-    isWorkshop,
-    type,
-    search: normalizedSearch,
-  }
-);
 
-console.log(
-  "FILTERED COLLECTIONS:",
-  filtered
-);
       if (pagedIds.length === 0) {
         return res.json({
           collections: [],

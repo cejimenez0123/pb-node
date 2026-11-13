@@ -287,19 +287,30 @@ stories:{
     })
 router.get("/collections/protected", authMiddleware, async (req, res) => {
   try {
-    // const profileId = req.user?.profiles?.[0]?.id;
-const userId = req.user.id
-const profile =await prisma.profile.findFirst({where:{
-  id:{
-    equals:userId
-  }
-}})
-if(!profile){
- return res.status(403).json({
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Authentication required.",
+      });
+    }
+
+    const profile = await prisma.profile.findFirst({
+      where: {
+        userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!profile) {
+      return res.status(403).json({
         message: "No profile found.",
       });
-}
-  
+    }
+
+    const profileId = profile.id;
     const type = req.query.type;
 
     const parsedSkip = Number.parseInt(req.query.skip, 10);
@@ -323,11 +334,9 @@ if(!profile){
         where,
         skip,
         take,
-
         orderBy: {
           created: "desc",
         },
-
         include: {
           collection: {
             include: {
@@ -342,17 +351,14 @@ if(!profile){
                   },
                 },
               },
-
               storyIdList: {
                 orderBy: {
                   index: "asc",
                 },
-
                 select: {
                   id: true,
                   storyId: true,
                   index: true,
-
                   story: {
                     select: {
                       id: true,
@@ -367,7 +373,6 @@ if(!profile){
           },
         },
       }),
-
       prisma.profileToCollection.count({
         where,
       }),
@@ -380,7 +385,6 @@ if(!profile){
       totalCount,
       hasMore: skip + items.length < totalCount,
     });
-
   } catch (error) {
     console.error(
       "GET /profile/collections/protected error:",
