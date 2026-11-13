@@ -2474,7 +2474,7 @@ router.get(
   "/profile/protected",
   authMiddleware,
   async (req, res) => {
-     console.log("PROFILE PROTECTED QUERY:", req.query);
+     
     try {
       const profile =
         await prisma.profile.findFirst({

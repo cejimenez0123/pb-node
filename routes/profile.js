@@ -11,7 +11,7 @@ const optionalAuth = require('../middleware/optionalAuth.js');
 const attachBlockedProfiles = require('../middleware/attechBlockedProfiles.js');
 const client = require('../utils/algoliaClient.js');
 const indexNames = require('../utils/indexNames.js');
-const { object } = require('firebase-functions/v1/storage');
+
 
 
 function getActiveProfileId(req, res) {
@@ -203,29 +203,7 @@ client.saveObject({indexName:indexNames.profile,body:{
     return res.status(500).json({ error: "Server error" });
   }
 });
-//     router.post("/device-token", authMiddleware, async (req, res) => {
-//     try {
-//         const { token, platform = "ios" } = req.body;
-// const profileId = req.user?.profiles?.[0]?.id;
-// if (!profileId) return res.status(403).json({ error: "No active profile" });
 
-//         try {
-//          await prisma.deviceToken.upsert({
-//   where: { profileId },
-//   create: { token, profileId, platform },
-//   update: { token, platform }
-// });
-//         } catch (err) {
-//            console.error("DEVICE_TOKEN_ERROR 1", err.message);
-   
-//         }
-
-//         return res.json({ success: true });
-//     } catch (error) {
-//         console.error("DEVICE_TOKEN_ERROR", error.message);
-//         return res.status(500).json({ error: "Server error" });
-//     }
-// });
 router.patch("/notifications/read", authMiddleware, async (req, res) => {
   try {
  const profileId = getActiveProfileId(req, res);
@@ -311,7 +289,7 @@ router.get("/collections/protected", authMiddleware, async (req, res) => {
   try {
     // const profileId = req.user?.profiles?.[0]?.id;
 const userId = req.user.id
-const profile = prisma.profile.findFirst({where:{
+const profile =await prisma.profile.findFirst({where:{
   id:{
     equals:userId
   }
