@@ -280,7 +280,7 @@ stories:{
         return res.status(409).json({error:err})
     }
     })
-router.get("/me/collections", authMiddleware, async (req, res) => {
+router.get("/collections/protected", authMiddleware, async (req, res) => {
   try {
     const userId = req.user?.id;
 
