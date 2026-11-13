@@ -309,14 +309,19 @@ stories:{
     })
 router.get("/collections/protected", authMiddleware, async (req, res) => {
   try {
-    const profileId = req.user?.profiles?.[0]?.id;
-
-    if (!profileId) {
-      return res.status(403).json({
+    // const profileId = req.user?.profiles?.[0]?.id;
+const userId = req.user.id
+const profile = prisma.profile.findFirst({where:{
+  id:{
+    equals:userId
+  }
+}})
+if(!profile){
+ return res.status(403).json({
         message: "No profile found.",
       });
-    }
-
+}
+  
     const type = req.query.type;
 
     const parsedSkip = Number.parseInt(req.query.skip, 10);
