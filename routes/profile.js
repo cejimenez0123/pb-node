@@ -280,6 +280,7 @@ stories:{
         return res.status(409).json({error:err})
     }
     })
+
 router.get("/collections/protected", authMiddleware, async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -308,6 +309,8 @@ router.get("/collections/protected", authMiddleware, async (req, res) => {
     const profileId = profile.id;
     const type = req.query.type;
 
+    const search = String(req.query.search ?? "").trim();
+
     const parsedSkip = Number.parseInt(req.query.skip, 10);
     const parsedTake = Number.parseInt(req.query.take, 10);
 
@@ -319,9 +322,45 @@ router.get("/collections/protected", authMiddleware, async (req, res) => {
       ? Math.min(Math.max(parsedTake, 1), 100)
       : 50;
 
+    // Match stories by title or description.
+    const storySearchWhere = search
+      ? {
+          OR: [
+            {
+              title: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+            {
+              description: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+          ],
+        }
+      : undefined;
+
+    // Only include collections containing matching stories.
     const where = {
       profileId,
       ...(type ? { type } : {}),
+      ...(storySearchWhere
+        ? {
+            collection: {
+              is: {
+                storyIdList: {
+                  some: {
+                    story: {
+                      is: storySearchWhere,
+                    },
+                  },
+                },
+              },
+            },
+          }
+        : {}),
     };
 
     const [items, totalCount] = await Promise.all([
@@ -347,6 +386,15 @@ router.get("/collections/protected", authMiddleware, async (req, res) => {
                 },
               },
               storyIdList: {
+                ...(storySearchWhere
+                  ? {
+                      where: {
+                        story: {
+                          is: storySearchWhere,
+                        },
+                      },
+                    }
+                  : {}),
                 orderBy: {
                   index: "asc",
                 },
@@ -368,6 +416,7 @@ router.get("/collections/protected", authMiddleware, async (req, res) => {
           },
         },
       }),
+
       prisma.profileToCollection.count({
         where,
       }),
@@ -391,6 +440,118 @@ router.get("/collections/protected", authMiddleware, async (req, res) => {
     });
   }
 });
+
+// router.get("/collections/protected", authMiddleware, async (req, res) => {
+//   try {
+//     const userId = req.user?.id;
+
+//     if (!userId) {
+//       return res.status(401).json({
+//         message: "Authentication required.",
+//       });
+//     }
+
+//     const profile = await prisma.profile.findFirst({
+//       where: {
+//         userId,
+//       },
+//       select: {
+//         id: true,
+//       },
+//     });
+
+//     if (!profile) {
+//       return res.status(403).json({
+//         message: "No profile found.",
+//       });
+//     }
+
+//     const profileId = profile.id;
+//     const type = req.query.type;
+
+//     const parsedSkip = Number.parseInt(req.query.skip, 10);
+//     const parsedTake = Number.parseInt(req.query.take, 10);
+
+//     const skip = Number.isFinite(parsedSkip)
+//       ? Math.max(0, parsedSkip)
+//       : 0;
+
+//     const take = Number.isFinite(parsedTake)
+//       ? Math.min(Math.max(parsedTake, 1), 100)
+//       : 50;
+
+//     const where = {
+//       profileId,
+//       ...(type ? { type } : {}),
+//     };
+
+//     const [items, totalCount] = await Promise.all([
+//       prisma.profileToCollection.findMany({
+//         where,
+//         skip,
+//         take,
+//         orderBy: {
+//           created: "desc",
+//         },
+//         include: {
+//           collection: {
+//             include: {
+//               childCollections: {
+//                 select: {
+//                   childCollection: {
+//                     select: {
+//                       id: true,
+//                       title: true,
+//                       type: true,
+//                     },
+//                   },
+//                 },
+//               },
+//               storyIdList: {
+//                 orderBy: {
+//                   index: "asc",
+//                 },
+//                 select: {
+//                   id: true,
+//                   storyId: true,
+//                   index: true,
+//                   story: {
+//                     select: {
+//                       id: true,
+//                       title: true,
+//                       description: true,
+//                       type: true,
+//                     },
+//                   },
+//                 },
+//               },
+//             },
+//           },
+//         },
+//       }),
+//       prisma.profileToCollection.count({
+//         where,
+//       }),
+//     ]);
+
+//     return res.status(200).json({
+//       items,
+//       skip,
+//       take,
+//       totalCount,
+//       hasMore: skip + items.length < totalCount,
+//     });
+//   } catch (error) {
+//     console.error(
+//       "GET /profile/collections/protected error:",
+//       error
+//     );
+
+//     return res.status(500).json({
+//       error: "Internal server error",
+//     });
+//   }
+// });
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
