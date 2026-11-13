@@ -654,7 +654,6 @@ const recommendations = await getProfileRecommendations(profileId, limitNum);
 
 router.get("/me/alert", authMiddleware, async (req, res) => {
   try {
-    
        const profId = req.user?.profiles?.[0]?.id;
 if (!profId) {
   return res.status(403).json({
