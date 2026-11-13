@@ -35,7 +35,7 @@ module.exports = function (authMiddleware){
     });
         return res.status(200).json({profiles:profiles})
     })
-        router.get("/protected", authMiddleware, async (req, res) => {
+        router.get("/me", authMiddleware, async (req, res) => {
   try {
     if (!req?.user) {
       return res.status(403).json({ message: "No profile found." });
@@ -217,7 +217,7 @@ if (!profileId) return;
     return res.status(500).json({ error: err });
   }
 });
-    router.get("/:id/protected",authMiddleware,async (req,res)=>{
+    router.get("/protected/:id",authMiddleware,async (req,res)=>{
         try{
        const currentUserId = req.user?.profiles?.[0]?.id;
     if (!currentUserId) {
@@ -285,7 +285,7 @@ stories:{
         return res.status(409).json({error:err})
     }
     })
-router.get("/collections/protected", authMiddleware, async (req, res) => {
+router.get("/me/collections", authMiddleware, async (req, res) => {
   try {
     const userId = req.user?.id;
 
@@ -396,7 +396,7 @@ router.get("/collections/protected", authMiddleware, async (req, res) => {
     });
   }
 });
-router.get("/:id/public", async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -474,38 +474,10 @@ router.get("/:id/public", async (req, res) => {
   }
 });
 
-    // router.get("/:id/public",async (req,res)=>{
-    //     try{
-        
-    //     const profile = await prisma.profile.findFirst({where:{
-    //         id: req.params.id
-    //     },include:{
-    //         location:true,
-    //         _count:{
-    //             select:{
-    //                 followers:true,
-    //                 following:true,
-    //             }
-    //         },
-    //         stories:{
-    //             where:{isPrivate:{equals:false}}
-    //         },
-    //         collections:{
-    //             where:{isPrivate:{equals:false}}
-  
-    //             }
-            
-           
-           
-    //     }})
-    //     return res.status(200).json({profile:profile})
 
-    // }catch(err){
-     
-    //     return res.status(409).json({error:err})
-    // }
-    // })
-router.put("/:id", authMiddleware, async (req, res) => {
+
+
+router.patch("/me", authMiddleware, async (req, res) => {
   const {
     username,
     profilePicture,
@@ -631,7 +603,7 @@ return res.status(409).json({error:err})
 }
 })
 
-router.delete("/:id", authMiddleware, async (req, res) => {
+router.delete("/me", authMiddleware, async (req, res) => {
   const profile = req.user?.profiles[0];
   try {
     const stories = await prisma.story.findMany({
