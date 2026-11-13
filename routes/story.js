@@ -417,274 +417,47 @@ const getRecommendations = async (profileId) => {
 };
 
 
-// router.get("/profile/protected", authMiddleware, async (req, res) => {
-//   try {
-//     const profile = await prisma.profile.findFirst({
-//       where: {
-//         userId: req.user.id,
-//       },
-//     });
+  router.get("/profile/protected", authMiddleware, async (req, res) => {
+  try {
+    const profileId = req?.user?.profiles?.[0]?.id;
 
-//     if (!profile) {
-//       return res.status(404).json({
-//         message: "Profile not found",
-//       });
-//     }
+    if (!profileId) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
 
-//     const profileId = profile.id;
+    const skip = parseInt(req.query.skip) || 0;
+    const take = parseInt(req.query.take) || 50;
 
-//     // Normalize pagination parameters.
-//     const parsedSkip = Number.parseInt(req.query.skip, 10);
-//     const parsedTake = Number.parseInt(req.query.take, 10);
+    const [stories, totalCount] = await Promise.all([
+      prisma.story.findMany({
+        where: {
+          authorId: profileId,
+        },
+        take,
+        skip,
+        
+      }),
 
-//     const skip = Number.isFinite(parsedSkip)
-//       ? Math.max(0, parsedSkip)
-//       : 0;
+      prisma.story.count({
+        where: {
+          authorId: profileId,
+        },
+      }),
+    ])
 
-//     const take = Number.isFinite(parsedTake)
-//       ? Math.min(Math.max(parsedTake, 1), 100)
-//       : 50;
+    res.status(200).json({
+      stories,
+      skip,
+      take,
+      totalCount,
+      hasMore: skip + take < totalCount,
+    });
 
-//     const status = req.query.status;
-
-//     const rawSearch = req.query.search || "";
-//     const search = String(rawSearch).trim();
-
-//     const normalizedSearch = search.toLowerCase();
-
-//     const type = req.query.type;
-
-//     const collectionTypes = [
-//       "home",
-//       "events",
-//       "portfolio",
-//     ];
-
-  
-//     if (collectionTypes.includes(type)) {
-//       const profileCollections =
-//         await prisma.profileToCollection.findMany({
-//           where: {
-//             profileId,
-//             type,
-//           },
-
-//           select: {
-//             id: true,
-            
-//             collection: {
-//               select: {
-//                 id: true,
-//                 title: true,
-//                 purpose: true,
-//                 isPrivate: true,
-//                 type: true,
-
-//                 storyIdList: {
-//                   orderBy: {
-//                     index: "asc",
-//                   },
-
-//                   select: {
-//                     id: true,
-//                     storyId: true,
-//                     index: true,
-
-//                     story: {
-//                       select: {
-//                         id: true,
-//                         title: true,
-//                         description: true,
-//                         status: true,
-//                         isPrivate: true,
-//                         googleCalendarId: true,
-//                         updated: true,
-//                         created: true,
-
-//                         author: {
-//                           select: {
-//                             id: true,
-//                             username: true,
-//                             profilePic: true,
-//                           },
-//                         },
-//                       },
-//                     },
-//                   },
-//                 },
-//               },
-//             },
-//           },
-
-//           orderBy: {
-//             created: "desc",
-//           },
-//         });
-
-//       /*
-//        * ==========================================================
-//        * PORTFOLIO: INDIVIDUAL STORY ITEMS
-//        * ==========================================================
-//        */
-     
-  
-// if (type === "portfolio") {
-//   profileCollections.filter(row=>row)
-//   let items = profileCollections
-//     .filter((row) => row. row.collection)
-//     .map((row) => ({
-//       profileCollectionId: row.id,
-
-//       collection: {
-//         id: row.collection.id,
-//         title: row.collection.title,
-//         purpose: row.collection.purpose,
-//         isPrivate: row.collection.isPrivate,
-//         type: row.collection.type,
-//       },
-
-//       stories: row.collection.storyIdList
-//         .map((storyLink) => storyLink.story)
-//         .filter(Boolean),
-//     }));
-
-//   if (normalizedSearch) {
-//     items = items
-//       .map((item) => ({
-//         ...item,
-//         stories: item.stories.filter((story) =>
-//           `${story.title || ""} ${story.description || ""}`
-//             .toLowerCase()
-//             .includes(normalizedSearch)
-//         ),
-//       }))
-//       .filter(
-//         (item) =>
-//           item.collection.title
-//             ?.toLowerCase()
-//             .includes(normalizedSearch) ||
-//           item.stories.length > 0
-//       );
-//   }
-
-//   if (status) {
-//     items = items
-//       .map((item) => ({
-//         ...item,
-//         stories: item.stories.filter(
-//           (story) => story.status === status
-//         ),
-//       }))
-//       .filter((item) => item.stories.length > 0);
-//   }
- 
-
-//       // Paginate collections, not individual Stories.
-//       const totalCount = items.length;
-
-//       const paginatedItems = items.slice(
-//         skip,
-//         skip + take
-//       );
-
-//       return res.status(200).json({
-//         items: paginatedItems,
-//         stories: paginatedItems,
-//         skip,
-//         take,
-//         totalCount,
-//         hasMore: skip + paginatedItems.length < totalCount,
-//       });
-//     }
-
-//     /*
-//      * ============================================================
-//      * NORMAL STORIES / ARCHIVE
-//      * ============================================================
-//      *
-//      * Preserve existing Archive behavior.
-//      *
-//      * A Story is included if the profile is:
-//      * - the author
-//      * - a beta reader
-//      */
-//     const where = {
-//       OR: [
-//         {
-//           authorId: profileId,
-//         },
-//         {
-//           betaReaders: {
-//             some: {
-//               profileId,
-//             },
-//           },
-//         },
-//       ],
-
-//       ...(search
-//         ? {
-//             title: {
-//               contains: search,
-//               mode: "insensitive",
-//             },
-//           }
-//         : {}),
-
-//       ...(status
-//         ? {
-//             status,
-//           }
-//         : {}),
-//     };
-
-//     const stories = await prisma.story.findMany({
-//       where,
-
-//       take,
-//       skip,
-
-//       orderBy: {
-//         updated: "desc",
-//       },
-
-//       select: {
-//         id: true,
-//         title: true,
-//         status: true,
-//         updated: true,
-//         created: true,
-//         isPrivate: true,
-//         type: true,
-//         description: true,
-//         authorId: true,
-//       },
-//     });
-
-//     const totalCount = await prisma.story.count({
-//       where,
-//     });
-
-//     return res.status(200).json({
-//       items: stories,
-//       stories,
-//       skip,
-//       take,
-//       totalCount,
-//       hasMore: skip + stories.length < totalCount,
-//     });
-//   } catch (error) {
-//     console.error(
-//       "GET /profile/protected error:",
-//       error
-//     );
-
-//     return res.status(500).json({
-//       error: "Internal server error",
-//     });
-//   }
-// });
-
+  } catch (error) {
+    console.log("/profile/protected", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 
 
