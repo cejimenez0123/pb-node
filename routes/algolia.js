@@ -1,19 +1,12 @@
 const express = require('express');
 const router = express.Router()
 const {algoliasearch }= require("algoliasearch");
-const prisma = require('../db');
 const optionalAuth = require('../middleware/optionalAuth');
 module.exports = function (authMiddleware){
 const client = algoliasearch(
   process.env.ALGOLIA_APP_ID,
   process.env.ALGOLIA_ADMIN_API_KEY
 );
-
-
-
-
-
-
 
 router.post("/save", async (req, res) => {
   try {
@@ -90,7 +83,9 @@ router.get(
             {
               indexName,
               query: q.trim(),
+            
             },
+            
           ]);
 
           return response.results[0].hits.map((hit) => ({
