@@ -1813,76 +1813,7 @@ router.post("/:id/story", authMiddleware, async (req, res) => {
     });
   }
 });
-// router.post("/:id/story",authMiddleware,async (req,res)=>{
-//     //ADD story TO COLLECTION
-//     try{
-//     const {id}=req.params
-//     const {list,profile}=req.body
-//     const newList = list.filter(story=>story!=null)
-    
-//     let promises = newList.map(story=>{
-//         return prisma.storyToCollection.create({
-//             data:{
-//                 story:{
-//                     connect:{
-//                         id:story.id
-//                     }
-//                 },
-//                 collection:{
-//                     connect:{
-//                         id:id
-//                     }
-//                 }
-//                 ,profile:{
-//                     connect:{
-//                         id:profile.id
-//                     }
-//                 }
-        
-//             },include:{
-//                 story:{
-//                     include:{
-//                         author:true
-//                     }
-//                 }
-//             }
-//         })
-//     })
-//     let joint = await Promise.all(promises)
-//     let col = await prisma.collection.update({where:{id:id},data:{
-//         updated:new Date()
-//     },include:{
-//         storyIdList:{
-//             include:{story:{include:{author:true}}}  
-//           },
-//         childCollections:true,
-//         roles:{
-//             include:{
-//                 profile:true,
-//             }
-//         },
-//         profile:true
-//     }})
-    
-//    let stories = await prisma.story.findMany({where:{
-//     id:{
-//         in:list.map(i=>i.id)
-//     }
-//    },include:{
-//     collections:{
-//         select:{
-//             id:true,
-//             collectionId:true
-//         }
-//     }
-//    }})
-//     res.json({collection:col,stories})
-// }catch(error){
-//     console.log({error})
-//     res.json({error})
-// }
-// }
-// )
+
     router.delete("/colToCol/:id",async (req,res)=>{
         //REMOVE COLLECTION FROM COLLECTION
         const {id}=req.params
@@ -2655,8 +2586,6 @@ router.get(
           relevantCollectionIds
         ),
       ];
-console.log("PROFILE ID:", profileId);
-console.log("RELEVANT COLLECTION IDS:", relevantCollectionIds);
 const allRelevantCollections = await prisma.collection.findMany({
   where: {
     id: { in: relevantCollectionIds },
