@@ -79,9 +79,7 @@ const lastEmailed = user.lastEmailed
                 childCollections:{
                     where:{
                         childCollection:{
-                            // updated:{
-                            //     gt:lastEmailed
-                            // }
+                         
                         }
                     },
                     include:{
@@ -101,9 +99,7 @@ const lastEmailed = user.lastEmailed
     following:{
         include:{
             collections:{
-                // where:{
-                //     created:{gt:lastEmailed}
-                // },
+             
                 include:{
                     storyIdList:{
                         where:{

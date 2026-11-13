@@ -14,7 +14,6 @@ const { Resend } = require('resend');
 const forgotPasswordTemplate = require('../html/forgotPasswordTemplate');
 const recievedReferralTemplate = require('../html/recievedReferralTemplate');
 const verifyAppleIdentityToken = require("../utils/verifyAppleIdentityToken");
-// const feedbackTemplate = require("../feedbackTemplate");
 const adminNotificationTemplate = require("../html/adminNotifcationTemplate")
 const crypto = require("crypto");
 
@@ -1427,37 +1426,7 @@ router.get("/admin/reports", authMod, async (req, res) => {
   }
 });
 
-// router.get("/admin/reports", authMod, async (req, res) => {
-//   try {
-//     const reports = await prisma.report.findMany({
-//       where: { status: "pending" },
-//       include: { reportedProfile: { select: { username: true } } },
-//       orderBy: { createdAt: "asc" },
-//     });
 
-//     const grouped = {};
-//     for (const r of reports) {
-//       if (!grouped[r.reportedProfileId]) {
-//         grouped[r.reportedProfileId] = {
-//           reportedProfileId: r.reportedProfileId,
-//           username: r.reportedProfile?.username ?? "unknown",
-//           reports: [],
-//         };
-//       }
-//       grouped[r.reportedProfileId].reports.push({
-//         id: r.id,
-//         contentType: r.contentType,
-//         contentId: r.contentId,
-//         reason: r.reason,
-//       });
-//     }
-
-//     res.json({ reports: Object.values(grouped) });
-//   } catch (error) {
-//     console.log(error);
-//     res.status(409).json({ error });
-//   }
-// });
 router.post("/admin/ban", authMod, async (req, res) => {
   const { reportedProfileId, reportIds = [], blockIds = [] } = req.body;
 
@@ -1494,23 +1463,6 @@ router.post("/admin/ban", authMod, async (req, res) => {
     res.status(409).json({ error: error.message || error });
   }
 });
-// router.post("/admin/ban", authMod,async (req, res) => {
-//   const { reportedProfileId, reportIds } = req.body;
-//   try {
-//     await prisma.profile.update({
-//       where: { id: reportedProfileId },
-//       data: { isBanned: true },
-//     });
-//     await prisma.report.updateMany({
-//       where: { id: { in: reportIds } },
-//       data: { status: "actioned" },
-//     });
-//     res.json({ ok: true });
-//   } catch (error) {
-//     console.log(error);
-//     res.status(409).json({ error });
-//   }
-// });
 
 router.post("/admin/dismiss", authMod, async (req, res) => {
   const { reportIds } = req.body;
