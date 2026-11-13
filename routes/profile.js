@@ -835,21 +835,7 @@ const lastNotified = profile.lastNotified || new Date(0);
 
 
 
-    router.get("/:id/collection",async (req,res)=>{
-try{
-        let bookmarks = await prisma.profileToCollection.findMany({
-            where:{
-                profile:{
-                    id: req.params.id
-                }
-            }
-        })
-        return res.json({bookmarks})
-    }catch(err){
-        console.log(err)
-        return res.status(409).json({error:err})
-    }
-    })
+
     router.post("/:id/collection/:colId",async (req,res)=>{
         try{
             const bookmark = await prisma.profileToCollection.create({
