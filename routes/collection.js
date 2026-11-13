@@ -1039,50 +1039,192 @@ const recommendations = await getRecommendedCollections(req.params.id)
     })
 router.get("/profile/:id/public", async (req, res) => {
   try {
-    const skip = parseInt(req.query.skip) || 0;
-    const take = parseInt(req.query.take) || 20;
-
     const profileId = req.params.id;
 
-    const collections = await prisma.collection.findMany({
-      where: {
-        AND: {
-          profile: { id: profileId },
+    // Validate Mongo ObjectId before querying Prisma.
+    if (!/^[a-f\d]{24}$/i.test(profileId)) {
+      return res.status(400).json({
+        message: "Invalid profile ID.",
+      });
+    }
+
+    // Safe pagination.
+    const parsedSkip = Number.parseInt(req.query.skip, 10);
+    const parsedTake = Number.parseInt(req.query.take, 10);
+
+    const skip = Number.isFinite(parsedSkip)
+      ? Math.max(0, parsedSkip)
+      : 0;
+
+    const take = Number.isFinite(parsedTake)
+      ? Math.min(Math.max(parsedTake, 1), 50)
+      : 8;
+
+    // A public profile must be explicitly public.
+    const profile = await prisma.profile.findUnique({
+      where: { id: profileId },
+      select: {
+        id: true,
+        isPrivate: true,
+      },
+    });
+
+    // Do not reveal whether a private profile exists.
+    if (!profile || profile.isPrivate !== false) {
+      return res.status(404).json({
+        message: "Profile not found.",
+      });
+    }
+
+    // Only collections deliberately added to this profile's portfolio.
+    const portfolioWhere = {
+      profileId,
+      type: "portfolio",
+      collection: {
+        is: {
           isPrivate: false,
         },
       },
-      include: {
-        storyIdList: {
-          include: {
-            story: { include: { author: true } },
+    };
+
+    const [entries, totalCount] = await Promise.all([
+      prisma.profileToCollection.findMany({
+        where: portfolioWhere,
+
+        skip,
+        take,
+
+        orderBy: [
+          { created: "desc" },
+          { id: "desc" },
+        ],
+
+        select: {
+          id: true,
+          created: true,
+
+          collection: {
+            select: {
+              id: true,
+              title: true,
+              purpose: true,
+              type: true,
+              isPrivate: true,
+              profileId: true,
+              created: true,
+              updated: true,
+
+              // Only public stories belonging to this portfolio collection.
+              storyIdList: {
+                where: {
+                  story: {
+                    is: {
+                      isPrivate: false,
+                      status: {
+                        not: "draft",
+                      },
+                    },
+                  },
+                },
+
+                orderBy: [
+                  { index: "asc" },
+                  { id: "asc" },
+                ],
+
+                select: {
+                  id: true,
+                  storyId: true,
+                  index: true,
+
+                  story: {
+                    select: {
+                      id: true,
+                      title: true,
+                      description: true,
+                      type: true,
+                      status: true,
+                      isPrivate: true,
+                      created: true,
+                      updated: true,
+                    },
+                  },
+                },
+              },
+
+              // First four PUBLIC child collections, in their existing order.
+              childCollections: {
+                where: {
+                  childCollection: {
+                    is: {
+                      isPrivate: false,
+                    },
+                  },
+                },
+
+                orderBy: [
+                  { index: "asc" },
+                  { id: "asc" },
+                ],
+
+                take: 4,
+
+                select: {
+                  id: true,
+                  index: true,
+
+                  childCollection: {
+                    select: {
+                      id: true,
+                      title: true,
+                      purpose: true,
+                      type: true,
+                      isPrivate: true,
+                      profileId: true,
+                      created: true,
+                      updated: true,
+                    },
+                  },
+                },
+              },
+            },
           },
         },
-      },
-      orderBy: {
-        updated: "desc",
-      },
-      skip,
-      take,
-    });
+      }),
 
-    const totalCount = await prisma.collection.count({
-      where: {
-        profile: { id: profileId },
-        isPrivate: false,
-      },
-    });
+      prisma.profileToCollection.count({
+        where: portfolioWhere,
+      }),
+    ]);
 
-    res.status(200).json({
+    // Keep the existing frontend contract: `collections` is an array
+    // of collection objects, not ProfileToCollection association records.
+    const collections = entries
+      .filter((entry) => entry.collection)
+      .map((entry) => ({
+        ...entry.collection,
+        portfolioEntryId: entry.id,
+        portfolioCreated: entry.created,
+      }));
+
+    return res.status(200).json({
       collections,
+      totalCount,
       skip,
       take,
-      totalCount,
-      hasMore: skip + take < totalCount,
+      hasMore: skip + collections.length < totalCount,
     });
-  } catch (err) {
-    res.status(400).send({ error: err });
+  } catch (error) {
+    console.error(
+      "[GET /profile/:id/public] Failed to fetch public portfolio:",
+      error
+    );
+
+    return res.status(500).json({
+      message: "Unable to retrieve public profile collections.",
+    });
   }
-})
+});
 router.get("/:id/feed/stories", withBlocks, async (req, res) => {
   try {
     const id = req.params.id;
@@ -1235,64 +1377,7 @@ router.get("/:id/feed/stories", withBlocks, async (req, res) => {
     res.status(400).send({ error: err });
   }
 });
-router.get("/profile/:id/public", async (req, res) => {
-  try {
-    const skip = parseInt(req.query.skip) || 0;
-    const take = parseInt(req.query.take) || 20;
-    const type = req.query.type; // 👈 ADD THIS
 
-    const profileId = req.params.id;
-
-    const baseWhere = {
-      profile: { id: profileId },
-      isPrivate: false,
-    };
-
-    // 🔥 dynamic filtering
-    let where = { ...baseWhere };
-
-    if (type === "library") {
-      // SPECIAL RULE: library = collections with children > 0
-      where.childCollections = {
-        some: {}, // has at least one childCollection
-      };
-    } else if (type) {
-      // normal type filter
-      where.type = type;
-    }
-
-    const [collections, totalCount] = await Promise.all([
-      prisma.collection.findMany({
-        where,
-        include: {
-          storyIdList: {
-            include: {
-              story: { include: { author: true } },
-            },
-          },
-          childCollections: true, // optional but useful for UI
-        },
-        orderBy: { updated: "desc" },
-        skip,
-        take,
-      }),
-
-      prisma.collection.count({
-        where,
-      }),
-    ]);
-
-    res.status(200).json({
-      collections,
-      totalCount,
-      skip,
-      take,
-      hasMore: skip + take < totalCount,
-    });
-  } catch (err) {
-    res.status(400).send({ error: err });
-  }
-});
     router.get("/public/library",async (req,res)=>{
         try{
             const libraries = await prisma.collection.findMany({

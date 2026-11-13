@@ -466,6 +466,7 @@ model CollectionToCollection {
   childCollection    Collection @relation(name: "ParentToChild", fields: [childCollectionId], references: [id])
   profileId          String?    @db.ObjectId
   profile            Profile?   @relation(fields: [profileId], references: [id])
+
   created            DateTime?  @default(now())
 }
 
