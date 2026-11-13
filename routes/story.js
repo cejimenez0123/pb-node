@@ -417,349 +417,273 @@ const getRecommendations = async (profileId) => {
 };
 
 
-router.get("/profile/protected", authMiddleware, async (req, res) => {
-  try {
-    const profile = await prisma.profile.findFirst({
-      where: {
-        userId: req.user.id,
-      },
-    });
+// router.get("/profile/protected", authMiddleware, async (req, res) => {
+//   try {
+//     const profile = await prisma.profile.findFirst({
+//       where: {
+//         userId: req.user.id,
+//       },
+//     });
 
-    if (!profile) {
-      return res.status(404).json({
-        message: "Profile not found",
-      });
-    }
+//     if (!profile) {
+//       return res.status(404).json({
+//         message: "Profile not found",
+//       });
+//     }
 
-    const profileId = profile.id;
+//     const profileId = profile.id;
 
-    // Normalize pagination parameters.
-    const parsedSkip = Number.parseInt(req.query.skip, 10);
-    const parsedTake = Number.parseInt(req.query.take, 10);
+//     // Normalize pagination parameters.
+//     const parsedSkip = Number.parseInt(req.query.skip, 10);
+//     const parsedTake = Number.parseInt(req.query.take, 10);
 
-    const skip = Number.isFinite(parsedSkip)
-      ? Math.max(0, parsedSkip)
-      : 0;
+//     const skip = Number.isFinite(parsedSkip)
+//       ? Math.max(0, parsedSkip)
+//       : 0;
 
-    const take = Number.isFinite(parsedTake)
-      ? Math.min(Math.max(parsedTake, 1), 100)
-      : 50;
+//     const take = Number.isFinite(parsedTake)
+//       ? Math.min(Math.max(parsedTake, 1), 100)
+//       : 50;
 
-    const status = req.query.status;
+//     const status = req.query.status;
 
-    const rawSearch = req.query.search || "";
-    const search = String(rawSearch).trim();
+//     const rawSearch = req.query.search || "";
+//     const search = String(rawSearch).trim();
 
-    const normalizedSearch = search.toLowerCase();
+//     const normalizedSearch = search.toLowerCase();
 
-    const type = req.query.type;
+//     const type = req.query.type;
 
-    const collectionTypes = [
-      "home",
-      "events",
-      "portfolio",
-    ];
+//     const collectionTypes = [
+//       "home",
+//       "events",
+//       "portfolio",
+//     ];
 
-    /*
-     * ============================================================
-     * COLLECTION-BASED PROFILE SECTIONS
-     * ============================================================
-     *
-     * Home and Events:
-     *   One item = one ProfileToCollection relationship.
-     *   Each item contains its nested Stories.
-     *
-     * Portfolio:
-     *   One item = one Story.
-     *   Each Story retains its parent Collection metadata.
-     *
-     * Search and status filtering are applied before pagination.
-     */
-    if (collectionTypes.includes(type)) {
-      const profileCollections =
-        await prisma.profileToCollection.findMany({
-          where: {
-            profileId,
-            type,
-          },
+  
+//     if (collectionTypes.includes(type)) {
+//       const profileCollections =
+//         await prisma.profileToCollection.findMany({
+//           where: {
+//             profileId,
+//             type,
+//           },
 
-          select: {
-            id: true,
+//           select: {
+//             id: true,
+            
+//             collection: {
+//               select: {
+//                 id: true,
+//                 title: true,
+//                 purpose: true,
+//                 isPrivate: true,
+//                 type: true,
 
-            collection: {
-              select: {
-                id: true,
-                title: true,
-                purpose: true,
-                isPrivate: true,
-                type: true,
+//                 storyIdList: {
+//                   orderBy: {
+//                     index: "asc",
+//                   },
 
-                storyIdList: {
-                  orderBy: {
-                    index: "asc",
-                  },
+//                   select: {
+//                     id: true,
+//                     storyId: true,
+//                     index: true,
 
-                  select: {
-                    id: true,
-                    storyId: true,
-                    index: true,
+//                     story: {
+//                       select: {
+//                         id: true,
+//                         title: true,
+//                         description: true,
+//                         status: true,
+//                         isPrivate: true,
+//                         googleCalendarId: true,
+//                         updated: true,
+//                         created: true,
 
-                    story: {
-                      select: {
-                        id: true,
-                        title: true,
-                        description: true,
-                        status: true,
-                        isPrivate: true,
-                        googleCalendarId: true,
-                        updated: true,
-                        created: true,
+//                         author: {
+//                           select: {
+//                             id: true,
+//                             username: true,
+//                             profilePic: true,
+//                           },
+//                         },
+//                       },
+//                     },
+//                   },
+//                 },
+//               },
+//             },
+//           },
 
-                        author: {
-                          select: {
-                            id: true,
-                            username: true,
-                            profilePic: true,
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
+//           orderBy: {
+//             created: "desc",
+//           },
+//         });
 
-          orderBy: {
-            created: "desc",
-          },
-        });
+//       /*
+//        * ==========================================================
+//        * PORTFOLIO: INDIVIDUAL STORY ITEMS
+//        * ==========================================================
+//        */
+     
+  
+// if (type === "portfolio") {
+//   profileCollections.filter(row=>row)
+//   let items = profileCollections
+//     .filter((row) => row. row.collection)
+//     .map((row) => ({
+//       profileCollectionId: row.id,
 
-      /*
-       * ==========================================================
-       * PORTFOLIO: INDIVIDUAL STORY ITEMS
-       * ==========================================================
-       */
-      if (type === "portfolio") {
-        let items = profileCollections.flatMap((row) => {
-          if (!row.collection) {
-            return [];
-          }
+//       collection: {
+//         id: row.collection.id,
+//         title: row.collection.title,
+//         purpose: row.collection.purpose,
+//         isPrivate: row.collection.isPrivate,
+//         type: row.collection.type,
+//       },
 
-          const collection = {
-            id: row.collection.id,
-            title: row.collection.title,
-            purpose: row.collection.purpose,
-            isPrivate: row.collection.isPrivate,
-            type: row.collection.type,
-          };
+//       stories: row.collection.storyIdList
+//         .map((storyLink) => storyLink.story)
+//         .filter(Boolean),
+//     }));
 
-          return row.collection.storyIdList
-            .map((storyLink) => storyLink.story)
-            .filter(Boolean)
-            .map((story) => ({
-              ...story,
+//   if (normalizedSearch) {
+//     items = items
+//       .map((item) => ({
+//         ...item,
+//         stories: item.stories.filter((story) =>
+//           `${story.title || ""} ${story.description || ""}`
+//             .toLowerCase()
+//             .includes(normalizedSearch)
+//         ),
+//       }))
+//       .filter(
+//         (item) =>
+//           item.collection.title
+//             ?.toLowerCase()
+//             .includes(normalizedSearch) ||
+//           item.stories.length > 0
+//       );
+//   }
 
-              // Preserve the relationship to the portfolio collection.
-              profileCollectionId: row.id,
+//   if (status) {
+//     items = items
+//       .map((item) => ({
+//         ...item,
+//         stories: item.stories.filter(
+//           (story) => story.status === status
+//         ),
+//       }))
+//       .filter((item) => item.stories.length > 0);
+//   }
+ 
 
-              // Preserve parent collection information.
-              collection,
-            }));
-        });
+//       // Paginate collections, not individual Stories.
+//       const totalCount = items.length;
 
-        // Search individual Stories.
-        if (normalizedSearch) {
-          items = items.filter((story) =>
-            story.title
-              ?.toLowerCase()
-              .includes(normalizedSearch)
-          );
-        }
+//       const paginatedItems = items.slice(
+//         skip,
+//         skip + take
+//       );
 
-        // Filter individual Stories by status.
-        if (status) {
-          items = items.filter(
-            (story) => story.status === status
-          );
-        }
+//       return res.status(200).json({
+//         items: paginatedItems,
+//         stories: paginatedItems,
+//         skip,
+//         take,
+//         totalCount,
+//         hasMore: skip + paginatedItems.length < totalCount,
+//       });
+//     }
 
-        // Paginate individual Stories.
-        const totalCount = items.length;
+//     /*
+//      * ============================================================
+//      * NORMAL STORIES / ARCHIVE
+//      * ============================================================
+//      *
+//      * Preserve existing Archive behavior.
+//      *
+//      * A Story is included if the profile is:
+//      * - the author
+//      * - a beta reader
+//      */
+//     const where = {
+//       OR: [
+//         {
+//           authorId: profileId,
+//         },
+//         {
+//           betaReaders: {
+//             some: {
+//               profileId,
+//             },
+//           },
+//         },
+//       ],
 
-        const paginatedItems = items.slice(
-          skip,
-          skip + take
-        );
+//       ...(search
+//         ? {
+//             title: {
+//               contains: search,
+//               mode: "insensitive",
+//             },
+//           }
+//         : {}),
 
-        return res.status(200).json({
-          items: paginatedItems,
-          stories: paginatedItems,
-          skip,
-          take,
-          totalCount,
-          hasMore: skip + paginatedItems.length < totalCount,
-        });
-      }
+//       ...(status
+//         ? {
+//             status,
+//           }
+//         : {}),
+//     };
 
-      /*
-       * ==========================================================
-       * HOME / EVENTS: COLLECTION ITEMS
-       * ==========================================================
-       *
-       * Keep the existing collection-based response structure.
-       */
-      let items = profileCollections
-        .filter((row) => row.collection)
-        .map((row) => ({
-          profileCollectionId: row.id,
+//     const stories = await prisma.story.findMany({
+//       where,
 
-          collection: {
-            id: row.collection.id,
-            title: row.collection.title,
-            purpose: row.collection.purpose,
-            isPrivate: row.collection.isPrivate,
-            type: row.collection.type,
-          },
+//       take,
+//       skip,
 
-          stories: row.collection.storyIdList
-            .map((storyLink) => storyLink.story)
-            .filter(Boolean),
-        }));
+//       orderBy: {
+//         updated: "desc",
+//       },
 
-      // Search within each collection's Stories.
-      if (normalizedSearch) {
-        items = items
-          .map((item) => ({
-            ...item,
+//       select: {
+//         id: true,
+//         title: true,
+//         status: true,
+//         updated: true,
+//         created: true,
+//         isPrivate: true,
+//         type: true,
+//         description: true,
+//         authorId: true,
+//       },
+//     });
 
-            stories: item.stories.filter((story) =>
-              story.title
-                ?.toLowerCase()
-                .includes(normalizedSearch)
-            ),
-          }))
-          .filter((item) => item.stories.length > 0);
-      }
+//     const totalCount = await prisma.story.count({
+//       where,
+//     });
 
-      // Filter Stories by status within each collection.
-      if (status) {
-        items = items
-          .map((item) => ({
-            ...item,
+//     return res.status(200).json({
+//       items: stories,
+//       stories,
+//       skip,
+//       take,
+//       totalCount,
+//       hasMore: skip + stories.length < totalCount,
+//     });
+//   } catch (error) {
+//     console.error(
+//       "GET /profile/protected error:",
+//       error
+//     );
 
-            stories: item.stories.filter(
-              (story) => story.status === status
-            ),
-          }))
-          .filter((item) => item.stories.length > 0);
-      }
-
-      // Paginate collections, not individual Stories.
-      const totalCount = items.length;
-
-      const paginatedItems = items.slice(
-        skip,
-        skip + take
-      );
-
-      return res.status(200).json({
-        items: paginatedItems,
-        stories: paginatedItems,
-        skip,
-        take,
-        totalCount,
-        hasMore: skip + paginatedItems.length < totalCount,
-      });
-    }
-
-    /*
-     * ============================================================
-     * NORMAL STORIES / ARCHIVE
-     * ============================================================
-     *
-     * Preserve existing Archive behavior.
-     *
-     * A Story is included if the profile is:
-     * - the author
-     * - a beta reader
-     */
-    const where = {
-      OR: [
-        {
-          authorId: profileId,
-        },
-        {
-          betaReaders: {
-            some: {
-              profileId,
-            },
-          },
-        },
-      ],
-
-      ...(search
-        ? {
-            title: {
-              contains: search,
-              mode: "insensitive",
-            },
-          }
-        : {}),
-
-      ...(status
-        ? {
-            status,
-          }
-        : {}),
-    };
-
-    const stories = await prisma.story.findMany({
-      where,
-
-      take,
-      skip,
-
-      orderBy: {
-        updated: "desc",
-      },
-
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        updated: true,
-        created: true,
-        isPrivate: true,
-        type: true,
-        description: true,
-        authorId: true,
-      },
-    });
-
-    const totalCount = await prisma.story.count({
-      where,
-    });
-
-    return res.status(200).json({
-      items: stories,
-      stories,
-      skip,
-      take,
-      totalCount,
-      hasMore: skip + stories.length < totalCount,
-    });
-  } catch (error) {
-    console.error(
-      "GET /profile/protected error:",
-      error
-    );
-
-    return res.status(500).json({
-      error: "Internal server error",
-    });
-  }
-});
+//     return res.status(500).json({
+//       error: "Internal server error",
+//     });
+//   }
+// });
 
 
 
@@ -1568,3 +1492,70 @@ console.log("fetching events for days:", days)
     return router
 
 }
+const getProfileCollections = async ({
+  profileId,
+  type,
+  skip = 0,
+  take = 50,
+}) => {
+  return prisma.profileToCollection.findMany({
+    where: {
+      profileId,
+      ...(type ? { type } : {}),
+    },
+
+    orderBy: {
+      created: "desc",
+    },
+
+    skip,
+    take,
+
+    select: {
+      id: true,
+      type: true,
+      created: true,
+
+      collection: {
+        select: {
+          id: true,
+          title: true,
+          purpose: true,
+          isPrivate: true,
+          type: true,
+
+          storyIdList: {
+            orderBy: {
+              index: "asc",
+            },
+
+            select: {
+              id: true,
+              storyId: true,
+              index: true,
+
+              story: {
+                select: {
+                  id: true,
+                  title: true,
+                  description: true,
+                  status: true,
+                  isPrivate: true,
+                  updated: true,
+                  created: true,
+                  author: {
+                    select: {
+                      id: true,
+                      username: true,
+                      profilePic: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+};
