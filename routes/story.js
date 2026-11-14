@@ -415,49 +415,141 @@ const getRecommendations = async (profileId) => {
 
   return recommendations;
 };
-
-
-  router.get("/profile/protected", authMiddleware, async (req, res) => {
+router.get("/profile/protected", authMiddleware, async (req, res) => {
   try {
-    const profileId = req?.user?.profiles?.[0]?.id;
+    const profile = await prisma.profile.findFirst({
+      where: {
+        userId: req.user.id,
+      },
+      select: {
+        id: true,
+      },
+    });
 
-    if (!profileId) {
-      return res.status(404).json({ message: "Profile not found" });
+    if (!profile) {
+      return res.status(404).json({
+        message: "Profile not found",
+      });
     }
 
-    const skip = parseInt(req.query.skip) || 0;
-    const take = parseInt(req.query.take) || 50;
+    const parsedSkip = Number.parseInt(req.query.skip, 10);
+    const parsedTake = Number.parseInt(req.query.take, 10);
+
+    const skip =
+      Number.isFinite(parsedSkip) && parsedSkip >= 0
+        ? parsedSkip
+        : 0;
+
+    const take =
+      Number.isFinite(parsedTake) && parsedTake > 0
+        ? Math.min(parsedTake, 100)
+        : 50;
+
+    const { search = "", status, type } = req.query;
+
+    const where = {
+      authorId: profile.id,
+    };
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (type) {
+      where.type = type;
+    }
+
+    const normalizedSearch =
+      typeof search === "string" ? search.trim() : "";
+
+    if (normalizedSearch) {
+      where.OR = [
+        {
+          title: {
+            contains: normalizedSearch,
+            mode: "insensitive",
+          },
+        },
+        {
+          description: {
+            contains: normalizedSearch,
+            mode: "insensitive",
+          },
+        },
+      ];
+    }
 
     const [stories, totalCount] = await Promise.all([
       prisma.story.findMany({
-        where: {
-          authorId: profileId,
-        },
-        take,
+        where,
         skip,
-        
+        take,
+        orderBy: [
+          { updated: "desc" },
+          { id: "desc" },
+        ],
       }),
 
-      prisma.story.count({
-        where: {
-          authorId: profileId,
-        },
-      }),
-    ])
+      prisma.story.count({ where }),
+    ]);
 
-    res.status(200).json({
+    return res.status(200).json({
       stories,
       skip,
       take,
       totalCount,
       hasMore: skip + take < totalCount,
     });
-
   } catch (error) {
-    console.log("/profile/protected", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("GET /profile/protected stories:", error);
+
+    return res.status(500).json({
+      error: "Failed to load stories.",
+    });
   }
 });
+
+//   router.get("/profile/protected", authMiddleware, async (req, res) => {
+//   try {
+//     const profileId = req?.user?.profiles?.[0]?.id;
+
+//     if (!profileId) {
+//       return res.status(404).json({ message: "Profile not found" });
+//     }
+
+//     const skip = parseInt(req.query.skip) || 0;
+//     const take = parseInt(req.query.take) || 50;
+
+//     const [stories, totalCount] = await Promise.all([
+//       prisma.story.findMany({
+//         where: {
+//           authorId: profileId,
+//         },
+//         take,
+//         skip,
+        
+//       }),
+
+//       prisma.story.count({
+//         where: {
+//           authorId: profileId,
+//         },
+//       }),
+//     ])
+
+//     res.status(200).json({
+//       stories,
+//       skip,
+//       take,
+//       totalCount,
+//       hasMore: skip + take < totalCount,
+//     });
+
+//   } catch (error) {
+//     console.log("/profile/protected", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
 
 
 
@@ -854,49 +946,85 @@ router.get("/:id/protected", withBlocks, async (req, res) => {
 });
 
 
-    router.put("/:id",...allMiddlewares,async (req,res)=>{
-try{
-        const {title,data, description,status, needsFeedback,isPrivate,commentable,type}= req.body
-     
-        let story  = await prisma.story.update({where:{
-            id:req.params.id
-        },data:{
-            title,
-            data,
-            isPrivate,
-            status:status??(needsFeedback?"workshop":"fragment"),
-            feedbackRequestedAt:
-          nextStatus === "workshop"
-            ? new Date()
-            : null,
-            commentable,
-            description,
-            type,
-            updated: new Date()
-        },include:{
-            author:true,
-            comments:true
-        }})
+router.put("/:id", ...allMiddlewares, async (req, res) => {
+  try {
+    const {
+      title,
+      data,
+      description,
+      status,
+      needsFeedback,
+      isPrivate,
+      commentable,
+      type,
+    } = req.body;
 
-!story.isPrivate? await client.partialUpdateObject({
-      indexName:indexNames.story,
-      objectID:story.id,
-      attributesToUpdate:{
-  title:story.title
-      }
-  
-    }):await client.deleteObject({
-      indexName:indexNames.story,
-      objectID:story.id
- 
-    })
-        res.status(200).json({story})
-    }catch(error){
-        console.log("put/:id story",error)
-            res.json(error)
-        
+    const nextStatus = status ?? (needsFeedback ? "workshop" : "fragment");
+
+    const existingStory = await prisma.story.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        feedbackRequestedAt: true,
+      },
+    });
+
+    if (!existingStory) {
+      return res.status(404).json({
+        message: "Story not found.",
+      });
     }
-    })
+
+    const story = await prisma.story.update({
+      where: {
+        id: req.params.id,
+      },
+      data: {
+        title,
+        data,
+        isPrivate,
+        status: nextStatus,
+        feedbackRequestedAt:
+          nextStatus === "workshop"
+            ? existingStory.feedbackRequestedAt ?? new Date()
+            : null,
+        commentable,
+        description,
+        type,
+        updated: new Date(),
+      },
+      include: {
+        author: true,
+        comments: true,
+      },
+    });
+
+    if (!story.isPrivate) {
+      await client.partialUpdateObject({
+        indexName: indexNames.story,
+        objectID: story.id,
+        attributesToUpdate: {
+          title: story.title,
+        },
+      });
+    } else {
+      await client.deleteObject({
+        indexName: indexNames.story,
+        objectID: story.id,
+      });
+    }
+
+    return res.status(200).json({ story });
+  } catch (error) {
+    console.error("put/:id story", error);
+
+    return res.status(500).json({
+      message: "Unable to update story.",
+    });
+  }
+});
+
+
     async function deleteCommentsRf(comment){
         let comments =await  prisma.comment.findMany({where:{
               parentId:{equals:comment.id}
