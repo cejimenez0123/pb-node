@@ -1037,6 +1037,192 @@ const recommendations = await getRecommendedCollections(req.params.id)
 
 
     })
+    router.get("/profile/:id/approved", authMiddleware, async (req, res) => {
+  try {
+    const profileId = req.params.id;
+    const currentUserId = req.user?.profiles?.[0]?.id;
+
+    if (!/^[a-f\d]{24}$/i.test(profileId)) {
+      return res.status(400).json({
+        message: "Invalid profile ID.",
+      });
+    }
+
+    if (!currentUserId) {
+      return res.status(403).json({
+        message: "No active profile.",
+      });
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { id: profileId },
+      select: {
+        id: true,
+        isPrivate: true,
+      },
+    });
+
+    if (!profile) {
+      return res.status(404).json({
+        message: "Profile not found.",
+      });
+    }
+
+    if (profile.isPrivate && currentUserId !== profileId) {
+      const approvedFollow = await prisma.follow.findFirst({
+        where: {
+          followerId: currentUserId,
+          followingId: profileId,
+          approved: true,
+        },
+        select: { id: true },
+      });
+
+      if (!approvedFollow) {
+        return res.status(404).json({
+          message: "Profile not found.",
+        });
+      }
+    }
+
+    const parsedSkip = Number.parseInt(req.query.skip, 10);
+    const parsedTake = Number.parseInt(req.query.take, 10);
+
+    const skip = Number.isFinite(parsedSkip)
+      ? Math.max(0, parsedSkip)
+      : 0;
+
+    const take = Number.isFinite(parsedTake)
+      ? Math.min(Math.max(parsedTake, 1), 50)
+      : 8;
+
+    const portfolioWhere = {
+      profileId,
+      type: "portfolio",
+      collection: {
+        is: {
+          isPrivate: false,
+        },
+      },
+    };
+
+    const [entries, totalCount] = await Promise.all([
+      prisma.profileToCollection.findMany({
+        where: portfolioWhere,
+        skip,
+        take,
+        orderBy: [
+          { created: "desc" },
+          { id: "desc" },
+        ],
+        select: {
+          id: true,
+          created: true,
+          collection: {
+            select: {
+              id: true,
+              title: true,
+              purpose: true,
+              type: true,
+              isPrivate: true,
+              profileId: true,
+              created: true,
+              updated: true,
+              storyIdList: {
+                where: {
+                  story: {
+                    is: {
+                      isPrivate: false,
+                      status: { not: "draft" },
+                    },
+                  },
+                },
+                orderBy: [
+                  { index: "asc" },
+                  { id: "asc" },
+                ],
+                select: {
+                  id: true,
+                  storyId: true,
+                  index: true,
+                  story: {
+                    select: {
+                      id: true,
+                      title: true,
+                      description: true,
+                      type: true,
+                      status: true,
+                      isPrivate: true,
+                      created: true,
+                      updated: true,
+                    },
+                  },
+                },
+              },
+              childCollections: {
+                where: {
+                  childCollection: {
+                    is: { isPrivate: false },
+                  },
+                },
+                orderBy: [
+                  { index: "asc" },
+                  { id: "asc" },
+                ],
+                take: 4,
+                select: {
+                  id: true,
+                  index: true,
+                  childCollection: {
+                    select: {
+                      id: true,
+                      title: true,
+                      purpose: true,
+                      type: true,
+                      isPrivate: true,
+                      profileId: true,
+                      created: true,
+                      updated: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+
+      prisma.profileToCollection.count({
+        where: portfolioWhere,
+      }),
+    ]);
+
+    const collections = entries
+      .filter((entry) => entry.collection)
+      .map((entry) => ({
+        ...entry.collection,
+        portfolioEntryId: entry.id,
+        portfolioCreated: entry.created,
+      }));
+
+    return res.status(200).json({
+      collections,
+      totalCount,
+      skip,
+      take,
+      hasMore: skip + collections.length < totalCount,
+    });
+  } catch (error) {
+    console.error(
+      "[GET /profile/:id/approved] Failed:",
+      error
+    );
+
+    return res.status(500).json({
+      message: "Unable to retrieve profile collections.",
+    });
+  }
+});
 router.get("/profile/:id/public", async (req, res) => {
   try {
     const profileId = req.params.id;
@@ -1658,132 +1844,278 @@ try{
     res.json({error})
 }
 })
-router.post("/:id/collection",authMiddleware,async (req,res)=>{
-let collection = null
-   try{
 
-     const {id}=req.params
-    const {list,profile}=req.body
-   
-    let promises = list.filter(async childId=>{
+router.post("/:id/collection", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { list, profile } = req.body;
 
-        let collt = await prisma.collectionToCollection.findFirst({where:{childCollectionId:{
-            equals: childId
-        },parentCollectionId:{
-            equals:id
-        }
-            
-        }})
-        return !collt
+    // Remove empty and duplicate IDs.
+    const childIds = [
+      ...new Set((list || []).filter(Boolean)),
+    ];
 
-    }).map(async childId=>{
-        return prisma.collectionToCollection.create({
-            data:{
-                childCollection:{
-                    connect:{
-                        id:childId
-                    }
-                },
-                parentCollection:{
-                  connect:{
-                    id: id
-                  }
-                },
-                profile:{
-                    connect:{
-                        id:profile.id
-                    }
-                }
-            }
+    if (!childIds.length) {
+      return res.status(400).json({
+        error: "No collections provided.",
+      });
+    }
+
+    // Find relationships that already exist.
+    const existing = await prisma.collectionToCollection.findMany({
+      where: {
+        parentCollectionId: id,
+        childCollectionId: {
+          in: childIds,
+        },
+      },
+      select: {
+        childCollectionId: true,
+      },
+    });
+
+    const existingIds = new Set(
+      existing.map((item) => item.childCollectionId)
+    );
+
+    // Create only relationships that don't already exist.
+    const newChildIds = childIds.filter(
+      (childId) => !existingIds.has(childId)
+    );
+
+    await Promise.all(
+      newChildIds.map((childId) =>
+        prisma.collectionToCollection.create({
+          data: {
+            childCollection: {
+              connect: {
+                id: childId,
+              },
+            },
+            parentCollection: {
+              connect: {
+                id,
+              },
+            },
+            profile: {
+              connect: {
+                id: profile.id,
+              },
+            },
+          },
         })
-    })
-   
-           collection =  await prisma.collection.update({
-            where:{id:id},data:{
-                type: "library",
-                updated: new Date(),
-            },include:{
-                
-                storyIdList:{
-                    include:{story:{include:{author:true}}}  
-                  },
-                  parentCollections:{
-                    select:{
-                        id:true,
-                        parentCollectionId:true
-                    }
-                  },
-                childCollections:true,
-                roles:{
-                    include:{
-                        profile:true,
-                    }
+      )
+    );
+
+    // Update the parent collection.
+    await prisma.collection.update({
+      where: { id },
+      data: {
+        type: "library",
+        updated: new Date(),
+      },
+    });
+
+    let collection = null;
+
+    // Preserve existing single-item response behavior.
+    if (childIds.length === 1) {
+      collection = await prisma.collection.findFirst({
+        where: {
+          id: childIds[0],
+        },
+        include: {
+          profile: true,
+          parentCollections: {
+            select: {
+              id: true,
+              parentCollectionId: true,
+            },
+          },
+          childCollections: {
+            include: {
+              childCollection: true,
+            },
+          },
+          storyIdList: {
+            include: {
+              story: {
+                include: {
+                  author: true,
                 },
-                profile:true
-            }})
-            let joint = await Promise.all(promises)
-            if(list.length==1){
-                let colId = list[0]
-                 collection = await prisma.collection.findFirst({where:{
-        id:colId
-    },include:{
-        profile:true,
-        parentCollections:{
-            select:{id:true,parentCollectionId:true}
+              },
+            },
+          },
         },
-        childCollections:{
-            include:{
-                childCollection:true
-            }
+      });
+    } else {
+      collection = await prisma.collection.findFirst({
+        where: {
+          id,
         },
-        storyIdList:{
-            include:{
-                story:{
-                    include:{
-                        author:true
-                    }
-                }
-            }
-        }
-    }})
-  
-            }else{
-                let colId = list[0]
-                collection = await prisma.collection.findFirst({where:{
-       id:id
-   },include:{
-    profile:true,
-    parentCollections:{
-        select:{
-            id:true,
-            parentCollectionId:true,
-        }
-    },
-       childCollections:{
-           include:{
-               childCollection:true
-           }
-       },
-       storyIdList:{
-           include:{
-               story:{
-                   include:{
-                       author:true
-                   }
-               }
-           }
-       }
-   }})
+        include: {
+          profile: true,
+          parentCollections: {
+            select: {
+              id: true,
+              parentCollectionId: true,
+            },
+          },
+          childCollections: {
+            include: {
+              childCollection: true,
+            },
+          },
+          storyIdList: {
+            include: {
+              story: {
+                include: {
+                  author: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
 
-            }
+    return res.json({ collection });
+
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      error: error.message || "Unable to add collections.",
+    });
+  }
+});
+
+// router.post("/:id/collection",authMiddleware,async (req,res)=>{
+// let collection = null
+//    try{
+
+//      const {id}=req.params
+//     const {list,profile}=req.body
    
-            res.json({collection})
+//     let promises = list.filter(async childId=>{
 
-}catch(error){
-console.log(error)
-    res.json({error})
-}}
-)
+//         let collt = await prisma.collectionToCollection.findFirst({where:{childCollectionId:{
+//             equals: childId
+//         },parentCollectionId:{
+//             equals:id
+//         }
+            
+//         }})
+//         return !collt
+
+//     }).map(async childId=>{
+//         return prisma.collectionToCollection.create({
+//             data:{
+//                 childCollection:{
+//                     connect:{
+//                         id:childId
+//                     }
+//                 },
+//                 parentCollection:{
+//                   connect:{
+//                     id: id
+//                   }
+//                 },
+//                 profile:{
+//                     connect:{
+//                         id:profile.id
+//                     }
+//                 }
+//             }
+//         })
+//     })
+   
+//            collection =  await prisma.collection.update({
+//             where:{id:id},data:{
+//                 type: "library",
+//                 updated: new Date(),
+//             },include:{
+                
+//                 storyIdList:{
+//                     include:{story:{include:{author:true}}}  
+//                   },
+//                   parentCollections:{
+//                     select:{
+//                         id:true,
+//                         parentCollectionId:true
+//                     }
+//                   },
+//                 childCollections:true,
+//                 roles:{
+//                     include:{
+//                         profile:true,
+//                     }
+//                 },
+//                 profile:true
+//             }})
+//             let joint = await Promise.all(promises)
+//             if(list.length==1){
+//                 let colId = list[0]
+//                  collection = await prisma.collection.findFirst({where:{
+//         id:colId
+//     },include:{
+//         profile:true,
+//         parentCollections:{
+//             select:{id:true,parentCollectionId:true}
+//         },
+//         childCollections:{
+//             include:{
+//                 childCollection:true
+//             }
+//         },
+//         storyIdList:{
+//             include:{
+//                 story:{
+//                     include:{
+//                         author:true
+//                     }
+//                 }
+//             }
+//         }
+//     }})
+  
+//             }else{
+//                 let colId = list[0]
+//                 collection = await prisma.collection.findFirst({where:{
+//        id:id
+//    },include:{
+//     profile:true,
+//     parentCollections:{
+//         select:{
+//             id:true,
+//             parentCollectionId:true,
+//         }
+//     },
+//        childCollections:{
+//            include:{
+//                childCollection:true
+//            }
+//        },
+//        storyIdList:{
+//            include:{
+//                story:{
+//                    include:{
+//                        author:true
+//                    }
+//                }
+//            }
+//        }
+//    }})
+
+//             }
+   
+//             res.json({collection})
+
+// }catch(error){
+// console.log(error)
+//     res.json({error})
+// }}
+// )
 router.post("/:id/story", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;

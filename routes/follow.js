@@ -1,6 +1,5 @@
 const express = require('express');
 const prisma = require("../db");
-const comment = require('./comment');
 const notifyUser = require('../utils/notifyUser');
 
 const Paths = require('../utils/Paths');

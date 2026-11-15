@@ -22,7 +22,7 @@ const findProfile = require("./findProfile")
       title:"Portfolio",
       purpose:"Showcase your work and collaborations",
       isOpenCollaboration:false,
-      isPrivate:true,
+      isPrivate:false,
       profile:{
         connect:{
           id:profile.id

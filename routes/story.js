@@ -3,14 +3,11 @@ const prisma = require("../db");
 const router = express.Router()
 const updateWriterLevelMiddleware = require("../middleware/updateWriterLevelMiddleware")
 const fetchEvents = require("../newsletter/fetchEvents");
-const getStory = require('../utils/getstory');
-const { default: safeQuery } = require('../utils/safrQuery');
 const checkContent = require('../utils/checkContent.js');
 const attachBlockedProfiles = require('../middleware/attechBlockedProfiles.js');
 const client = require("../utils/algoliaClient.js")
 const optionalAuth = require("../middleware/optionalAuth");
 const { getTodaysPrompt } = require('../cron/sprint.js');
-const shuffle = require('../utils/shuffle.js');
 const indexNames = require('../utils/indexNames.js');
 
 
@@ -897,6 +894,291 @@ router.get(
     return res.status(500).json({ error: "Internal server error." });
   }
 });
+router.post("/:id/request-access", authMiddleware, async (req, res) => {
+  try {
+    const profileId = req.user?.profiles?.[0]?.id;
+    const storyId = req.params.id;
+
+    if (!profileId) {
+      return res.status(404).json({
+        error: "Profile not found.",
+      });
+    }
+
+    const story = await prisma.story.findUnique({
+      where: { id: storyId },
+      select: {
+        id: true,
+        authorId: true,
+        isPrivate: true,
+      },
+    });
+
+    if (!story) {
+      return res.status(404).json({
+        error: "Story not found.",
+      });
+    }
+
+    if (!story.isPrivate) {
+      return res.status(400).json({
+        error: "This story is already publicly available.",
+      });
+    }
+
+    if (story.authorId === profileId) {
+      return res.status(400).json({
+        error: "You already own this story.",
+      });
+    }
+
+    const existing = await prisma.roleToStory.findUnique({
+      where: {
+        profileId_storyId: {
+          profileId,
+          storyId,
+        },
+      },
+    });
+
+    if (existing?.approved) {
+      return res.status(200).json({
+        request: existing,
+        status: "approved",
+        message: "You already have access.",
+      });
+    }
+
+    if (existing) {
+      return res.status(200).json({
+        request: existing,
+        status: "pending",
+        message: "Your request is already pending.",
+      });
+    }
+
+    const request = await prisma.roleToStory.create({
+      data: {
+        profileId,
+        storyId,
+        role: "reader",
+        approved: false,
+      },
+      include: {
+        profile: {
+          select: {
+            id: true,
+            username: true,
+            profilePic: true,
+          },
+        },
+      },
+    });
+
+    return res.status(201).json({
+      request,
+      status: "pending",
+      message: "Permission request sent.",
+    });
+  } catch (error) {
+    console.error("POST /:id/request-access:", error);
+
+    // Protect against duplicate requests arriving simultaneously.
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        error: "A permission request already exists.",
+      });
+    }
+
+    return res.status(500).json({
+      error: "Unable to submit permission request.",
+    });
+  }
+});
+router.get("/access-requests", authMiddleware, async (req, res) => {
+  try {
+    const profileId = req.user?.profiles?.[0]?.id;
+
+    if (!profileId) {
+      return res.status(404).json({
+        error: "Profile not found.",
+      });
+    }
+
+    const requests = await prisma.roleToStory.findMany({
+      where: {
+        approved: false,
+        story: {
+          authorId: profileId,
+        },
+      },
+      include: {
+        profile: {
+          select: {
+            id: true,
+            username: true,
+            profilePic: true,
+          },
+        },
+        story: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            isPrivate: true,
+          },
+        },
+      },
+      orderBy: {
+        created: "desc",
+      },
+    });
+
+    return res.json({ requests });
+  } catch (error) {
+    console.error("GET /access-requests:", error);
+
+    return res.status(500).json({
+      error: "Unable to load permission requests.",
+    });
+  }
+});
+router.get("/:id/access-request", authMiddleware, async (req, res) => {
+  try {
+    const profileId = req.user?.profiles?.[0]?.id;
+
+    if (!profileId) {
+      return res.status(404).json({
+        error: "Profile not found.",
+      });
+    }
+
+    const request = await prisma.roleToStory.findUnique({
+      where: {
+        profileId_storyId: {
+          profileId,
+          storyId: req.params.id,
+        },
+      },
+      select: {
+        id: true,
+        role: true,
+        approved: true,
+        created: true,
+      },
+    });
+
+    return res.json({
+      status: !request
+        ? "none"
+        : request.approved
+        ? "approved"
+        : "pending",
+      request,
+    });
+  } catch (error) {
+    console.error("GET story access request:", error);
+
+    return res.status(500).json({
+      error: "Unable to retrieve permission status.",
+    });
+  }
+});
+router.patch(
+  "/:id/access-requests/:profileId",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const ownerId = req.user?.profiles?.[0]?.id;
+      const { id: storyId, profileId } = req.params;
+      const { approved } = req.body;
+
+      if (!ownerId) {
+        return res.status(404).json({
+          error: "Profile not found.",
+        });
+      }
+
+      if (typeof approved !== "boolean") {
+        return res.status(400).json({
+          error: "A valid approval status is required.",
+        });
+      }
+
+      const story = await prisma.story.findFirst({
+        where: {
+          id: storyId,
+          authorId: ownerId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!story) {
+        return res.status(404).json({
+          error: "Story not found or permission denied.",
+        });
+      }
+
+      const existing = await prisma.roleToStory.findUnique({
+        where: {
+          profileId_storyId: {
+            profileId,
+            storyId,
+          },
+        },
+      });
+
+      if (!existing || existing.approved) {
+        return res.status(404).json({
+          error: "Pending request not found.",
+        });
+      }
+
+      if (!approved) {
+        await prisma.roleToStory.delete({
+          where: {
+            profileId_storyId: {
+              profileId,
+              storyId,
+            },
+          },
+        });
+
+        return res.json({
+          status: "rejected",
+          message: "Permission request rejected.",
+        });
+      }
+
+      const request = await prisma.roleToStory.update({
+        where: {
+          profileId_storyId: {
+            profileId,
+            storyId,
+          },
+        },
+        data: {
+          approved: true,
+          updated: new Date(),
+        },
+      });
+
+      return res.json({
+        request,
+        status: "approved",
+        message: "Story access granted.",
+      });
+    } catch (error) {
+      console.error("PATCH story access request:", error);
+
+      return res.status(500).json({
+        error: "Unable to update permission request.",
+      });
+    }
+  }
+);
 router.get("/:id/protected", withBlocks, async (req, res) => {
   try {
     const userId = req.user?.profiles?.[0]?.id;
@@ -929,8 +1211,10 @@ router.get("/:id/protected", withBlocks, async (req, res) => {
     if (story.authorId === userId) return res.json({ story });
     if (!story.isPrivate) return res.json({ story });
 
-  const isBetaReader = story.betaReaders.some(
-  (br) => br.profile?.id === userId
+const isBetaReader = story.betaReaders.some(
+  (br) =>
+    br.profileId === userId &&
+    br.approved === true
 );
     if (isBetaReader) return res.json({ story });
 
