@@ -1193,6 +1193,7 @@ router.get("/:id/protected", withBlocks, async (req, res) => {
         hashtags: {
           include: {
             hashtag: {
+              
               select: { id: true, name: true },
             },
           },
@@ -1204,9 +1205,9 @@ router.get("/:id/protected", withBlocks, async (req, res) => {
       },
     });
 
-    if (req.blockedProfileIds?.includes(story.authorId)) {
-      return res.status(404).json({ error: "Story not found." });
-    }
+    // if (req.blockedProfileIds?.includes(story.authorId)) {
+    //   return res.status(404).json({ error: "Story not found." });
+    // }
 
     if (story.authorId === userId) return res.json({ story });
     if (!story.isPrivate) return res.json({ story });
