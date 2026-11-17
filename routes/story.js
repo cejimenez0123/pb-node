@@ -1216,8 +1216,6 @@ const isBetaReader = story.betaReaders.some(
     br.approved === true
 );
     if (isBetaReader) return res.json({ story });
-
-
     return res.status(403).json({ error: "Access denied: private story." });
   } catch (err) {
     console.error(err)
