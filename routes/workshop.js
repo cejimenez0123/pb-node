@@ -582,8 +582,8 @@ const roleTypes = {owner:"owner",
 router.post("/group/join", async (req, res) => {
   try {
 
-    const { story, location,profile } = req.body || {};
-    const mode ="feedback"
+    const { story, location,profile,mode } = req.body || {};
+    // const mode ="feedback"
     //  "req.query.mode || "feedback";"
 const profileId = profile.id
     if (!profileId) {
