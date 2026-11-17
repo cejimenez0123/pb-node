@@ -905,8 +905,8 @@ router.post("/:id/request-access", authMiddleware, async (req, res) => {
       });
     }
 
-    const story = await prisma.story.findUnique({
-      where: { id: storyId },
+    const story = await prisma.story.findFirst({
+      where: { id:{equals: storyId} },
       select: {
         id: true,
         authorId: true,
@@ -914,7 +914,7 @@ router.post("/:id/request-access", authMiddleware, async (req, res) => {
       },
     });
 
-    if (!story) {
+    if (!story?.id) {
       return res.status(404).json({
         error: "Story not found.",
       });
@@ -1205,9 +1205,7 @@ router.get("/:id/protected", withBlocks, async (req, res) => {
       },
     });
 
-    // if (req.blockedProfileIds?.includes(story.authorId)) {
-    //   return res.status(404).json({ error: "Story not found." });
-    // }
+    
 
     if (story.authorId === userId) return res.json({ story });
     if (!story.isPrivate) return res.json({ story });
