@@ -8,6 +8,7 @@ const {
   getPhoto,
   deletePhoto,
 } = require("../utils/photoController");
+const getImageMimeType = require("../utils/getImageMimeType");
 
 const router = express.Router();
 
