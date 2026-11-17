@@ -744,96 +744,176 @@ const profileId = profile.id
      * Existing assignments are reconciled instead of stalling
      * the queue.
      */
-    const addStoryToWorkshop = async ({
+    // const addStoryToWorkshop = async ({
+    //   storyId,
+    //   collectionId,
+    //   profileId,
+    // }) => {
+    //   const existingLink =
+    //     await prisma.storyToCollection.findFirst({
+    //       where: {
+    //         storyId,
+    //       },
+    //     });
+
+    //   if (existingLink) {
+    //     await prisma.story.update({
+    //       where: {
+    //         id: storyId,
+    //       },
+    //       data: {
+    //         status: "fragment",
+    //         feedbackRequestedAt: null,
+    //       },
+    //     });
+
+    //     return {
+    //       assigned: false,
+    //       alreadyAssigned: true,
+    //       collectionId: existingLink.collectionId,
+    //     };
+    //   }
+
+    //   try {
+    //     await prisma.storyToCollection.create({
+    //       data: {
+    //         storyId,
+    //         collectionId,
+    //         profileId,
+    //       },
+    //     });
+    //   } catch (error) {
+    //     // Handles a duplicate assignment created concurrently
+    //     // by another server process.
+    //     if (error.code !== "P2002") {
+    //       throw error;
+    //     }
+
+    //     const existingLink =
+    //       await prisma.storyToCollection.findFirst({
+    //         where: {
+    //           storyId,
+    //         },
+    //       });
+
+    //     if (!existingLink) {
+    //       throw error;
+    //     }
+
+    //     await prisma.story.update({
+    //       where: {
+    //         id: storyId,
+    //       },
+    //       data: {
+    //         status: "fragment",
+    //         feedbackRequestedAt: null,
+    //       },
+    //     });
+
+    //     return {
+    //       assigned: false,
+    //       alreadyAssigned: true,
+    //       collectionId: existingLink.collectionId,
+    //     };
+    //   }
+
+    //   await prisma.story.update({
+    //     where: {
+    //       id: storyId,
+    //     },
+    //     data: {
+    //       status: "fragment",
+    //       feedbackRequestedAt: null,
+    //     },
+    //   });
+
+    //   return {
+    //     assigned: true,
+    //     alreadyAssigned: false,
+    //     collectionId,
+    //   };
+    // };
+const addStoryToWorkshop = async ({
+  storyId,
+  collectionId,
+  profileId,
+}) => {
+  // A story must only have one workshop assignment.
+  const existingLink = await prisma.storyToCollection.findFirst({
+    where: {
       storyId,
-      collectionId,
-      profileId,
-    }) => {
-      const existingLink =
-        await prisma.storyToCollection.findFirst({
-          where: {
-            storyId,
-          },
-        });
+    },
+  });
 
-      if (existingLink) {
-        await prisma.story.update({
-          where: {
-            id: storyId,
-          },
-          data: {
-            status: "fragment",
-            feedbackRequestedAt: null,
-          },
-        });
+  if (existingLink) {
+    await prisma.story.update({
+      where: { id: storyId },
+      data: {
+        status: "fragment",
+        feedbackRequestedAt: null,
+      },
+    });
 
-        return {
-          assigned: false,
-          alreadyAssigned: true,
-          collectionId: existingLink.collectionId,
-        };
-      }
-
-      try {
-        await prisma.storyToCollection.create({
-          data: {
-            storyId,
-            collectionId,
-            profileId,
-          },
-        });
-      } catch (error) {
-        // Handles a duplicate assignment created concurrently
-        // by another server process.
-        if (error.code !== "P2002") {
-          throw error;
-        }
-
-        const existingLink =
-          await prisma.storyToCollection.findFirst({
-            where: {
-              storyId,
-            },
-          });
-
-        if (!existingLink) {
-          throw error;
-        }
-
-        await prisma.story.update({
-          where: {
-            id: storyId,
-          },
-          data: {
-            status: "fragment",
-            feedbackRequestedAt: null,
-          },
-        });
-
-        return {
-          assigned: false,
-          alreadyAssigned: true,
-          collectionId: existingLink.collectionId,
-        };
-      }
-
-      await prisma.story.update({
-        where: {
-          id: storyId,
-        },
-        data: {
-          status: "fragment",
-          feedbackRequestedAt: null,
-        },
-      });
-
-      return {
-        assigned: true,
-        alreadyAssigned: false,
-        collectionId,
-      };
+    return {
+      assigned: false,
+      alreadyAssigned: true,
+      collectionId: existingLink.collectionId,
     };
+  }
 
+  try {
+    await prisma.storyToCollection.create({
+      data: {
+        storyId,
+        collectionId,
+        profileId,
+      },
+    });
+  } catch (error) {
+    if (error.code !== "P2002") {
+      throw error;
+    }
+
+    // Another request may have assigned it concurrently.
+    const existingLink = await prisma.storyToCollection.findFirst({
+      where: {
+        storyId,
+      },
+    });
+
+    if (!existingLink) {
+      throw error;
+    }
+
+    await prisma.story.update({
+      where: { id: storyId },
+      data: {
+        status: "fragment",
+        feedbackRequestedAt: null,
+      },
+    });
+
+    return {
+      assigned: false,
+      alreadyAssigned: true,
+      collectionId: existingLink.collectionId,
+    };
+  }
+
+  await prisma.story.update({
+    where: { id: storyId },
+    data: {
+      status: "fragment",
+      feedbackRequestedAt: null,
+    },
+  });
+
+  return {
+    assigned: true,
+    alreadyAssigned: false,
+    collectionId,
+  };
+};
     /*
      * READER MODE
      *
@@ -959,18 +1039,19 @@ const profileId = profile.id
        * Don't enqueue the same story twice.
        * Preserve its original FIFO position.
        */
-      if (
-        freshStory.status === "workshop" &&
-        freshStory.feedbackRequestedAt
-      ) {
-        return {
-          joined: false,
-          queued: true,
-          created: false,
-          collection: null,
-          message: "Story is already waiting for feedback",
-        };
-      }
+      
+      // if (
+      //   freshStory.status === "workshop" &&
+      //   freshStory.feedbackRequestedAt
+      // ) {
+      //   return {
+      //     joined: false,
+      //     queued: true,
+      //     created: false,
+      //     collection: null,
+      //     message: "Story is already waiting for feedback",
+      //   };
+      // }
 
       /*
        * Add the story to the FIFO feedback pool.
