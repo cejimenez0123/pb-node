@@ -553,10 +553,32 @@ router.get("/profile/workshops", withBlocks, async (req, res) => {
   
 }
 })
-router.post('/group/join', async (req, res) => {
+
+// Serializes workshop queue processing within this Node.js process.
+let workshopQueueLock = Promise.resolve();
+
+const withWorkshopQueueLock = async (callback) => {
+  const previous = workshopQueueLock;
+
+  let release;
+  workshopQueueLock = new Promise((resolve) => {
+    release = resolve;
+  });
+
+  await previous;
+
   try {
-    const profileId = req.profile?.id || req.body?.profile?.id;
-    const { story, location } = req.body;
+    return await callback();
+  } finally {
+    release();
+  }
+};
+
+
+router.post("/group/join", async (req, res) => {
+  try {
+    const profileId = req.profile?.id;
+    const { story, location } = req.body || {};
     const mode = req.query.mode || "feedback";
 
     if (!profileId) {
@@ -574,9 +596,7 @@ router.post('/group/join', async (req, res) => {
     /*
      * Get feedback workshops ordered by activity.
      *
-     * Workshop activity is based on the most recently added story,
-     * not Story.created.
-     *
+     * Activity is based on the most recently added story.
      * Empty workshops fall back to Collection.created.
      */
     const getWorkshops = async () => {
@@ -586,12 +606,10 @@ router.post('/group/join', async (req, res) => {
           isWorkshop: true,
         },
         include: {
-          roles: true,
           storyIdList: {
             orderBy: {
               created: "desc",
             },
-            take: 1,
           },
         },
       });
@@ -604,22 +622,14 @@ router.post('/group/join', async (req, res) => {
           b.storyIdList?.[0]?.created?.getTime?.() || 0;
 
         if (aActivity === 0 && bActivity === 0) {
-          const aCreated =
-            a.created?.getTime?.() || 0;
-
-          const bCreated =
-            b.created?.getTime?.() || 0;
-
-          return bCreated - aCreated;
+          return (
+            (b.created?.getTime?.() || 0) -
+            (a.created?.getTime?.() || 0)
+          );
         }
 
-        if (aActivity === 0) {
-          return 1;
-        }
-
-        if (bActivity === 0) {
-          return -1;
-        }
+        if (aActivity === 0) return 1;
+        if (bActivity === 0) return -1;
 
         return bActivity - aActivity;
       });
@@ -628,108 +638,107 @@ router.post('/group/join', async (req, res) => {
     };
 
     /*
-     * Only writers count toward the six-person workshop capacity.
+     * Count distinct participants with stories assigned.
      *
-     * Commenters/readers can exist beyond six writers.
+     * Membership roles are intentionally NOT used for capacity,
+     * because readers also receive writer membership.
      */
-    const getWriterCount = (workshop) => {
-      return workshop.roles.filter(
-        (role) => role.role === "writer"
-      ).length;
+    const getActiveAuthors = (workshop) => {
+      return new Set(
+        (workshop.storyIdList || [])
+          .map((link) => link.profileId)
+          .filter(Boolean)
+      );
     };
 
     const hasWriterCapacity = (workshop) => {
-      return getWriterCount(workshop) < 6;
+      return getActiveAuthors(workshop).size < 6;
     };
 
     /*
-     * Add a member if they don't already have a role
-     * in the workshop.
+     * Everyone who joins a workshop receives writer membership.
+     *
+     * Existing memberships are normalized to writer.
+     * The compound unique key prevents duplicate memberships.
      */
-    const addMemberToWorkshop = async ({
+    const ensureWriterMembership = async ({
       collectionId,
       profileId,
-      role,
     }) => {
-      const existingRole =
+      const where = {
+        profileId_collectionId: {
+          profileId,
+          collectionId,
+        },
+      };
+
+      let existingRole =
         await prisma.roleToCollection.findUnique({
-          where: {
-            profileId_collectionId: {
-              profileId,
-              collectionId,
-            },
-          },
+          where,
         });
 
       if (existingRole) {
+        if (existingRole.role !== "writer") {
+          existingRole = await prisma.roleToCollection.update({
+            where: {
+              id: existingRole.id,
+            },
+            data: {
+              role: "writer",
+              approved: true,
+            },
+          });
+        }
+
         return existingRole;
       }
 
-      return prisma.roleToCollection.create({
-        data: {
-          profileId,
-          collectionId,
-          role,
-          approved: true,
-        },
-      });
-    };
-
-    /*
-     * Update the existing role rather than creating a second
-     * RoleToCollection record.
-     *
-     * This is especially important when a commenter later
-     * submits a story and becomes a writer.
-     */
-    const updateMemberRole = async ({
-      collectionId,
-      profileId,
-      role,
-    }) => {
-      const existingRole =
-        await prisma.roleToCollection.findUnique({
-          where: {
-            profileId_collectionId: {
-              profileId,
-              collectionId,
-            },
-          },
-        });
-
-      if (!existingRole) {
-        return prisma.roleToCollection.create({
+      try {
+        return await prisma.roleToCollection.create({
           data: {
             profileId,
             collectionId,
-            role,
+            role: "writer",
             approved: true,
           },
         });
-      }
+      } catch (error) {
+        // Another request may have created the membership.
+        if (error.code !== "P2002") {
+          throw error;
+        }
 
-      if (existingRole.role === role) {
+        existingRole =
+          await prisma.roleToCollection.findUnique({
+            where,
+          });
+
+        if (!existingRole) {
+          throw error;
+        }
+
+        if (existingRole.role !== "writer") {
+          existingRole = await prisma.roleToCollection.update({
+            where: {
+              id: existingRole.id,
+            },
+            data: {
+              role: "writer",
+              approved: true,
+            },
+          });
+        }
+
         return existingRole;
       }
-
-      return prisma.roleToCollection.update({
-        where: {
-          id: existingRole.id,
-        },
-        data: {
-          role,
-        },
-      });
     };
 
     /*
-     * Add a story to a workshop.
+     * Attach a story to a workshop.
      *
-     * Returns:
-     *   true  = story was newly assigned
-     *   false = story was already assigned
-     *
-     * The return value is used as a queue-progress safety check.
+     * A story can only be assigned once across workshops.
+     * Existing assignments are reconciled instead of stalling
+     * the queue.
      */
     const addStoryToWorkshop = async ({
       storyId,
@@ -737,26 +746,72 @@ router.post('/group/join', async (req, res) => {
       profileId,
     }) => {
       const existingLink =
-        await prisma.storyToCollection.findUnique({
+        await prisma.storyToCollection.findFirst({
           where: {
-            storyId_collectionId: {
-              storyId,
-              collectionId,
-            },
+            storyId,
           },
         });
 
       if (existingLink) {
-        return false;
+        await prisma.story.update({
+          where: {
+            id: storyId,
+          },
+          data: {
+            status: "fragment",
+            feedbackRequestedAt: null,
+          },
+        });
+
+        return {
+          assigned: false,
+          alreadyAssigned: true,
+          collectionId: existingLink.collectionId,
+        };
       }
 
-      await prisma.storyToCollection.create({
-        data: {
-          storyId,
-          collectionId,
-          profileId,
-        },
-      });
+      try {
+        await prisma.storyToCollection.create({
+          data: {
+            storyId,
+            collectionId,
+            profileId,
+          },
+        });
+      } catch (error) {
+        // Handles a duplicate assignment created concurrently
+        // by another server process.
+        if (error.code !== "P2002") {
+          throw error;
+        }
+
+        const existingLink =
+          await prisma.storyToCollection.findFirst({
+            where: {
+              storyId,
+            },
+          });
+
+        if (!existingLink) {
+          throw error;
+        }
+
+        await prisma.story.update({
+          where: {
+            id: storyId,
+          },
+          data: {
+            status: "fragment",
+            feedbackRequestedAt: null,
+          },
+        });
+
+        return {
+          assigned: false,
+          alreadyAssigned: true,
+          collectionId: existingLink.collectionId,
+        };
+      }
 
       await prisma.story.update({
         where: {
@@ -768,35 +823,27 @@ router.post('/group/join', async (req, res) => {
         },
       });
 
-      return true;
+      return {
+        assigned: true,
+        alreadyAssigned: false,
+        collectionId,
+      };
     };
 
     /*
      * READER MODE
      *
-     * Readers join an existing workshop.
-     *
-     * Prefer:
-     *   1. Most recently active workshop with content
-     *   2. Otherwise most recently created workshop
-     *
-     * Never create an empty workshop for a reader.
+     * Readers join an existing workshop with content.
+     * They receive writer membership but do not consume
+     * a submission slot.
      */
     if (mode === "reader") {
       const workshops = await getWorkshops();
 
-      let targetWorkshop = workshops.find(
+      const targetWorkshop = workshops.find(
         (workshop) => workshop.storyIdList.length > 0
       );
 
-      if (!targetWorkshop) {
-        targetWorkshop = workshops[0];
-      }
-
-      /*
-       * There are no workshops yet.
-       * A reader does not create one.
-       */
       if (!targetWorkshop) {
         return res.json({
           joined: false,
@@ -806,28 +853,10 @@ router.post('/group/join', async (req, res) => {
         });
       }
 
-      /*
-       * Readers are commenters.
-       *
-       * Commenters do not consume one of the six writer slots.
-       */
-      const existingRole =
-        await prisma.roleToCollection.findUnique({
-          where: {
-            profileId_collectionId: {
-              profileId,
-              collectionId: targetWorkshop.id,
-            },
-          },
-        });
-
-      if (!existingRole) {
-        await addMemberToWorkshop({
-          collectionId: targetWorkshop.id,
-          profileId,
-          role: "commenter",
-        });
-      }
+      await ensureWriterMembership({
+        collectionId: targetWorkshop.id,
+        profileId,
+      });
 
       const collection = await prisma.collection.findUnique({
         where: {
@@ -846,16 +875,12 @@ router.post('/group/join', async (req, res) => {
     /*
      * FEEDBACK MODE
      */
-
     if (!story?.id) {
       return res.status(400).json({
         error: "Story is required",
       });
     }
 
-    /*
-     * A user can only request feedback for their own story.
-     */
     const ownedStory = await prisma.story.findFirst({
       where: {
         id: story.id,
@@ -870,269 +895,293 @@ router.post('/group/join', async (req, res) => {
     }
 
     /*
-     * Don't enqueue the same story twice.
-     */
-    if (
-      ownedStory.status === "workshop" &&
-      ownedStory.feedbackRequestedAt
-    ) {
-      return res.json({
-        joined: false,
-        queued: true,
-        created: false,
-        collection: null,
-        message: "Story is already waiting for feedback",
-      });
-    }
-
-    /*
-     * Put the story into the feedback pool.
+     * Serialize the entire feedback queue operation.
      *
-     * feedbackRequestedAt is the FIFO timestamp.
+     * Re-fetch the story inside the lock because another
+     * request may have processed it while this request waited.
      */
-    await prisma.story.update({
-      where: {
-        id: ownedStory.id,
-      },
-      data: {
-        status: "workshop",
-        feedbackRequestedAt: new Date(),
-      },
-    });
-
-    let assignedCollectionId = null;
-
-    /*
-     * Process the feedback queue.
-     *
-     * Oldest requested stories are processed first.
-     */
-    while (true) {
-      const queuedStories = await prisma.story.findMany({
+    const result = await withWorkshopQueueLock(async () => {
+      const freshStory = await prisma.story.findFirst({
         where: {
-          status: "workshop",
-          feedbackRequestedAt: {
-            not: null,
-          },
-          authorId: {
-            not: null,
-          },
-        },
-        orderBy: {
-          feedbackRequestedAt: "asc",
+          id: ownedStory.id,
+          authorId: profileId,
         },
       });
 
-      if (queuedStories.length === 0) {
-        break;
+      if (!freshStory) {
+        throw new Error("Story could not be found");
       }
 
-      const queueBefore = queuedStories.length;
-
       /*
-       * Get workshops ordered by most recent activity.
+       * Check for an existing assignment before checking
+       * whether the story is already queued.
        */
-      const workshops = await getWorkshops();
-
-      /*
-       * Fill the most recently active workshop that still
-       * has writer capacity.
-       */
-      let targetWorkshop = workshops.find(
-        (workshop) => hasWriterCapacity(workshop)
-      );
-
-      /*
-       * Every existing workshop is full.
-       *
-       * Create a new workshop for the oldest queued story.
-       */
-      if (!targetWorkshop) {
-        targetWorkshop = await prisma.collection.create({
-          data: {
-            title: "Feedback Workshop",
-            purpose: "Let's get feedback",
-            isPrivate: true,
-            isWorkshop: true,
-            type: "feedback",
-            isGlobal: true,
-            isOpenCollaboration: false,
-            profileId: queuedStories[0].authorId,
-            locationId: location?.id || undefined,
-          },
-          include: {
-            roles: true,
-            storyIdList: true,
+      const existingAssignment =
+        await prisma.storyToCollection.findFirst({
+          where: {
+            storyId: freshStory.id,
           },
         });
+
+      if (existingAssignment) {
+        await prisma.story.update({
+          where: {
+            id: freshStory.id,
+          },
+          data: {
+            status: "fragment",
+            feedbackRequestedAt: null,
+          },
+        });
+
+        await ensureWriterMembership({
+          collectionId: existingAssignment.collectionId,
+          profileId,
+        });
+
+        return {
+          joined: true,
+          queued: false,
+          created: false,
+          collection: await prisma.collection.findUnique({
+            where: {
+              id: existingAssignment.collectionId,
+            },
+          }),
+        };
       }
 
-      let writerCount = getWriterCount(targetWorkshop);
-      let processedStory = false;
+      /*
+       * Don't enqueue the same story twice.
+       * Preserve its original FIFO position.
+       */
+      if (
+        freshStory.status === "workshop" &&
+        freshStory.feedbackRequestedAt
+      ) {
+        return {
+          joined: false,
+          queued: true,
+          created: false,
+          collection: null,
+          message: "Story is already waiting for feedback",
+        };
+      }
 
       /*
-       * Fill this workshop from the FIFO queue until it reaches
-       * six writers.
+       * Add the story to the FIFO feedback pool.
        */
-      for (const queuedStory of queuedStories) {
-        if (writerCount >= 6) {
+      await prisma.story.update({
+        where: {
+          id: freshStory.id,
+        },
+        data: {
+          status: "workshop",
+          feedbackRequestedAt: new Date(),
+        },
+      });
+
+      let assignedCollectionId = null;
+      let createdForUser = false;
+
+      /*
+       * PROCESS FIFO QUEUE
+       *
+       * Process one story at a time.
+       * This makes it easier to enforce:
+       * - Six distinct active submitters per workshop.
+       * - One active submission per author per workshop.
+       * - Existing assignments are reconciled.
+       */
+      while (true) {
+        const queuedStory = await prisma.story.findFirst({
+          where: {
+            status: "workshop",
+            feedbackRequestedAt: {
+              not: null,
+            },
+            authorId: {
+              not: null,
+            },
+          },
+          orderBy: [
+            {
+              feedbackRequestedAt: "asc",
+            },
+            {
+              id: "asc",
+            },
+          ],
+        });
+
+        if (!queuedStory) {
           break;
         }
 
-        if (!queuedStory.authorId) {
+        /*
+         * Reconcile an existing story assignment.
+         *
+         * This story is no longer queued, so the next
+         * iteration can continue with the next FIFO entry.
+         */
+        const existingLink =
+          await prisma.storyToCollection.findFirst({
+            where: {
+              storyId: queuedStory.id,
+            },
+          });
+
+        if (existingLink) {
+          await prisma.story.update({
+            where: {
+              id: queuedStory.id,
+            },
+            data: {
+              status: "fragment",
+              feedbackRequestedAt: null,
+            },
+          });
+
+          await ensureWriterMembership({
+            collectionId: existingLink.collectionId,
+            profileId: queuedStory.authorId,
+          });
+
+          if (queuedStory.id === freshStory.id) {
+            assignedCollectionId = existingLink.collectionId;
+          }
+
           continue;
         }
 
         /*
-         * Check whether this author is already a member.
-         *
-         * A commenter who submits a story becomes a writer.
-         * The existing RoleToCollection record is updated.
+         * Get workshops ordered by activity.
          */
-        const existingRole =
-          targetWorkshop.roles.find(
-            (role) =>
-              role.profileId === queuedStory.authorId
+        const workshops = await getWorkshops();
+
+        /*
+         * Find the most recently active workshop that:
+         *
+         * 1. Has fewer than six distinct submitting authors.
+         * 2. Does not already have an active submission
+         *    from this author.
+         */
+        let targetWorkshop = workshops.find((workshop) => {
+          const activeAuthors = getActiveAuthors(workshop);
+
+          return (
+            activeAuthors.size < 6 &&
+            !activeAuthors.has(queuedStory.authorId)
           );
+        });
 
-        if (existingRole) {
-          if (existingRole.role !== "writer") {
-            await updateMemberRole({
-              collectionId: targetWorkshop.id,
+        let createdThisWorkshop = false;
+
+        /*
+         * No suitable workshop exists.
+         * Create a new private workshop.
+         */
+        if (!targetWorkshop) {
+          targetWorkshop = await prisma.collection.create({
+            data: {
+              title: "Feedback Workshop",
+              purpose: "Let's get feedback",
+              isPrivate: true,
+              isWorkshop: true,
+              type: "feedback",
+              isGlobal: true,
+              isOpenCollaboration: false,
               profileId: queuedStory.authorId,
-              role: "writer",
-            });
 
-            existingRole.role = "writer";
-            writerCount += 1;
-          }
-        } else {
-          await addMemberToWorkshop({
-            collectionId: targetWorkshop.id,
-            profileId: queuedStory.authorId,
-            role: "writer",
+              // Only use the current request's location
+              // for the current user's own story.
+              locationId:
+                queuedStory.id === freshStory.id
+                  ? location?.id || undefined
+                  : undefined,
+            },
+            include: {
+              storyIdList: true,
+            },
           });
 
-          targetWorkshop.roles.push({
-            profileId: queuedStory.authorId,
-            role: "writer",
-          });
-
-          writerCount += 1;
+          createdThisWorkshop = true;
         }
 
         /*
-         * Attach the story to the workshop.
+         * Membership is independent of story assignment.
          *
-         * `added` is the authoritative signal that this iteration
-         * actually removed something from the feedback queue.
+         * Everyone joining receives writer membership.
          */
-        const added = await addStoryToWorkshop({
+        await ensureWriterMembership({
+          collectionId: targetWorkshop.id,
+          profileId: queuedStory.authorId,
+        });
+
+        /*
+         * Attach the story.
+         */
+        const assignment = await addStoryToWorkshop({
           storyId: queuedStory.id,
           collectionId: targetWorkshop.id,
           profileId: queuedStory.authorId,
         });
 
         /*
-         * If the story was already attached, don't claim that
-         * queue progress occurred.
+         * Record the current user's assigned workshop.
          */
-        if (!added) {
-          continue;
-        }
+        if (queuedStory.id === freshStory.id) {
+          assignedCollectionId = assignment.collectionId;
 
-        processedStory = true;
-
-        if (queuedStory.id === ownedStory.id) {
-          assignedCollectionId = targetWorkshop.id;
-        }
-
-        if (writerCount >= 6) {
-          break;
-        }
-      }
-
-      /*
-       * HARD SAFETY CHECK #1
-       *
-       * Nothing was actually assigned during this pass.
-       * Stop rather than repeatedly processing the same queue.
-       */
-      if (!processedStory) {
-        break;
-      }
-
-      /*
-       * HARD SAFETY CHECK #2
-       *
-       * Verify that the feedback queue actually became smaller.
-       *
-       * If it did not, stop. This prevents an accidental future
-       * change from creating an infinite processing loop.
-       */
-      const queueAfter = await prisma.story.count({
-        where: {
-          status: "workshop",
-          feedbackRequestedAt: {
-            not: null,
-          },
-          authorId: {
-            not: null,
-          },
-        },
-      });
-
-      if (queueAfter >= queueBefore) {
-        console.warn(
-          "Workshop queue made no progress; stopping queue processor",
-          {
-            queueBefore,
-            queueAfter,
-            targetWorkshopId: targetWorkshop.id,
+          if (assignment.assigned) {
+            createdForUser = createdThisWorkshop;
           }
-        );
+        }
 
-        break;
+        /*
+         * The story has either been assigned or reconciled.
+         * The next iteration processes the next FIFO story.
+         */
       }
-    }
 
-    /*
-     * The user's story was successfully assigned.
-     */
-    if (assignedCollectionId) {
-      const collection = await prisma.collection.findUnique({
-        where: {
-          id: assignedCollectionId,
-        },
-      });
+      /*
+       * Return the current user's assigned workshop.
+       */
+      if (assignedCollectionId) {
+        const collection = await prisma.collection.findUnique({
+          where: {
+            id: assignedCollectionId,
+          },
+        });
 
-      return res.json({
-        joined: true,
-        queued: false,
+        return {
+          joined: true,
+          queued: false,
+          created: createdForUser,
+          collection,
+        };
+      }
+
+      /*
+       * The user's story remains in the feedback queue.
+       */
+      return {
+        joined: false,
+        queued: true,
         created: false,
-        collection,
-      });
-    }
-
-    /*
-     * The user's story remains in the FIFO feedback pool.
-     */
-    return res.json({
-      joined: false,
-      queued: true,
-      created: false,
-      collection: null,
+        collection: null,
+      };
     });
+
+    return res.json(result);
   } catch (error) {
     console.error("Workshop join error:", error);
 
     return res.status(500).json({
-      error: error.message || "Unable to join workshop",
+      error: "Unable to join workshop",
     });
   }
 });
-
-
 
 
 
