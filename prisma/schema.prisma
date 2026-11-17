@@ -488,6 +488,30 @@ model UserStoryHistory {
   created   DateTime? @default(now())
 }
 
+
+model Photo {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  profileId       String   @db.ObjectId
+
+  data            Bytes
+  filename        String?
+  mimeType        String
+  size            Int
+  purpose         String   @default("general")
+
+  // Migration tracking
+  source          String   @default("mongodb")
+  originalUrl     String?  @unique
+  originalPath    String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([purpose])
+}
+
+
 enum CollectionType {
   feedback
   book

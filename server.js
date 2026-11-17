@@ -18,6 +18,7 @@ const algoliaRoutes = require("./routes/algolia.js")
 const workshopRoutes = require("./routes/workshop.js")
 const followRoutes = require("./routes/follow.js")
 const eventRoutes = require("./routes/events")
+const photoRoutes = require("./routes/photo.js")
 const passport = require("passport")
 
 const hashtagRoutes = require("./routes/hashtag.js")
@@ -141,7 +142,7 @@ app.get("/image", async (req, res) => {
   }
 });
 
-
+app.use("/api/photos", photoRoutes(authMiddleware));
 app.use("/api/algolia",algoliaRoutes(authMiddleware))
 app.use("/history",historyRoutes(authMiddleware))
 app.use("/like",likeRoutes(authMiddleware))
