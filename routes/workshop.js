@@ -577,10 +577,10 @@ const withWorkshopQueueLock = async (callback) => {
 
 router.post("/group/join", async (req, res) => {
   try {
-    const profileId = req.profile?.id;
-    const { story, location } = req.body || {};
-    const mode = req.query.mode || "feedback";
 
+    const { story, location,profile } = req.body || {};
+    const mode = req.query.mode || "feedback";
+const profileId = profile.id
     if (!profileId) {
       return res.status(401).json({
         error: "Profile is required",
