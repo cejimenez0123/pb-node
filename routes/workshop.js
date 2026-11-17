@@ -573,8 +573,12 @@ const withWorkshopQueueLock = async (callback) => {
     release();
   }
 };
-
-
+const roleTypes = {owner:"owner",
+  reader:"reader",
+  editor:"editor",
+  commenter:"commenter",
+  writer:"writer"
+}
 router.post("/group/join", async (req, res) => {
   try {
 
@@ -587,7 +591,7 @@ const profileId = profile.id
       });
     }
 
-    if (!["feedback", "reader"].includes(mode)) {
+    if (![roleTypes.commenter,roleTypes.reader].includes(mode)) {
       return res.status(400).json({
         error: "Invalid workshop mode",
       });
