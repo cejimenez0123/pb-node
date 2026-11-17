@@ -85,6 +85,7 @@ module.exports = function (authMiddleware){
                   select: {
                     id: true,
                     title: true,
+                    data:true,
                     description: true,
                     type: true
                   }

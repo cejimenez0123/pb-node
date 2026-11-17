@@ -1092,7 +1092,7 @@ else if (identityToken) {
           include: {
             collection: {
               include: {
-                storyIdList: { select: { story: { select: { id: true, title: true } } } },
+                storyIdList: { select: { story: { select: { id: true, type:true, title: true,data:true} } } },
                 childCollections: { select: { childCollection: { select: { id: true, title: true } } } },
               },
             },
