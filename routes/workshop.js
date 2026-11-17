@@ -583,7 +583,8 @@ router.post("/group/join", async (req, res) => {
   try {
 
     const { story, location,profile } = req.body || {};
-    const mode = req.query.mode || "feedback";
+    const mode ="feedback"
+    //  "req.query.mode || "feedback";"
 const profileId = profile.id
     if (!profileId) {
       return res.status(401).json({
