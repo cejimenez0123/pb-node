@@ -142,7 +142,7 @@ app.get("/image", async (req, res) => {
   }
 });
 
-app.use("/api/photos", photoRoutes(authMiddleware));
+app.use("/photos", photoRoutes(authMiddleware));
 app.use("/api/algolia",algoliaRoutes(authMiddleware))
 app.use("/history",historyRoutes(authMiddleware))
 app.use("/like",likeRoutes(authMiddleware))
