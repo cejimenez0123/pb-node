@@ -534,7 +534,8 @@ router.patch("/me", authMiddleware, async (req, res) => {
     location,
     writingSprintSlots,  // ← new
   } = req.body;
-
+ 
+  const profileId =   req.user.profiles[0].id
   try {
     // Validate + sanitize sprint slots if provided
     const validSlotIds = Object.keys(SPRINT_SLOTS);
@@ -542,8 +543,7 @@ router.patch("/me", authMiddleware, async (req, res) => {
       ? writingSprintSlots.filter((s) => validSlotIds.includes(s))
       : undefined; // undefined = don't touch the field if not sent
 
-
- const profileId = req.params.id;
+//  const profileId = req.params.id;
 if (!profileId) {
   return res.status(400).json({ error: "Missing profile id" });
 }
@@ -596,7 +596,7 @@ if (location && (location.latitude == null || location.longitude == null)) {
 
     if (locale?.latitude && locale?.longitude) {
       profile = await prisma.profile.update({
-        where: { id: req.params.id },
+        where: { id: profileId },
         data: {
           ...sharedData,
           location: { connect: { id: locale.id } },
@@ -620,9 +620,10 @@ if (location && (location.latitude == null || location.longitude == null)) {
       }
   
     })
+  
     return res.json({ profile });
   } catch (e) {
-
+console.log(e)
   if (e.code === 'P2002') {
     return res.status(409).json({ error: 'Username already taken' });
   }
