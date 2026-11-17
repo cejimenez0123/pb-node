@@ -592,7 +592,7 @@ const profileId = profile.id
       });
     }
 
-    if (![roleTypes.commenter,roleTypes.reader].includes(mode)) {
+    if (![roleTypes.commenter,roleTypes.reader,roleTypes.writer].includes(mode)) {
       return res.status(400).json({
         error: "Invalid workshop mode",
       });
