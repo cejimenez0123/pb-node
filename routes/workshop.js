@@ -582,9 +582,8 @@ const roleTypes = {owner:"owner",
 router.post("/group/join", async (req, res) => {
   try {
 
-    const { story, location,profile,mode } = req.body || {};
-    // const mode ="feedback"
-    //  "req.query.mode || "feedback";"
+    const { story, storyId, location,profile,mode } = req.body || {};
+   
 const profileId = profile.id
     if (!profileId) {
       return res.status(401).json({
@@ -888,7 +887,7 @@ const profileId = profile.id
 
     const ownedStory = await prisma.story.findFirst({
       where: {
-        id: story.id,
+        id: storyId,
         authorId: profileId,
       },
     });
