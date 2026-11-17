@@ -1220,6 +1220,7 @@ const isBetaReader = story.betaReaders.some(
 
     return res.status(403).json({ error: "Access denied: private story." });
   } catch (err) {
+    console.error(err)
     if (err.code === "P2025") {
       return res.status(404).json({ error: "Story not found." });
     }
