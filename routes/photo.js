@@ -9,6 +9,7 @@ const {
   deletePhoto,
 } = require("../utils/photoController");
 const getImageMimeType = require("../utils/getImageMimeType");
+const prisma = require("../db");
 
 const router = express.Router();
 
