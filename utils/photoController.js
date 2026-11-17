@@ -1,33 +1,7 @@
 
 // import prisma from "../config/prisma.js";
 const prisma = require("../db")
-// Verify the actual binary file signature.
-const getImageMimeType = (buffer) => {
-  // JPEG: FF D8 FF
-  if (
-    buffer.length >= 3 &&
-    buffer[0] === 0xff &&
-    buffer[1] === 0xd8 &&
-    buffer[2] === 0xff
-  ) {
-    return "image/jpeg";
-  }
-
-  // PNG signature
-  if (
-    buffer.length >= 8 &&
-    buffer.subarray(0, 8).equals(
-      Buffer.from([
-        0x89, 0x50, 0x4e, 0x47,
-        0x0d, 0x0a, 0x1a, 0x0a,
-      ])
-    )
-  ) {
-    return "image/png";
-  }
-
-  return null;
-};
+const getImageMimeType = require("../utils/getImageMimeType")
 
 // POST /api/photos
  const uploadPhoto = async (req, res) => {
@@ -65,7 +39,7 @@ const getImageMimeType = (buffer) => {
       data: {
         profileId,
         data: file.buffer,
-        filename: file.originalname,
+      filename: req.body.filename || file.originalname,
         mimeType,
         size: file.size,
         purpose: req.body.purpose || "general",

@@ -13,11 +13,14 @@ const imageUpload = multer({
     const allowedTypes = [
       "image/jpeg",
       "image/png",
+      "image/heic",
+      "image/heif",
+      "image/svg+xml",
     ];
 
     if (!allowedTypes.includes(file.mimetype)) {
       return cb(
-        new Error("Only JPEG and PNG images are allowed.")
+        new Error("Only JPEG, PNG, HEIC and SVG images are allowed.")
       );
     }
 
