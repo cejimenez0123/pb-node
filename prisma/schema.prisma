@@ -69,7 +69,6 @@ model Block {
 
   @@unique([blockerProfileId, blockedProfileId])
 }
-
 model Story {
   id               String              @id @default(auto()) @map("_id") @db.ObjectId
   title            String
@@ -78,13 +77,14 @@ model Story {
   isPrivate        Boolean             @default(true)
   authorId         String?             @db.ObjectId
   author           Profile?            @relation(fields: [authorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  commentable      Boolean
+  commentable      Boolean? @default(true)
   status           StoryStatus         @default(draft)
   priority         Int?                @default(0)
   googleCalendarId String?
   approvalScore    Int                 @default(0)
 
-  feedbackRequestedAt  DateTime?
+  feedbackRequestedAt DateTime?
+
   storyLikes       UserStoryLike[]
   storyHistory     UserStoryHistory[]
   betaReaders      RoleToStory[]
@@ -92,12 +92,15 @@ model Story {
   hashtags         HashtagStory[]
   type             StoryType           @default(html)
   collections      StoryToCollection[]
+
+  photos           Photo[]
+
   updated          DateTime            @default(now())
   created          DateTime            @default(now())
 
   @@index([updated])
   @@index([created])
-    @@index([feedbackRequestedAt])
+  @@index([feedbackRequestedAt])
   @@index([authorId, updated(sort: Desc)])
 }
 
@@ -154,8 +157,9 @@ model ReferralUse {
 }
 
 model Profile {
-  id         String  @id @default(auto()) @map("_id") @db.ObjectId
-  profilePic String?
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  profilePic        String?
+  profilePictureId  String? @db.ObjectId
   username   String? @unique
 
   profileToCollections    ProfileToCollection[]
@@ -173,6 +177,7 @@ model Profile {
   isAdmin                 Boolean                  @default(false)
   isPrivate               Boolean?
   messages                Message[]
+  photos Photo[]
   followedHashtags        HashtagFollower[]
   hashtags                HashtagStory[]
   hashtagCollections      HashtagCollection[]
@@ -492,22 +497,23 @@ model UserStoryHistory {
 model Photo {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   profileId       String   @db.ObjectId
-
+  Profile Profile   @relation(fields: [profileId], references: [id])   
+  storyId   String? @db.ObjectId
+  story     Story? @relation(fields: [storyId], references: [id])
   data            Bytes
   filename        String?
   mimeType        String
   size            Int
   purpose         String   @default("general")
-
-  // Migration tracking
   source          String   @default("mongodb")
-  originalUrl     String?  @unique
+  originalUrl     String? 
   originalPath    String?
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([profileId])
+  @@index([storyId])
   @@index([purpose])
 }
 

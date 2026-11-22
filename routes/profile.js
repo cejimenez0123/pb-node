@@ -604,13 +604,14 @@ if (location && (location.latitude == null || location.longitude == null)) {
         },
         include: includeBlock,
       });
+    
     } else {
-      profile = await prisma.profile.update({ // fix: was missing await
-        where: { id: req.params.id },
-        data: sharedData,
-        include: includeBlock,
-      });
-    }
+  profile = await prisma.profile.update({
+    where: { id: profileId },
+    data: sharedData,
+    include: includeBlock,
+  });
+}
 
  await client.partialUpdateObject({
       indexName:indexNames.profile,

@@ -1,3 +1,4 @@
+
 const getImageMimeType = (buffer) => {
   if (!Buffer.isBuffer(buffer)) return null;
 
@@ -39,4 +40,5 @@ const getImageMimeType = (buffer) => {
 
   return null;
 };
-module.exports = getImageMimeType
+
+module.exports = getImageMimeType;

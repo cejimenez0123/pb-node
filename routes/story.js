@@ -1364,6 +1364,159 @@ await client.deleteObject({
         }
 
     })
+     router.post("/photo", authMiddleware, async (req, res) => {
+  let createdStoryId = null;
+
+  try {
+    const profileId = req.user?.profiles?.[0]?.id;
+
+    if (!profileId) {
+      return res.status(401).json({
+        message: "Authenticated profile not found.",
+      });
+    }
+
+    const doc = req.body || {};
+
+    const {
+      isPrivate,
+      data,
+      title,
+      isSaved,
+      needsFeedback,
+      description,
+      commentable,
+      type,
+    } = doc;
+
+    // If Story data contains a Plumbum Photo URL, validate ownership
+    // and purpose before creating the Story.
+    const photoId = extractPhotoId(data);
+
+    let photo = null;
+
+    if (photoId) {
+      photo = await prisma.photo.findUnique({
+        where: { id: photoId },
+      });
+
+      if (!photo) {
+        return res.status(404).json({
+          message: "The uploaded Story photo could not be found.",
+        });
+      }
+
+      if (
+        photo.profileId !== profileId ||
+        photo.purpose !== "story" ||
+        photo.storyId
+      ) {
+        return res.status(403).json({
+          message: "This photo cannot be associated with this Story.",
+        });
+      }
+    }
+
+    const moderation = checkContent(
+      `${title ?? ""} ${description ?? ""}`
+    );
+
+    if (moderation.flagged) {
+      return res.status(400).json({
+        error: new Error("Content violates community guidelines"),
+      });
+    }
+
+    const status = needsFeedback
+      ? isSaved
+        ? "workshop"
+        : "draft"
+      : "fragment";
+
+    const story = await prisma.story.create({
+      data: {
+        title: title ?? "",
+        data: data ?? "",
+        status,
+        author: {
+          connect: { id: profileId },
+        },
+        description: description ?? "",
+        isPrivate: isPrivate ?? true,
+        commentable,
+        type,
+      },
+    });
+
+    createdStoryId = story.id;
+
+    // Associate the uploaded Photo with the newly created Story.
+    // The ownership and purpose conditions are repeated here to
+    // prevent association if the Photo changed after validation.
+    if (photo) {
+      const association = await prisma.photo.updateMany({
+        where: {
+          id: photo.id,
+          profileId,
+          purpose: "story",
+          storyId: null,
+        },
+        data: {
+          storyId: story.id,
+        },
+      });
+
+      if (association.count !== 1) {
+        // No transaction is available here, so remove the Story
+        // if its Photo could not be associated.
+        await prisma.story.delete({
+          where: { id: story.id },
+        });
+
+        createdStoryId = null;
+
+        return res.status(409).json({
+          message: "The Story photo could not be associated. Please try again.",
+        });
+      }
+    }
+
+    // Preserve the existing indexing behavior.
+    if (story.isPrivate) {
+      client.saveObject({
+        indexName: indexNames.story,
+        body: {
+          objectID: story.id,
+          title: story.id,
+          type: story.type,
+        },
+      });
+    }
+
+    return res.status(201).json({ story });
+  } catch (error) {
+    console.error("[createStory]", error);
+
+    // If an error occurs after Story creation but before the
+    // association finishes, avoid leaving an incomplete Story.
+    if (createdStoryId) {
+      try {
+        await prisma.story.delete({
+          where: { id: createdStoryId },
+        });
+      } catch (cleanupError) {
+        console.error(
+          "[createStory] Story cleanup failed:",
+          cleanupError
+        );
+      }
+    }
+
+    return res.status(500).json({
+      message: "Unable to create Story.",
+    });
+  }
+});
     router.post("/",...allMiddlewares,async (req,res)=>{
     try{
     
