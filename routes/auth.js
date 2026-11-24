@@ -326,7 +326,7 @@ router.post("/apply", async (req, res) => {
       data: {
         email: cleanEmail,
         preferredName: fullName,
-        // status: "PENDING",
+ 
         applicationStatus: "PENDING",
       },
     });
@@ -769,7 +769,7 @@ router.get("/review", async (req, res) => {
               id: applicantId,
             },
             data: {
-              status: "PENDING",
+          
               applicationStatus: "SUBMITTED",
               verified: false,
             },
@@ -829,136 +829,7 @@ router.get("/review", async (req, res) => {
 //         message: "Invalid approval request.",
 //       });
 //     }
-
-//     /*
-//      * Find the applicant first.
-//      */
-//     const existingUser = await prisma.user.findUnique({
-//       where: {
-//         id: applicantId,
-//       },
-//     });
-
-//     if (!existingUser) {
-//       return res.status(404).json({
-//         code: "APPLICANT_NOT_FOUND",
-//         message: "Applicant not found.",
-//       });
-//     }
-
-//     /*
-//      * Make sure the email in the review link matches
-//      * the applicant we're approving.
-//      */
-//     if (
-//       !existingUser.email ||
-//       existingUser.email.toLowerCase() !==
-//         String(email).toLowerCase()
-//     ) {
-//       return res.status(400).json({
-//         code: "EMAIL_MISMATCH",
-//         message: "Invalid approval request.",
-//       });
-//     }
-
-//     /*
-//      * Only approve a pending applicant.
-//      */
-//     if (existingUser.status === "APPROVED") {
-//       return res.status(200).json({
-//         message: "User has already been approved.",
-//       });
-//     }
-
-//     /*
-//      * Mark the user as approved.
-//      *
-//      * applicationStatus remains SUBMITTED because the
-//      * application itself has already been received.
-//      */
-//     const user = await prisma.user.update({
-//       where: {
-//         id: applicantId,
-//       },
-//       data: {
-//         applicationStatus:"APPROVED",
-//         subscription: "basic",
-//         verified: true,
-//       },
-//     });
-
-//     try {
-//       /*
-//        * Send approval email.
-//        */
-//       const mailOptions =
-//         approvalTemplate(user);
-
-//       const response =
-//         await resend.emails.send(mailOptions);
-
-//       if (response?.error) {
-//         throw response.error;
-//       }
-
-//       return res.status(200).json({
-//         message: "User approved successfully.",
-//       });
-//     } catch (emailError) {
-//       console.error(
-//         "APPROVAL EMAIL ERROR:",
-//         emailError
-//       );
-
-//       /*
-//        * The approval email failed, so don't leave the
-//        * applicant appearing approved when they haven't
-//        * actually received the next step.
-//        */
-//       try {
-//         await prisma.user.update({
-//           where: {
-//             id: applicantId,
-//           },
-//           data: {
-//             applicationStatus:"PENDING",
-//             // status: "PENDING",
-//             verified: false,
-//           },
-//         });
-//       } catch (rollbackError) {
-//         console.error(
-//           "APPROVAL ROLLBACK ERROR:",
-//           rollbackError
-//         );
-//       }
-
-//       return res.status(500).json({
-//         code: "APPROVAL_EMAIL_FAILED",
-//         message:
-//           "The approval email could not be sent. The applicant was not approved.",
-//       });
-//     }
-//   } catch (error) {
-//     console.error(
-//       "APPLICATION REVIEW ERROR:",
-//       error
-//     );
-
-//     if (error?.code === "P2025") {
-//       return res.status(404).json({
-//         code: "APPLICANT_NOT_FOUND",
-//         message: "Applicant not found.",
-//       });
-//     }
-
-//     return res.status(500).json({
-//       code: "APPLICATION_REVIEW_ERROR",
-//       message:
-//         "We couldn't complete the approval. Please try again.",
-//     });
-//   }
-// });
+;
       router.delete("/",authMiddleware,async(req,res)=>{
         try{
         const userId = req.user.id
@@ -1983,121 +1854,7 @@ console.log(decoded)
 });
 
 
-// router.post("/register", async (req, res) => {
-//   const {
-//     referralToken, 
-//     password,
-//     username,
-//     profilePicture,
-//     selfStatement,
-//     privacy,
-//     frequency,
-//     writingSprintSlots
-//   } = req.body;
-//    const validSlotIds = Object.keys(SPRINT_SLOTS);
-//   const sanitizedSlots = Array.isArray(writingSprintSlots)
-//     ? writingSprintSlots.filter((s) => validSlotIds.includes(s))
-//     : [];
-//   if (!referralToken || !username || !password) {
-//     return res.status(400).json({ message: "Missing required fields" });
-//   }
-
-//   let decoded;
-//   try {
-//     decoded = jwt.verify(referralToken, process.env.JWT_SECRET);
-//   } catch (err) {
-//     return res.status(401).json({ message: "Invalid or expired token" });
-//   }
-
-//   const { applicantId, referralId } = decoded;
-
-//   try {
-//     const existingUser = await prisma.user.findUnique({
-//       where: { id: applicantId },
-//       include: { profiles: true }
-//     });
-
-//     if (!existingUser) {
-//       return res.status(404).json({ message: "User not found" });
-//     }
-
-//     // ✅ Already registered
-//     if (existingUser.profiles.length > 0) {
-   
-
-//       return res.json({
-//         message: "User already has profile",
-//         profile: existingUser.profiles[0],
-//         token: verifiedToken
-//       });
-//     }
-
-//     // ✅ Handle referral (if present in token)
-//     if (referralId) {
-//       try {
-//         const referral = await prisma.referral.findUnique({
-//           where: { id: referralId }
-//         });
-
-//         if (!referral) {
-//           console.log("Invalid referral");
-//         } else if (referral.createdById === existingUser.id) {
-//           console.log("Self-referral blocked");
-//         } else if (referral.usageCount >= referral.maxUses) {
-//           console.log("Referral maxed out");
-//         } else {
-//           await prisma.referral.update({
-//             where: { id: referralId },
-//             data: {
-//               usageCount: { increment: 1 }
-//             }
-//           });
-
-//           await prisma.user.update({
-//             where: { id: existingUser.id },
-//             data: {
-//               referredById: referralId
-//             }
-//           });
-//         }
-//       } catch (err) {
-//        if (err.code === 'P2002' && err.meta?.target?.includes('username')) {
-//     return res.status(409).json({ message: "Username is already taken" });
-//   }
-//   return res.status(500).json({ message: "Something went wrong" });
-//       }
-//     }
-
-//     // ✅ Hash password
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-//     const updatedUser = await prisma.user.update({
-//       where: { id: existingUser.id },
-//       data: {
-//         password: hashedPassword,
-//         verified: true,
-//         emailFrequency: parseInt(frequency) || 1
-//       }
-//     });
-//     const profile = await  createNewProfileUser({username,profilePicture,selfStatement,isPrivate:privacy,userId:updatedUser.id,writingSprintSlots:sanitizedSlots})
-
-
-  
-//   const verifiedToken = jwt.sign(
-//   { userId: updatedUser.id, profileId: profile.id },
-//   process.env.JWT_SECRET
-// );
-//     return res.json({
-//       message: "User registered successfully",
-//       profile:profile,
-//       token: verifiedToken
-//     });
-
-//   } catch (err) {
-//     console.error(err);
-//     return res.status(500).json({ message: "Something went wrong" });
-//   }
-// });
+;
 
     
     router.delete("/session",authMiddleware,async (req,res)=>{
