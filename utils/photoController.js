@@ -591,7 +591,6 @@ console.log("[associatePhotoWithStory] Association diagnostics:", {
   }),
 };
 
-console.log("[associatePhotoWithStory] Filter checks:", checks);
 
       const result = await prisma.photo.updateMany({
   where: {

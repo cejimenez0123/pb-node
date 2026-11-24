@@ -34,7 +34,6 @@ model User {
   bannedReason      String?
   verified          Boolean           @default(false)
 
-  status            UserStatus        @default(PENDING)
   applicationStatus ApplicationStatus @default(PENDING)
 
   created           DateTime?         @default(now())
@@ -609,13 +608,10 @@ model Campaign {
   @@map("campaigns")
 }
 
-enum UserStatus {
-  PENDING
-  APPROVED
-}
 
 enum ApplicationStatus {
   PENDING
   SUBMITTED
+    APPROVED
   EMAIL_FAILED
 }

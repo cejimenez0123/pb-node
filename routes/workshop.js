@@ -737,24 +737,6 @@ const profileId = profile.id
       }
     };
 
-    /*
-     * Attach a story to a workshop.
-     *
-     * A story can only be assigned once across workshops.
-     * Existing assignments are reconciled instead of stalling
-     * the queue.
-     */
-    // const addStoryToWorkshop = async ({
-    //   storyId,
-    //   collectionId,
-    //   profileId,
-    // }) => {
-    //   const existingLink =
-    //     await prisma.storyToCollection.findFirst({
-    //       where: {
-    //         storyId,
-    //       },
-    //     });
 
     //   if (existingLink) {
     //     await prisma.story.update({

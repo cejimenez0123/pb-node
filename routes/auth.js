@@ -21,6 +21,7 @@ const { verifyGoogleIdToken } = require('../utils/ verifyGoogleIdToken');
 const createNewProfileUser = require('../utils/createNewProfileUser');
 const { SPRINT_SLOTS } = require('../cron/sprint');
 const requireModerator = require('../middleware/requireModeration');
+const { UserStatus } = require('@prisma/client');
 function isHex(num) {
 
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
@@ -325,7 +326,7 @@ router.post("/apply", async (req, res) => {
       data: {
         email: cleanEmail,
         preferredName: fullName,
-        status: "PENDING",
+        // status: "PENDING",
         applicationStatus: "PENDING",
       },
     });
@@ -733,7 +734,7 @@ router.get("/review", async (req, res) => {
         id: applicantId,
       },
       data: {
-        status: "APPROVED",
+        applicationStatus:"APPROVED",
         subscription: "basic",
         verified: true,
       },
@@ -773,7 +774,8 @@ router.get("/review", async (req, res) => {
             id: applicantId,
           },
           data: {
-            status: "PENDING",
+            applicationStatus:"PENDING",
+            // status: "PENDING",
             verified: false,
           },
         });
@@ -858,7 +860,10 @@ router.post('/use-referral', async (req, res) => {
         data: {
           email: email.toLowerCase(),
           password: hashedPassword,
-          referredById: referral.createdById
+          referredById: referral.createdById,
+            verified:true,
+
+  applicationStatus: UserStatus.APPROVED,
         },
         include: { profiles: true }
       });
@@ -883,11 +888,26 @@ router.post('/use-referral', async (req, res) => {
       });
     } catch (err) {
       // duplicate prevention (RACE CONDITION SAFETY)
-      if (err.code === "P2002") {
-        return res.status(409).json({
-          message: "This referral was already used by this user"
-        });
-      }
+     if (err.code === "P2002") {
+  const target = err.meta?.target;
+
+  if (
+    Array.isArray(target) &&
+    target.some((field) =>
+      String(field).toLowerCase().includes("username")
+    )
+  ) {
+    return res.status(409).json({
+      code: "USERNAME_TAKEN",
+      message: "That username is already taken.",
+    });
+  }
+
+  return res.status(409).json({
+    code: "DUPLICATE_RECORD",
+    message: "This registration conflicts with an existing record.",
+  });
+}
       throw err;
     }
 
@@ -1630,125 +1650,307 @@ router.post("/email-webhook", express.json(), (req, res) => {
       }
     })
 
-
 router.post("/register", async (req, res) => {
-  const {
-    referralToken, 
-    password,
-    username,
-    profilePicture,
-    selfStatement,
-    privacy,
-    frequency,
-    writingSprintSlots
-  } = req.body;
-   const validSlotIds = Object.keys(SPRINT_SLOTS);
-  const sanitizedSlots = Array.isArray(writingSprintSlots)
-    ? writingSprintSlots.filter((s) => validSlotIds.includes(s))
-    : [];
-  if (!referralToken || !username || !password) {
-    return res.status(400).json({ message: "Missing required fields" });
-  }
-
-  let decoded;
   try {
-    decoded = jwt.verify(referralToken, process.env.JWT_SECRET);
-  } catch (err) {
-    return res.status(401).json({ message: "Invalid or expired token" });
-  }
+    const {
+      token,
+      referralToken,
+      password,
+      username,
+      profilePicture,
+      selfStatement,
+      privacy,
+      frequency,
+      writingSprintSlots,
+    } = req.body;
 
-  const { applicantId, referralId } = decoded;
+    // Keep compatibility with the existing frontend field.
+    // This is an approval token, not a referral token.
+    const approvalToken = token || referralToken;
 
-  try {
-    const existingUser = await prisma.user.findUnique({
-      where: { id: applicantId },
-      include: { profiles: true }
-    });
-
-    if (!existingUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // ✅ Already registered
-    if (existingUser.profiles.length > 0) {
-   
-  const token = jwt.sign(
-  { userId: existingUser.id, profileId: profile.id },
-  process.env.JWT_SECRET
-);
-      return res.json({
-        message: "User already has profile",
-        profile: existingUser.profiles[0],
-        token: verifiedToken
+    if (!approvalToken || !password || !username) {
+      return res.status(400).json({
+        message: "Token, username, and password are required.",
       });
     }
 
-    // ✅ Handle referral (if present in token)
-    if (referralId) {
-      try {
-        const referral = await prisma.referral.findUnique({
-          where: { id: referralId }
-        });
+    // Validate approval token.
+    let decoded;
 
-        if (!referral) {
-          console.log("Invalid referral");
-        } else if (referral.createdById === existingUser.id) {
-          console.log("Self-referral blocked");
-        } else if (referral.usageCount >= referral.maxUses) {
-          console.log("Referral maxed out");
-        } else {
-          await prisma.referral.update({
-            where: { id: referralId },
-            data: {
-              usageCount: { increment: 1 }
-            }
-          });
-
-          await prisma.user.update({
-            where: { id: existingUser.id },
-            data: {
-              referredById: referralId
-            }
-          });
-        }
-      } catch (err) {
-       if (err.code === 'P2002' && err.meta?.target?.includes('username')) {
-    return res.status(409).json({ message: "Username is already taken" });
-  }
-  return res.status(500).json({ message: "Something went wrong" });
-      }
+    try {
+      decoded = jwt.verify(
+        approvalToken,
+        process.env.JWT_SECRET
+      );
+    } catch (error) {
+      return res.status(401).json({
+        message:
+          error.name === "TokenExpiredError"
+            ? "Your signup link has expired."
+            : "Invalid signup link.",
+      });
     }
 
-    // ✅ Hash password
+    const { applicantId, email } = decoded;
+console.log("DECODED")
+console.log(decoded)
+    if (!applicantId) {
+      return res.status(401).json({
+        message: "Invalid approval token.",
+      });
+    }
+
+    // Find the applicant identified by the approval token.
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        id: applicantId,
+      },
+      include: {
+        profiles: true,
+      },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        message: "Applicant not found.",
+      });
+    }
+
+    // // Make sure the token belongs to this applicant.
+    // if (
+    //   existingUser.email.toLowerCase() !==
+    //   email.toLowerCase()
+    // ) {
+    //   return res.status(401).json({
+    //     message: "This signup link does not match the applicant.",
+    //   });
+    // }
+
+    // Only approved applicants can complete this registration.
+    if (existingUser.status !== "APPROVED") {
+      return res.status(403).json({
+        message: "Your application has not been approved.",
+      });
+    }
+
+    // If registration has already been completed, return
+    // a valid session instead of trying to create another profile.
+    if (existingUser.profiles?.length > 0) {
+      const existingProfile = existingUser.profiles[0];
+
+      const authToken = jwt.sign(
+        {
+          userId: existingUser.id,
+          profileId: existingProfile.id,
+        },
+        process.env.JWT_SECRET
+      );
+
+      return res.status(200).json({
+        message: "Your account is already registered.",
+        firstTime: false,
+        profile: existingProfile,
+        token: authToken,
+      });
+    }
+
+    // Sanitize writing sprint slots.
+    const validSprintSlots = Object.keys(SPRINT_SLOTS);
+
+    const sanitizedSlots = Array.isArray(writingSprintSlots)
+      ? writingSprintSlots.filter((slot) =>
+          validSprintSlots.includes(slot)
+        )
+      : [];
+
+    // Preserve the existing email frequency unless a valid
+    // frequency was submitted.
+    const parsedFrequency =
+      frequency === undefined || frequency === null || frequency === ""
+        ? existingUser.emailFrequency ?? 1
+        : Number.parseInt(frequency, 10);
+
+    if (!Number.isInteger(parsedFrequency)) {
+      return res.status(400).json({
+        message: "Invalid email frequency.",
+      });
+    }
+
+    // Set the applicant's password.
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const updatedUser = await prisma.user.update({
-      where: { id: existingUser.id },
+      where: {
+        id: existingUser.id,
+      },
       data: {
         password: hashedPassword,
         verified: true,
-        emailFrequency: parseInt(frequency) || 1
-      }
+        emailFrequency: parsedFrequency,
+      },
     });
-    const profile = await  createNewProfileUser({username,profilePicture,selfStatement,isPrivate:privacy,userId:updatedUser.id,writingSprintSlots:sanitizedSlots})
+
+    // Create the profile.
+    const profile = await createNewProfileUser({
+      username,
+      profilePicture,
+      selfStatement,
+      isPrivate: privacy,
+      userId: updatedUser.id,
+      writingSprintSlots: sanitizedSlots,
+    });
+
+    if (!profile?.id) {
+      throw new Error("Profile creation failed.");
+    }
+
+    // Create the authenticated session token.
+    const authToken = jwt.sign(
+      {
+        userId: updatedUser.id,
+        profileId: profile.id,
+      },
+      process.env.JWT_SECRET
+    );
+
+    return res.status(201).json({
+      message: "Registration successful.",
+      firstTime: true,
+      profile,
+      token: authToken,
+    });
+
+  } catch (error) {
+    console.error("Registration error:", error);
+
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        message: "That username is already taken.",
+      });
+    }
+
+    return res.status(500).json({
+      message: "Unable to complete registration.",
+    });
+  }
+});
+
+
+// router.post("/register", async (req, res) => {
+//   const {
+//     referralToken, 
+//     password,
+//     username,
+//     profilePicture,
+//     selfStatement,
+//     privacy,
+//     frequency,
+//     writingSprintSlots
+//   } = req.body;
+//    const validSlotIds = Object.keys(SPRINT_SLOTS);
+//   const sanitizedSlots = Array.isArray(writingSprintSlots)
+//     ? writingSprintSlots.filter((s) => validSlotIds.includes(s))
+//     : [];
+//   if (!referralToken || !username || !password) {
+//     return res.status(400).json({ message: "Missing required fields" });
+//   }
+
+//   let decoded;
+//   try {
+//     decoded = jwt.verify(referralToken, process.env.JWT_SECRET);
+//   } catch (err) {
+//     return res.status(401).json({ message: "Invalid or expired token" });
+//   }
+
+//   const { applicantId, referralId } = decoded;
+
+//   try {
+//     const existingUser = await prisma.user.findUnique({
+//       where: { id: applicantId },
+//       include: { profiles: true }
+//     });
+
+//     if (!existingUser) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+
+//     // ✅ Already registered
+//     if (existingUser.profiles.length > 0) {
+   
+
+//       return res.json({
+//         message: "User already has profile",
+//         profile: existingUser.profiles[0],
+//         token: verifiedToken
+//       });
+//     }
+
+//     // ✅ Handle referral (if present in token)
+//     if (referralId) {
+//       try {
+//         const referral = await prisma.referral.findUnique({
+//           where: { id: referralId }
+//         });
+
+//         if (!referral) {
+//           console.log("Invalid referral");
+//         } else if (referral.createdById === existingUser.id) {
+//           console.log("Self-referral blocked");
+//         } else if (referral.usageCount >= referral.maxUses) {
+//           console.log("Referral maxed out");
+//         } else {
+//           await prisma.referral.update({
+//             where: { id: referralId },
+//             data: {
+//               usageCount: { increment: 1 }
+//             }
+//           });
+
+//           await prisma.user.update({
+//             where: { id: existingUser.id },
+//             data: {
+//               referredById: referralId
+//             }
+//           });
+//         }
+//       } catch (err) {
+//        if (err.code === 'P2002' && err.meta?.target?.includes('username')) {
+//     return res.status(409).json({ message: "Username is already taken" });
+//   }
+//   return res.status(500).json({ message: "Something went wrong" });
+//       }
+//     }
+
+//     // ✅ Hash password
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     const updatedUser = await prisma.user.update({
+//       where: { id: existingUser.id },
+//       data: {
+//         password: hashedPassword,
+//         verified: true,
+//         emailFrequency: parseInt(frequency) || 1
+//       }
+//     });
+//     const profile = await  createNewProfileUser({username,profilePicture,selfStatement,isPrivate:privacy,userId:updatedUser.id,writingSprintSlots:sanitizedSlots})
 
 
   
-  const verifiedToken = jwt.sign(
-  { userId: updatedUser.id, profileId: profile.id },
-  process.env.JWT_SECRET
-);
-    return res.json({
-      message: "User registered successfully",
-      profile:profile,
-      token: verifiedToken
-    });
+//   const verifiedToken = jwt.sign(
+//   { userId: updatedUser.id, profileId: profile.id },
+//   process.env.JWT_SECRET
+// );
+//     return res.json({
+//       message: "User registered successfully",
+//       profile:profile,
+//       token: verifiedToken
+//     });
 
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Something went wrong" });
-  }
-});
+//   } catch (err) {
+//     console.error(err);
+//     return res.status(500).json({ message: "Something went wrong" });
+//   }
+// });
 
     
     router.delete("/session",authMiddleware,async (req,res)=>{
