@@ -7,14 +7,7 @@ async function main() {
     },data:{
         applicationStatus:"APPROVED"
     }})
-//   const unverifiedUsers = await prisma.user.findMany({
-//     where: { verified: false }, // adjust field name to match your schema
-//     select: { email: true },
-//   });
 
-//   const emails = unverifiedUsers.map((user) => user.email);
-
-//   console.log(emails);
 }
 
 main()
