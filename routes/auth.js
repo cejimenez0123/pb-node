@@ -663,7 +663,6 @@ router.post('/accept-terms', authMiddleware, async (req, res) => {
   res.json({ ok: true });
 });
 
-
 router.get("/review", async (req, res) => {
   try {
     const {
@@ -683,9 +682,6 @@ router.get("/review", async (req, res) => {
       });
     }
 
-    /*
-     * Find the applicant first.
-     */
     const existingUser = await prisma.user.findUnique({
       where: {
         id: applicantId,
@@ -699,10 +695,6 @@ router.get("/review", async (req, res) => {
       });
     }
 
-    /*
-     * Make sure the email in the review link matches
-     * the applicant we're approving.
-     */
     if (
       !existingUser.email ||
       existingUser.email.toLowerCase() !==
@@ -714,84 +706,89 @@ router.get("/review", async (req, res) => {
       });
     }
 
-    /*
-     * Only approve a pending applicant.
-     */
-    if (existingUser.status === "APPROVED") {
-      return res.status(200).json({
-        message: "User has already been approved.",
+    // Don't approve users whose application was never submitted.
+    if (
+      existingUser.applicationStatus !== "SUBMITTED" &&
+      existingUser.status !== "APPROVED"
+    ) {
+      return res.status(409).json({
+        code: "APPLICATION_NOT_SUBMITTED",
+        message: "This application is not ready for approval.",
       });
     }
 
-    /*
-     * Mark the user as approved.
-     *
-     * applicationStatus remains SUBMITTED because the
-     * application itself has already been received.
-     */
-    const user = await prisma.user.update({
-      where: {
-        id: applicantId,
-      },
-      data: {
-        applicationStatus:"APPROVED",
-        subscription: "basic",
-        verified: true,
-      },
-    });
+    // Ensure both statuses are consistent.
+    let user = existingUser;
+
+    if (
+      existingUser.status !== "APPROVED" ||
+      existingUser.applicationStatus !== "APPROVED" ||
+      !existingUser.verified
+    ) {
+      user = await prisma.user.update({
+        where: {
+          id: applicantId,
+        },
+        data: {
+          status: "APPROVED",
+          applicationStatus: "APPROVED",
+          subscription: "basic",
+          verified: true,
+        },
+      });
+    }
 
     try {
-      /*
-       * Send approval email.
-       */
-      const mailOptions =
-        approvalTemplate(user);
+      // Send or resend the approval email.
+      const mailOptions = approvalTemplate(user);
 
-      const response =
-        await resend.emails.send(mailOptions);
+      const response = await resend.emails.send(mailOptions);
 
       if (response?.error) {
         throw response.error;
       }
 
       return res.status(200).json({
+        code: "APPROVAL_SUCCESS",
         message: "User approved successfully.",
       });
+
     } catch (emailError) {
       console.error(
         "APPROVAL EMAIL ERROR:",
         emailError
       );
 
-      /*
-       * The approval email failed, so don't leave the
-       * applicant appearing approved when they haven't
-       * actually received the next step.
-       */
-      try {
-        await prisma.user.update({
-          where: {
-            id: applicantId,
-          },
-          data: {
-            applicationStatus:"PENDING",
-            // status: "PENDING",
-            verified: false,
-          },
-        });
-      } catch (rollbackError) {
-        console.error(
-          "APPROVAL ROLLBACK ERROR:",
-          rollbackError
-        );
+      // Only roll back if this request performed the approval.
+      // Don't revoke a previously approved account because
+      // a retry of its email failed.
+      if (existingUser.status !== "APPROVED") {
+        try {
+          await prisma.user.update({
+            where: {
+              id: applicantId,
+            },
+            data: {
+              status: "PENDING",
+              applicationStatus: "SUBMITTED",
+              verified: false,
+            },
+          });
+        } catch (rollbackError) {
+          console.error(
+            "APPROVAL ROLLBACK ERROR:",
+            rollbackError
+          );
+        }
       }
 
       return res.status(500).json({
         code: "APPROVAL_EMAIL_FAILED",
         message:
-          "The approval email could not be sent. The applicant was not approved.",
+          "The approval email could not be sent. Please retry the approval email.",
       });
     }
+
   } catch (error) {
     console.error(
       "APPLICATION REVIEW ERROR:",
@@ -812,6 +809,156 @@ router.get("/review", async (req, res) => {
     });
   }
 });
+
+
+// router.get("/review", async (req, res) => {
+//   try {
+//     const {
+//       applicantId,
+//       action,
+//       email,
+//     } = req.query;
+
+//     if (
+//       action !== "approve" ||
+//       !applicantId ||
+//       !email
+//     ) {
+//       return res.status(400).json({
+//         code: "INVALID_REVIEW_REQUEST",
+//         message: "Invalid approval request.",
+//       });
+//     }
+
+//     /*
+//      * Find the applicant first.
+//      */
+//     const existingUser = await prisma.user.findUnique({
+//       where: {
+//         id: applicantId,
+//       },
+//     });
+
+//     if (!existingUser) {
+//       return res.status(404).json({
+//         code: "APPLICANT_NOT_FOUND",
+//         message: "Applicant not found.",
+//       });
+//     }
+
+//     /*
+//      * Make sure the email in the review link matches
+//      * the applicant we're approving.
+//      */
+//     if (
+//       !existingUser.email ||
+//       existingUser.email.toLowerCase() !==
+//         String(email).toLowerCase()
+//     ) {
+//       return res.status(400).json({
+//         code: "EMAIL_MISMATCH",
+//         message: "Invalid approval request.",
+//       });
+//     }
+
+//     /*
+//      * Only approve a pending applicant.
+//      */
+//     if (existingUser.status === "APPROVED") {
+//       return res.status(200).json({
+//         message: "User has already been approved.",
+//       });
+//     }
+
+//     /*
+//      * Mark the user as approved.
+//      *
+//      * applicationStatus remains SUBMITTED because the
+//      * application itself has already been received.
+//      */
+//     const user = await prisma.user.update({
+//       where: {
+//         id: applicantId,
+//       },
+//       data: {
+//         applicationStatus:"APPROVED",
+//         subscription: "basic",
+//         verified: true,
+//       },
+//     });
+
+//     try {
+//       /*
+//        * Send approval email.
+//        */
+//       const mailOptions =
+//         approvalTemplate(user);
+
+//       const response =
+//         await resend.emails.send(mailOptions);
+
+//       if (response?.error) {
+//         throw response.error;
+//       }
+
+//       return res.status(200).json({
+//         message: "User approved successfully.",
+//       });
+//     } catch (emailError) {
+//       console.error(
+//         "APPROVAL EMAIL ERROR:",
+//         emailError
+//       );
+
+//       /*
+//        * The approval email failed, so don't leave the
+//        * applicant appearing approved when they haven't
+//        * actually received the next step.
+//        */
+//       try {
+//         await prisma.user.update({
+//           where: {
+//             id: applicantId,
+//           },
+//           data: {
+//             applicationStatus:"PENDING",
+//             // status: "PENDING",
+//             verified: false,
+//           },
+//         });
+//       } catch (rollbackError) {
+//         console.error(
+//           "APPROVAL ROLLBACK ERROR:",
+//           rollbackError
+//         );
+//       }
+
+//       return res.status(500).json({
+//         code: "APPROVAL_EMAIL_FAILED",
+//         message:
+//           "The approval email could not be sent. The applicant was not approved.",
+//       });
+//     }
+//   } catch (error) {
+//     console.error(
+//       "APPLICATION REVIEW ERROR:",
+//       error
+//     );
+
+//     if (error?.code === "P2025") {
+//       return res.status(404).json({
+//         code: "APPLICANT_NOT_FOUND",
+//         message: "Applicant not found.",
+//       });
+//     }
+
+//     return res.status(500).json({
+//       code: "APPLICATION_REVIEW_ERROR",
+//       message:
+//         "We couldn't complete the approval. Please try again.",
+//     });
+//   }
+// });
       router.delete("/",authMiddleware,async(req,res)=>{
         try{
         const userId = req.user.id
