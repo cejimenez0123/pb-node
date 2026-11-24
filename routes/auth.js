@@ -708,8 +708,8 @@ router.get("/review", async (req, res) => {
 
     // Don't approve users whose application was never submitted.
     if (
-      existingUser.applicationStatus !== "SUBMITTED" &&
-      existingUser.status !== "APPROVED"
+      existingUser.applicationStatus !== "SUBMITTED"
+
     ) {
       return res.status(409).json({
         code: "APPLICATION_NOT_SUBMITTED",
@@ -721,7 +721,7 @@ router.get("/review", async (req, res) => {
     let user = existingUser;
 
     if (
-      existingUser.status !== "APPROVED" ||
+    
       existingUser.applicationStatus !== "APPROVED" ||
       !existingUser.verified
     ) {
@@ -730,7 +730,7 @@ router.get("/review", async (req, res) => {
           id: applicantId,
         },
         data: {
-          status: "APPROVED",
+   
           applicationStatus: "APPROVED",
           subscription: "basic",
           verified: true,
@@ -762,7 +762,7 @@ router.get("/review", async (req, res) => {
       // Only roll back if this request performed the approval.
       // Don't revoke a previously approved account because
       // a retry of its email failed.
-      if (existingUser.status !== "APPROVED") {
+      if (existingUser.applicationStatus !== "APPROVED") {
         try {
           await prisma.user.update({
             where: {
@@ -811,25 +811,7 @@ router.get("/review", async (req, res) => {
 });
 
 
-// router.get("/review", async (req, res) => {
-//   try {
-//     const {
-//       applicantId,
-//       action,
-//       email,
-//     } = req.query;
 
-//     if (
-//       action !== "approve" ||
-//       !applicantId ||
-//       !email
-//     ) {
-//       return res.status(400).json({
-//         code: "INVALID_REVIEW_REQUEST",
-//         message: "Invalid approval request.",
-//       });
-//     }
-;
       router.delete("/",authMiddleware,async(req,res)=>{
         try{
         const userId = req.user.id
@@ -1745,7 +1727,7 @@ console.log(decoded)
     // }
 
     // Only approved applicants can complete this registration.
-    if (existingUser.status !== "APPROVED") {
+    if (existingUser.applicationStatus !== "APPROVED") {
       return res.status(403).json({
         message: "Your application has not been approved.",
       });
