@@ -544,21 +544,78 @@ const associatePhotoWithStory = async (req, res) => {
         message: "This photo is already associated with another Story.",
       });
     }
-
+console.log("[associatePhotoWithStory] Association diagnostics:", {
+  photoId,
+  storyId,
+  profileId,
+  photoProfileId: photo.profileId,
+  photoPurpose: photo.purpose,
+  photoStoryId: photo.storyId,
+  storyIdType: typeof photo.storyId,
+});
     // Make the association idempotent.
     if (photo.storyId !== storyId) {
-      const result = await prisma.photo.updateMany({
-        where: {
-          id: photoId,
-          profileId,
-          purpose: "story",
-          storyId: null,
-        },
-        data: {
-          storyId,
-        },
-      });
+      const checks = {
+  byId: await prisma.photo.count({
+    where: { id: photoId },
+  }),
 
+  byIdAndProfile: await prisma.photo.count({
+    where: {
+      id: photoId,
+      profileId,
+    },
+  }),
+
+  byIdAndPurpose: await prisma.photo.count({
+    where: {
+      id: photoId,
+      purpose: "story",
+    },
+  }),
+
+  byIdAndNullStory: await prisma.photo.count({
+    where: {
+      id: photoId,
+      storyId: null,
+    },
+  }),
+
+  allConditions: await prisma.photo.count({
+    where: {
+      id: photoId,
+      profileId,
+      purpose: "story",
+      storyId: null,
+    },
+  }),
+};
+
+console.log("[associatePhotoWithStory] Filter checks:", checks);
+
+      const result = await prisma.photo.updateMany({
+  where: {
+    id: photoId,
+    profileId,
+    purpose: "story",
+    OR: [
+      {
+        storyId: null,
+      },
+      {
+        storyId: {
+          isSet: false,
+        },
+      },
+    ],
+  },
+  data: {
+    storyId,
+  },
+});
+console.log("[associatePhotoWithStory] Update result:", {
+  count: result.count,
+});
       if (result.count !== 1) {
         return res.status(409).json({
           message: "The photo could not be associated with this Story.",
