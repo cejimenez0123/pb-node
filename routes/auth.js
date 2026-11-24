@@ -18,7 +18,7 @@ const adminNotificationTemplate = require("../html/adminNotifcationTemplate")
 const crypto = require("crypto");
 
 const { verifyGoogleIdToken } = require('../utils/ verifyGoogleIdToken');
-const createNewProfileUser = require('../utils/createNewProfileUser');
+const createNewProfileForUser = require("../utils/createNewProfileForUser");
 const { SPRINT_SLOTS } = require('../cron/sprint');
 const requireModerator = require('../middleware/requireModeration');
 const { UserStatus } = require('@prisma/client');
@@ -176,7 +176,7 @@ module.exports = function (authMiddleware){
 
       return res.json({
         referralToken: token,
-        referralLink: `${process.env.DOMAIN}/register?token=${token}`,
+     referralLink: `${process.env.DOMAIN}/use-referral?token=${encodeURIComponent(token)}`,
         message: "Daily limit reached"
       });
     }
@@ -222,7 +222,7 @@ router.post("/invite", authMiddleware, async (req, res) => {
     const normalizedEmail = email.toLowerCase();
 
     const userId = req.user.id;
-
+console.log(req.user)
     // 1. Create referral (or reuse existing one)
     const referral = await prisma.referral.create({
       data: {
@@ -833,8 +833,32 @@ router.get("/review", async (req, res) => {
       })
 
 router.post('/use-referral', async (req, res) => {
-  const { token, email, password, username, profilePicture, selfStatement, isPrivate } = req.body;
+const {
+  token,
+  email,
+  password,
+  username,
+  profilePicture,
+  selfStatement,
+  isPrivate,
+  writingSprintSlots = [],
+} = req.body;
 
+const validWritingTimeSlots = [
+  "morning",
+  "midday",
+  "afternoon",
+  "evening",
+  "night",
+];
+
+const sanitizedSlots = Array.isArray(writingSprintSlots)
+  ? [...new Set(
+      writingSprintSlots.filter((slot) =>
+        validWritingTimeSlots.includes(slot)
+      )
+    )]
+  : [];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { referralId } = decoded;
@@ -863,7 +887,7 @@ router.post('/use-referral', async (req, res) => {
           referredById: referral.createdById,
             verified:true,
 
-  applicationStatus: UserStatus.APPROVED,
+  applicationStatus:"APPROVED",
         },
         include: { profiles: true }
       });
@@ -911,45 +935,72 @@ router.post('/use-referral', async (req, res) => {
       throw err;
     }
 
-    // 4. Only AFTER successful insert → create profile
-    if (newUser.profiles.length === 0) {
-      const profile = await createNewProfileUser({
-        username,
-        profilePicture,
-        selfStatement,
-        isPrivate,
-        userId: newUser.id,
-        writingSprintSlots: sanitizedSlots
-      });
+    // 4. Only AFTER successful referral use → create profile.
+if (newUser.profiles.length === 0) {
+  const profile = await createNewProfileForUser({
+    username,
+    profilePicture,
+    selfStatement,
+    isPrivate,
+    userId: newUser.id,
+    writingSprintSlots: sanitizedSlots,
+  });
 
-     
-const token = jwt.sign(
-  { userId:  newUser.id , profileId: profile.id },
-  process.env.JWT_SECRET
-);
-      return res.json({
-        firstTime: true,
-        token,
-        profile
-      });
-    }
+  if (!profile?.id) {
+    throw new Error("Profile creation did not return a valid profile.");
+  }
 
-    return res.json({
-      message: "User already exists. Please login."
-    });
+  const authToken = jwt.sign(
+    {
+      userId: newUser.id,
+      profileId: profile.id,
+    },
+    process.env.JWT_SECRET
+  );
 
- } catch (error) {
-  if (error.name === "TokenExpiredError") {
-    return res.status(401).json({ message: "This invite link has expired." });
-  }
-  if (error.name === "JsonWebTokenError") {
-    return res.status(401).json({ message: "This invite link is invalid." });
-  }
-  if (error.code === "P2002") {
-    return res.status(409).json({ message: "This invite has already been used." });
-  }
-  return res.status(400).json({ message: "Unable to process invite. Please request a new link." });
+  return res.json({
+    firstTime: true,
+    token: authToken,
+    profile,
+  });
 }
+
+return res.json({
+  message: "User already exists. Please login.",
+});
+
+
+ }  catch (error) {
+  console.error("USE REFERRAL ERROR:", {
+    message: error.message,
+    code: error.code,
+    name: error.name,
+    stack: error.stack,
+    meta: error.meta,
+  });
+
+  if (error.name === "TokenExpiredError") {
+    return res.status(401).json({
+      message: "This invite link has expired.",
+    });
+  }
+
+  if (error.name === "JsonWebTokenError") {
+    return res.status(401).json({
+      message: "This invite link is invalid.",
+    });
+  }
+
+  if (error.code === "P2002") {
+    return res.status(409).json({
+      message: "This invite has already been used.",
+    });
+  }
+
+  return res.status(400).json({
+    message: "Unable to process invite. Please request a new link.",
+  });
+ }
 });
 
 router.post("/session", async (req, res) => {
@@ -1692,8 +1743,7 @@ router.post("/register", async (req, res) => {
     }
 
     const { applicantId, email } = decoded;
-console.log("DECODED")
-console.log(decoded)
+
     if (!applicantId) {
       return res.status(401).json({
         message: "Invalid approval token.",
@@ -1717,14 +1767,14 @@ console.log(decoded)
     }
 
     // // Make sure the token belongs to this applicant.
-    // if (
-    //   existingUser.email.toLowerCase() !==
-    //   email.toLowerCase()
-    // ) {
-    //   return res.status(401).json({
-    //     message: "This signup link does not match the applicant.",
-    //   });
-    // }
+    if (
+      existingUser.email.toLowerCase() !==
+      email.toLowerCase()
+    ) {
+      return res.status(401).json({
+        message: "This signup link does not match the applicant.",
+      });
+    }
 
     // Only approved applicants can complete this registration.
     if (existingUser.applicationStatus !== "APPROVED") {
@@ -1790,36 +1840,32 @@ console.log(decoded)
       },
     });
 
-    // Create the profile.
-    const profile = await createNewProfileUser({
-      username,
-      profilePicture,
-      selfStatement,
-      isPrivate: privacy,
-      userId: updatedUser.id,
-      writingSprintSlots: sanitizedSlots,
-    });
+const profile = await createNewProfileUser({
+  username,
+  profilePicture,
+  selfStatement,
+  isPrivate,
+  userId: newUser.id,
+  writingSprintSlots: sanitizedSlots,
+});
 
-    if (!profile?.id) {
-      throw new Error("Profile creation failed.");
-    }
+if (!profile?.id) {
+  throw new Error("Profile creation did not return a valid profile.");
+}
 
-    // Create the authenticated session token.
-    const authToken = jwt.sign(
-      {
-        userId: updatedUser.id,
-        profileId: profile.id,
-      },
-      process.env.JWT_SECRET
-    );
+const authToken = jwt.sign(
+  {
+    userId: newUser.id,
+    profileId: profile.id,
+  },
+  process.env.JWT_SECRET
+);
 
-    return res.status(201).json({
-      message: "Registration successful.",
-      firstTime: true,
-      profile,
-      token: authToken,
-    });
-
+return res.json({
+  firstTime: true,
+  token: authToken,
+  profile,
+});
   } catch (error) {
     console.error("Registration error:", error);
 

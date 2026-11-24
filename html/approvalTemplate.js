@@ -1,14 +1,8 @@
 
 const jwt = require("jsonwebtoken");
+const escapeHtml = require("../utils/escapeHtml");
 
-function escapeHtml(value) {
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+
 
 module.exports = function approvalTemplate(user) {
 const token = jwt.sign(
