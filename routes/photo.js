@@ -49,7 +49,8 @@ router.patch(
 
   // Profile pictures can be loaded directly by img tags.
   // Other photos require authentication.
-router.get("/:id", optionalAuth, getPhoto);
+router.get("/:id", optionalAuth, getPhoto
+);
 
   router.delete(
     "/:id",

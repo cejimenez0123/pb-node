@@ -21,6 +21,100 @@ const getPhotoIdFromUrl = (url) => {
 
 const getPhotoUrl = (id) => `/api/photos/${id}`;
 
+const getPhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const profileId = req.user?.profiles?.[0]?.id;
+
+    const photo = await prisma.photo.findUnique({
+      where: { id },
+    });
+
+    if (!photo) {
+      return res.status(404).json({
+        message: "Photo not found.",
+      });
+    }
+
+    // Profile pictures are available through their relative URL
+    // so ordinary <img src="..."> rendering works.
+    if (photo.purpose === "profile") {
+      res.set({
+        "Content-Type": photo.mimeType,
+        "Content-Length": String(photo.size),
+        "Cache-Control": "public, max-age=3600",
+        "X-Content-Type-Options": "nosniff",
+      });
+
+      return res.send(Buffer.from(photo.data));
+    }
+
+    // All non-profile photos require authentication.
+    if (!profileId) {
+      return res.status(401).json({
+        message: "Authentication required.",
+      });
+    }
+
+    // The uploading profile always retains access.
+    let authorized = photo.profileId === profileId;
+
+    if (
+      !authorized &&
+      photo.purpose === "story" &&
+      photo.storyId
+    ) {
+      // The Story author has access.
+      const story = await prisma.story.findUnique({
+        where: { id: photo.storyId },
+        select: {
+          authorId: true,
+        },
+      });
+
+      if (story?.authorId === profileId) {
+        authorized = true;
+      }
+
+      // Other authorized profiles must have an approved role.
+      if (!authorized) {
+        const role = await prisma.roleToStory.findFirst({
+          where: {
+            profileId,
+            storyId: photo.storyId,
+            approved: true,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        authorized = Boolean(role);
+      }
+    }
+
+    if (!authorized) {
+      return res.status(403).json({
+        message: "You do not have permission to access this photo.",
+      });
+    }
+
+    res.set({
+      "Content-Type": photo.mimeType,
+      "Content-Length": String(photo.size),
+      "Cache-Control": "private, no-cache",
+      "X-Content-Type-Options": "nosniff",
+    });
+
+    return res.send(Buffer.from(photo.data));
+  } catch (error) {
+    console.error("[getPhoto]", error);
+
+    return res.status(500).json({
+      message: "Unable to retrieve photo.",
+    });
+  }
+};
 /**
  * Upload a photo.
  *
@@ -234,150 +328,6 @@ const uploadProfilePicture = async (req, res) => {
   }
 };
 
-/**
- * Retrieve a photo.
- *
- * Profile pictures are directly accessible through an ordinary
- * img src URL. Other photos require an authenticated owner.
- *
- * Private Story authorization will be expanded to use the
- * application's Story/collection permissions.
- */
-
-
-const getPhoto = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const profileId = req.user?.profiles?.[0]?.id;
-
-    const photo = await prisma.photo.findUnique({
-      where: { id },
-    });
-
-    if (!photo) {
-      return res.status(404).json({
-        message: "Photo not found.",
-      });
-    }
-
-    // Profile pictures are available through their relative URL
-    // so ordinary <img src="..."> rendering works.
-    if (photo.purpose === "profile") {
-      res.set({
-        "Content-Type": photo.mimeType,
-        "Content-Length": String(photo.size),
-        "Cache-Control": "public, max-age=3600",
-        "X-Content-Type-Options": "nosniff",
-      });
-
-      return res.send(Buffer.from(photo.data));
-    }
-
-    // All non-profile photos require authentication.
-    if (!profileId) {
-      return res.status(401).json({
-        message: "Authentication required.",
-      });
-    }
-
-    // The uploading profile always retains access.
-    let authorized = photo.profileId === profileId;
-
-    if (
-      !authorized &&
-      photo.purpose === "story" &&
-      photo.storyId
-    ) {
-      // The Story author has access.
-      const story = await prisma.story.findUnique({
-        where: { id: photo.storyId },
-        select: {
-          authorId: true,
-        },
-      });
-
-      if (story?.authorId === profileId) {
-        authorized = true;
-      }
-
-      // Other authorized profiles must have an approved role.
-      if (!authorized) {
-        const role = await prisma.roleToStory.findFirst({
-          where: {
-            profileId,
-            storyId: photo.storyId,
-            approved: true,
-          },
-          select: {
-            id: true,
-          },
-        });
-
-        authorized = Boolean(role);
-      }
-    }
-
-    if (!authorized) {
-      return res.status(403).json({
-        message: "You do not have permission to access this photo.",
-      });
-    }
-
-    res.set({
-      "Content-Type": photo.mimeType,
-      "Content-Length": String(photo.size),
-      "Cache-Control": "private, no-cache",
-      "X-Content-Type-Options": "nosniff",
-    });
-
-    return res.send(Buffer.from(photo.data));
-  } catch (error) {
-    console.error("[getPhoto]", error);
-
-    return res.status(500).json({
-      message: "Unable to retrieve photo.",
-    });
-  }
-};
-
-// const getPhoto = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-
-//     if (!id) {
-//       return res.status(400).json({
-//         message: "Photo ID is required.",
-//       });
-//     }
-
-//     const photo = await prisma.photo.findUnique({
-//       where: { id },
-//       select: {
-//         id: true,
-//         profileId: true,
-//         data: true,
-//         mimeType: true,
-//         purpose: true,
-//       },
-//     });
-
-//     if (!photo) {
-//       return res.status(404).json({
-//         message: "Image not found.",
-//       });
-//     }
-
-//     const isProfilePicture = photo.purpose === "profile";
-//     const authenticatedProfile = getAuthenticatedProfile(req);
-
-//     if (
-//       !isProfilePicture &&
-//       authenticatedProfile?.id !== photo.profileId
-//     ) {
-//       return res.status(403).json({
-//         message: "You are not authorized to view this image.",
-//       });
-//     }
 
 //     res.set({
 //       "Content-Type": photo.mimeType,

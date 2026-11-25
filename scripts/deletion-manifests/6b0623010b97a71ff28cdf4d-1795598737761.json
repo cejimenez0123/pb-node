@@ -1,0 +1,17 @@
+{
+  "targetId": "6b0623010b97a71ff28cdf4d",
+  "userId": "6b0623010b97a71ff28cdf4d",
+  "profileIds": [
+    "6b0623010b97a71ff28cdf4f"
+  ],
+  "storyIds": [],
+  "collectionIds": [
+    "6b0623010b97a71ff28cdf50",
+    "6b0623020b97a71ff28cdf52",
+    "6b0623020b97a71ff28cdf54",
+    "6b0623020b97a71ff28cdf56"
+  ],
+  "databaseCompleted": false,
+  "createdAt": "2026-11-25T09:25:37.761Z",
+  "filePath": "/Users/christianjimenez/Development/pb-node/scripts/deletion-manifests/6b0623010b97a71ff28cdf4d-1795598737761.json"
+}

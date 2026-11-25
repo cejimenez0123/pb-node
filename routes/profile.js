@@ -525,7 +525,6 @@ router.get("/:id", async (req, res) => {
 
 
 
-
 router.patch("/me", authMiddleware, async (req, res) => {
   const {
     username,
@@ -533,47 +532,72 @@ router.patch("/me", authMiddleware, async (req, res) => {
     selfStatement,
     privacy,
     location,
-    writingSprintSlots,  // ← new
+    writingSprintSlots,
   } = req.body;
- 
-  const profileId =   req.user.profiles[0].id
+
+  const profileId = req.user?.profiles?.[0]?.id;
+
+  if (!profileId) {
+    return res.status(400).json({
+      message: "Missing profile id.",
+    });
+  }
+
+
   try {
-    // Validate + sanitize sprint slots if provided
     const validSlotIds = Object.keys(SPRINT_SLOTS);
+
     const sanitizedSlots = Array.isArray(writingSprintSlots)
-      ? writingSprintSlots.filter((s) => validSlotIds.includes(s))
-      : undefined; // undefined = don't touch the field if not sent
+      ? writingSprintSlots.filter((slot) =>
+          validSlotIds.includes(slot)
+        )
+      : undefined;
 
-//  const profileId = req.params.id;
-if (!profileId) {
-  return res.status(400).json({ error: "Missing profile id" });
+let locationUpdate = {};
+
+if (location === null) {
+  // User explicitly chose to remove their location.
+  locationUpdate = {
+    location: {
+      disconnect: true,
+    },
+  };
+} else if (location !== undefined) {
+  // User provided a location.
+  if (
+    location.latitude == null ||
+    location.longitude == null
+  ) {
+    return res.status(400).json({
+      message: "Please provide valid location coordinates.",
+    });
+  }
+
+  const locale = await prisma.location.upsert({
+    where: {
+      location_coords: {
+        latitude: location.latitude,
+        longitude: location.longitude,
+      },
+    },
+    update: {
+      city: location.city,
+      latitude: location.latitude,
+      longitude: location.longitude,
+    },
+    create: {
+      city: location.city,
+      latitude: location.latitude,
+      longitude: location.longitude,
+    },
+  });
+
+  locationUpdate = {
+    location: {
+      connect: { id: locale.id },
+    },
+  };
 }
-
-if (location && (location.latitude == null || location.longitude == null)) {
-  return res.status(400).json({ error: "Invalid location" });
-}
-
-    const locale = location?.latitude
-      ? await prisma.location.upsert({
-          where: {
-            location_coords: {
-              latitude: location.latitude,
-              longitude: location.longitude,
-            },
-          },
-          update: {
-            city: location.city,
-            latitude: location.latitude,
-            longitude: location.longitude,
-          },
-          create: {
-            city: location.city,
-            latitude: location.latitude,
-            longitude: location.longitude,
-          },
-        })
-      : null;
-
     const includeBlock = {
       location: true,
       likedStories: true,
@@ -584,54 +608,64 @@ if (location && (location.latitude == null || location.longitude == null)) {
       followers: true,
     };
 
-    // Shared data payload — only spread slots if they were actually sent
     const sharedData = {
-      username: username?.toLowerCase(),
-      profilePic: profilePicture,
-      selfStatement,
-      isPrivate: privacy,
-      ...(sanitizedSlots !== undefined && { writingSprintSlots: sanitizedSlots }),
+      ...(username !== undefined && {
+        username: username?.toLowerCase(),
+      }),
+      ...(profilePicture !== undefined && {
+        profilePic: profilePicture,
+      }),
+      ...(selfStatement !== undefined && {
+        selfStatement,
+      }),
+      ...(privacy !== undefined && {
+        isPrivate: privacy,
+      }),
+      ...(sanitizedSlots !== undefined && {
+        writingSprintSlots: sanitizedSlots,
+      }),
+     ...locationUpdate,
     };
 
-    let profile;
+    const profile = await prisma.profile.update({
+      where: { id: profileId },
+      data: sharedData,
+      include: includeBlock,
+    });
 
-    if (locale?.latitude && locale?.longitude) {
-      profile = await prisma.profile.update({
-        where: { id: profileId },
-        data: {
-          ...sharedData,
-          location: { connect: { id: locale.id } },
+    // Search indexing must not invalidate a successful profile update.
+    try {
+      await client.partialUpdateObject({
+        indexName: indexNames.profile,
+        objectID: profile.id,
+        attributesToUpdate: {
+          username: profile.username,
         },
-        include: includeBlock,
       });
-    
-    } else {
-  profile = await prisma.profile.update({
-    where: { id: profileId },
-    data: sharedData,
-    include: includeBlock,
-  });
-}
+    } catch (indexError) {
+      console.error("Profile search-index update failed:", indexError);
+    }
 
- await client.partialUpdateObject({
-      indexName:indexNames.profile,
-      objectID:profile.id,
-      attributesToUpdate:{
-  // username:profile.username
-  username:profile.username
-      }
-  
-    })
-  
     return res.json({ profile });
-  } catch (e) {
-console.log(e)
-  if (e.code === 'P2002') {
-    return res.status(409).json({ error: 'Username already taken' });
+
+  } catch (error) {
+    console.error("Profile update failed:", error);
+
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        message: "Username already taken.",
+        code: "USERNAME_TAKEN",
+      });
+    }
+
+    return res.status(500).json({
+      message: "Unable to update profile.",
+      error: error.message,
+    });
   }
-  return res.status(500).json({ error: e.message });
-}
 });
+
+
 
 router.delete("/me", authMiddleware, async (req, res) => {
   const profile = req.user?.profiles[0];

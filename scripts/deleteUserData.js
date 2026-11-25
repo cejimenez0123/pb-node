@@ -367,7 +367,8 @@ async function main() {
 
     return;
   }
-// node scripts/deleteUserData.js 6ab90667100b5651f17639c1 --confirm.    .  `
+// node scripts/deleteUserData.js [USERID] --confirm    .  `
+
   // Validate before touching the database.
   ensureAlgoliaConfig();
 
@@ -434,6 +435,9 @@ async function main() {
   // --------------------------------------------------
 
   if (profileIds.length) {
+    await deleteMany("photo",{OR:[
+   {profileId:{in:profileIds}}
+    ]})
     await deleteMany(
       "report",
       {

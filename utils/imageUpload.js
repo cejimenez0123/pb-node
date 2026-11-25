@@ -10,13 +10,13 @@ const imageUpload = multer({
   },
 
   fileFilter: (req, file, cb) => {
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/heic",
-      "image/heif",
-      "image/svg+xml",
-    ];
+ const allowedTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "image/heif",
+
+];
 
     if (!allowedTypes.includes(file.mimetype)) {
       return cb(

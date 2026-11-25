@@ -76,7 +76,7 @@ const prisma = require("../db")
    }
 
    deleteProfile("67fae9c7a6cabb2cf483c6bc").then(()=>{
-    console.log("done")
+
    }).catch((err)=>{
     console.log(err)
    })
