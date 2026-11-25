@@ -22,6 +22,7 @@ const createNewProfileForUser = require("../utils/createNewProfileForUser");
 const { SPRINT_SLOTS } = require('../cron/sprint');
 const requireModerator = require('../middleware/requireModeration');
 const { UserStatus } = require('@prisma/client');
+const profileSetUpTemplate = require('../html/profileSetUpTemplate');
 function isHex(num) {
 
   return Boolean(num.match(/^0x[0-9a-f]+$/i))
@@ -1195,6 +1196,78 @@ else if (identityToken) {
     }
 
     return res.status(500).json({ message: "Unable to log in. Please try again." });
+  }
+});
+
+router.post("/resend-profile-setup", async (req, res) => {
+  try {
+    const email = req.body?.email?.trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Please provide your email address.",
+        code: "EMAIL_REQUIRED",
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        profiles: true,
+      },
+    });
+
+    // Do not disclose whether an email belongs to an
+    // approved applicant or an existing account.
+    const successResponse = {
+      message:
+        "If your application is approved and profile setup is still pending, a new setup email will be sent.",
+    };
+
+    if (
+      !user ||
+      user.applicationStatus !== "APPROVED" ||
+      !user.verified ||
+      user.profiles?.length > 0
+    ) {
+      return res.status(200).json(successResponse);
+    }
+
+    const emailTemplate = profileSetUpTemplate(user);
+
+    const { data, error } = await resend.emails.send(
+      emailTemplate
+    );
+
+    if (error) {
+      console.error(
+        "Profile setup email failed:",
+        error
+      );
+
+      return res.status(500).json({
+        message: "Unable to send your profile setup email. Please try again.",
+        code: "EMAIL_SEND_FAILED",
+      });
+    }
+
+    console.log(
+      "Profile setup email sent:",
+      data?.id
+    );
+
+    return res.status(200).json(successResponse);
+
+  } catch (error) {
+    console.error(
+      "Resend profile setup error:",
+      error
+    );
+
+    return res.status(500).json({
+      message: "Unable to resend your profile setup email.",
+      code: "PROFILE_SETUP_RESEND_FAILED",
+    });
   }
 });
 
