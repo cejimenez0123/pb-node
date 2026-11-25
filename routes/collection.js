@@ -801,13 +801,17 @@ module.exports = function (authMiddleware){
             }
 
         },include:{
-            collection:true,
+            
+          
             profile:{
                 include:{
                     profileToCollections:{
                         include:{
+                       
+                          
                       collection:{
                         include:{
+                          
                           storyIdList:true
                         }
                       }

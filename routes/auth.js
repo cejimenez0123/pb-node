@@ -1162,10 +1162,12 @@ else if (identityToken) {
         user: { select: { lastLogin: true } },
         profileToCollections: {
           include: {
+            
             collection: {
               include: {
+                
                 storyIdList: { select: { story: { select: { id: true, type:true, title: true,data:true} } } },
-                childCollections: { select: { childCollection: { select: { id: true, title: true } } } },
+                childCollections: { select: { childCollection: { select: { id: true, type:true,title: true } } } },
               },
             },
           },

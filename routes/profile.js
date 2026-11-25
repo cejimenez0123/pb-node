@@ -63,16 +63,20 @@ module.exports = function (authMiddleware){
       }
     },
     profileToCollections: {
+    
       include: {
+        
         collection: {
           include: {
+            
             childCollections: {
               select: {
                 childCollection: {
                   select: {
                     id: true,
                     title: true,
-                    type: true,
+                    type:true
+                    // type: true,
                   }
                 }
               }
