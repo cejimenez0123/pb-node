@@ -774,57 +774,158 @@ module.exports = function (authMiddleware){
           .sort((a, b) => b[1] - a[1]) // Sort by score
           .map(([storyId]) => storyId); // Return sorted story IDs
       };
-      router.post("/home",authMiddleware,async(req,res)=>{
-        const {collection}=req.body
-        try{
-        let profile = req.user.profiles[0]
-        let oldPro = await prisma.profileToCollection.findFirst({where:{
-            profileId:{
-                equals:profile.id
-            }
-        }})
-        if(oldPro){
-            await prisma.profileToCollection.delete({where:{
-                id:oldPro.id
-            }})
-        }
-        let profileToColl= await prisma.profileToCollection.create({data:{
-            collection:{
-                connect:{
-                    id:collection.id
-                }
-            },
-            profile:{
-                connect:{
-                    id:profile.id
-                }
-            }
+      router.post("/home", authMiddleware, async (req, res) => {
+    try {
+        const profile = req.user?.profiles?.[0]
+        const collectionId = req.body?.collection?.id
 
-        },include:{
-            
-          
-            profile:{
-                include:{
-                    profileToCollections:{
-                        include:{
-                       
-                          
-                      collection:{
-                        include:{
-                          
-                          storyIdList:true
+        if (!profile) {
+            return res.status(401).json({
+                message: "Profile not found."
+            })
+        }
+
+        if (!collectionId) {
+            return res.status(400).json({
+                message: "Collection ID is required."
+            })
+        }
+
+        // Only retrieve the profile's home relationships.
+        const existingHomes = await prisma.profileToCollection.findMany({
+            where: {
+                profileId: profile.id,
+                type: "home"
+            }
+        })
+
+        if (existingHomes.length > 0) {
+            // Update the existing home relationship.
+            await prisma.profileToCollection.update({
+                where: {
+                    id: existingHomes[0].id
+                },
+                data: {
+                    collection: {
+                        connect: {
+                            id: collectionId
                         }
-                      }
-                  }
+                    }
+                }
+            })
+
+            // Clean up any duplicate home relationships.
+            if (existingHomes.length > 1) {
+                await prisma.profileToCollection.deleteMany({
+                    where: {
+                        profileId: profile.id,
+                        type: "home",
+                        id: {
+                            not: existingHomes[0].id
+                        }
+                    }
+                })
+            }
+        } else {
+            // Create a home relationship if one doesn't exist.
+            await prisma.profileToCollection.create({
+                data: {
+                    type: "home",
+                    collection: {
+                        connect: {
+                            id: collectionId
+                        }
+                    },
+                    profile: {
+                        connect: {
+                            id: profile.id
+                        }
+                    }
+                }
+            })
+        }
+
+        // Return the updated profile and its collection relationships.
+        const updatedProfile = await prisma.profile.findUnique({
+            where: {
+                id: profile.id
+            },
+            include: {
+                profileToCollections: {
+                    include: {
+                        collection: {
+                            include: {
+                                storyIdList: true
+                            }
+                        }
                     }
                 }
             }
-        }})
-        res.json({profile:profileToColl.profile})
-    }catch(error){
-        res.json(error)
+        })
+
+        return res.json({
+            profile: updatedProfile
+        })
+
+    } catch (error) {
+        console.error("Error updating home collection:", error)
+
+        return res.status(500).json({
+            message: "Unable to update home collection."
+        })
     }
-      })
+})
+    //   router.post("/home",authMiddleware,async(req,res)=>{
+    //     const {collection}=req.body
+    //     try{
+    //     let profile = req.user.profiles[0]
+    //     let oldPro = await prisma.profileToCollection.findFirst({where:{
+    //         profileId:{
+    //             equals:profile.id
+    //         }
+    //     }})
+    //     if(oldPro){
+    //         await prisma.profileToCollection.delete({where:{
+    //             id:oldPro.id
+    //         }})
+    //     }
+    //     let profileToColl= await prisma.profileToCollection.create({data:{
+    //         collection:{
+    //             connect:{
+    //                 id:collection.id
+    //             }
+    //         },
+    //         profile:{
+    //             connect:{
+    //                 id:profile.id
+    //             }
+    //         }
+
+    //     },include:{
+            
+          
+    //         profile:{
+    //             include:{
+    //                 profileToCollections:{
+    //                     include:{
+                       
+                          
+    //                   collection:{
+    //                     include:{
+                          
+    //                       storyIdList:true
+    //                     }
+    //                   }
+    //               }
+    //                 }
+    //             }
+    //         }
+    //     }})
+    //     res.json({profile:profileToColl.profile})
+    // }catch(error){
+    //     res.json(error)
+    // }
+    //   })
       router.get("/recommendations",authMiddleware,async(req,res)=>{
         let profile = req.user.profiles[0]
         try{
