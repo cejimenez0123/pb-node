@@ -1155,27 +1155,62 @@ else if (identityToken) {
     if (!profileId) {
       return res.status(403).json({ message: "Profile missing. Please contact support." });
     }
+const profile = await prisma.profile.findUnique({
+  where: {
+    id: profileId
+  },
+  include: {
+    user: {
+      select: {
+        lastLogin: true
+      }
+    },
 
-    const profile = await prisma.profile.findUnique({
-      where: { id: profileId },
+    location: true,
+
+    hashtag: {
       include: {
-        user: { select: { lastLogin: true } },
-        profileToCollections: {
-          select:{
-            type:true,
-            collectionId:true,
-          profileId:true
+        hashtag: true
+      }
+    },
 
-          }
-          ,include:{
-                  storyIdList: { select: { story: { select: { id: true, type:true, title: true,data:true} } } },
-                childCollections: { select: { childCollection: { select: { id: true, type:true,title: true } } } },
-      
-          }
+    profileToCollections: {
+      include: {
+        collection: {
+          include: {
+            storyIdList: {
+              select: {
+                id: true,
+                storyId: true,
+                story: {
+                  select: {
+                    id: true,
+                    type: true,
+                    title: true,
+                    data: true,
+                    description: true
+                  }
+                }
+              }
+            },
 
-        },
-      },
-    });
+            childCollections: {
+              select: {
+                childCollection: {
+                  select: {
+                    id: true,
+                    type: true,
+                    title: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+});
 
     if (!profile) {
       return res.status(403).json({ message: "Profile could not be loaded." });
