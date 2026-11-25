@@ -35,92 +35,83 @@ module.exports = function (authMiddleware){
     });
         return res.status(200).json({profiles:profiles})
     })
-    // getCurrentProfile
-        router.get("/me", authMiddleware, async (req, res) => {
+    router.get("/me", authMiddleware, async (req, res) => {
   try {
-    let userId = req.user.id
- 
-
+    const userId = req.user.id;
 
     const profile = await prisma.profile.findFirst({
-  where: { userId:{
-    equals:userId
-  } },
-  include: {
-    location: true,
-
-    user: {
-      select: {
-        id: true,
-        termsAcceptedAt: true,
-        termsVersion: true,
-        lastLogin: true
-      }
-    },
-    hashtag: {
+      where: {
+        userId
+      },
       include: {
-        hashtag: true
-      }
-    }
-,
-    profileToCollections: {
+        location: true,
 
-  include: {
-    collection: {
-      include: {
-        childCollections: {
-          select: {
-            childCollection: {
-              select: {
-                id: true,
-                title: true,
-                type: true
-              }
-            }
-          }
-        },
-        storyIdList: {
+        user: {
           select: {
             id: true,
-            storyId: true,
-            story: {
-              select: {
-                id: true,
-                title: true,
-                data: true,
-                description: true,
-                type: true
+            termsAcceptedAt: true,
+            termsVersion: true,
+            lastLogin: true
+          }
+        },
+
+        hashtag: {
+          include: {
+            hashtag: true
+          }
+        },
+
+        profileToCollections: {
+          include: {
+            collection: {
+              include: {
+                childCollections: {
+                  select: {
+                    childCollection: {
+                      select: {
+                        id: true,
+                        title: true,
+                        type: true
+                      }
+                    }
+                  }
+                },
+
+                storyIdList: {
+                  select: {
+                    id: true,
+                    storyId: true,
+                    story: {
+                      select: {
+                        id: true,
+                        title: true,
+                        data: true,
+                        description: true,
+                        type: true
+                      }
+                    }
+                  }
+                }
               }
             }
           }
         }
       }
-    }
-  }
-}
- ,   select: {
-        followers: true,
-        following: true
-      }
-    }
-    })
-
-
-
-
+    });
 
     return res.status(200).json({
-     profile
-       
-      
+      profile
     });
 
   } catch (error) {
     console.error("PROTECTED ERROR:", error);
-    return res.status(500).json({ error: "Internal server error" });
+
+    return res.status(500).json({
+      error: "Internal server error"
+    });
   }
-  
 });
+    // getCurrentProfile
 
     router.post("/",async(req,res)=>{
       const { email, googleId, password, username, profilePicture, selfStatement, privacy, termsVersion, termsAcceptedAt } = req.body
