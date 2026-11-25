@@ -137,7 +137,7 @@ dist
 /generated/prisma
 serviceAccountKey.json
 /src/generated/prisma
-
+/src/scripts
 /src/generated/prisma
 
 /src/generated/prisma
