@@ -554,6 +554,8 @@ router.patch("/me", authMiddleware, async (req, res) => {
       : undefined;
 
 let locationUpdate = {};
+if(!!location && !!location?.id){
+
 
 if (location === null) {
   // User explicitly chose to remove their location.
@@ -597,6 +599,7 @@ if (location === null) {
       connect: { id: locale.id },
     },
   };
+}
 }
     const includeBlock = {
       location: true,
