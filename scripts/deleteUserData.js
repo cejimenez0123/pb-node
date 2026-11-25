@@ -367,7 +367,8 @@ async function main() {
 
     return;
   }
-// node scripts/deleteUserData.js [USERID] --confirm    .  `
+
+// node scripts/deleteUserData.js [userID] --confirm    .  `
 
   // Validate before touching the database.
   ensureAlgoliaConfig();
