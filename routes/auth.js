@@ -1160,18 +1160,41 @@ else if (identityToken) {
       where: { id: profileId },
       include: {
         user: { select: { lastLogin: true } },
-        profileToCollections: {
-          include: {
-            
-            collection: {
-              include: {
-                
-                storyIdList: { select: { story: { select: { id: true, type:true, title: true,data:true} } } },
-                childCollections: { select: { childCollection: { select: { id: true, type:true,title: true } } } },
-              },
-            },
-          },
+         profileToCollections: {
+
+  include: {
+    collection: {
+      include: {
+        childCollections: {
+          select: {
+            childCollection: {
+              select: {
+                id: true,
+                title: true,
+                type: true
+              }
+            }
+          }
         },
+        storyIdList: {
+          select: {
+            id: true,
+            storyId: true,
+            story: {
+              select: {
+                id: true,
+                title: true,
+                data: true,
+                description: true,
+                type: true
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
       },
     });
 
