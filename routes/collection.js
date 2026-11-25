@@ -774,107 +774,113 @@ module.exports = function (authMiddleware){
           .sort((a, b) => b[1] - a[1]) // Sort by score
           .map(([storyId]) => storyId); // Return sorted story IDs
       };
-      router.post("/home", authMiddleware, async (req, res) => {
-    try {
-        const profile = req.user?.profiles?.[0]
-        const collectionId = req.body?.collection?.id
+//       router.post("/home", authMiddleware, async (req, res) => {
+//     try {
+//       const profile = prisma.user.findFirst({where:{
+//         id:{
+//           equals:req?.user?.id
+//         }
+//       }})
+      
+//         // const profile = req.user?.profiles?.[0]
+//         // const collectionId = req.body?.collection?.id
 
-        if (!profile) {
-            return res.status(401).json({
-                message: "Profile not found."
-            })
-        }
+//         if (!profile) {
+//             return res.status(401).json({
+//                 message: "Profile not found."
+//             })
+//         }
 
-        if (!collectionId) {
-            return res.status(400).json({
-                message: "Collection ID is required."
-            })
-        }
+//         if (!collectionId) {
+//             return res.status(400).json({
+//                 message: "Collection ID is required."
+//             })
+//         }
 
-        // Only retrieve the profile's home relationships.
-        const existingHomes = await prisma.profileToCollection.findMany({
-            where: {
-                profileId: profile.id,
-                type: "home"
-            }
-        })
+//         // Only retrieve the profile's home relationships.
+//         const existingHomes = await prisma.profileToCollection.findMany({
+//             where: {
+//                 profileId: profile.id,
+//                 type: "home"
+//             }
+//         })
 
-        if (existingHomes.length > 0) {
-            // Update the existing home relationship.
-            await prisma.profileToCollection.update({
-                where: {
-                    id: existingHomes[0].id
-                },
-                data: {
-                    collection: {
-                        connect: {
-                            id: collectionId
-                        }
-                    }
-                }
-            })
+//         if (existingHomes.length > 0) {
+//             // Update the existing home relationship.
+//             await prisma.profileToCollection.update({
+//                 where: {
+//                     id: existingHomes[0].id
+//                 },
+//                 data: {
+//                     collection: {
+//                         connect: {
+//                             id: collectionId
+//                         }
+//                     }
+//                 }
+//             })
 
-            // Clean up any duplicate home relationships.
-            if (existingHomes.length > 1) {
-                await prisma.profileToCollection.deleteMany({
-                    where: {
-                        profileId: profile.id,
-                        type: "home",
-                        id: {
-                            not: existingHomes[0].id
-                        }
-                    }
-                })
-            }
-        } else {
-            // Create a home relationship if one doesn't exist.
-            await prisma.profileToCollection.create({
-                data: {
-                    type: "home",
-                    collection: {
-                        connect: {
-                            id: collectionId
-                        }
-                    },
-                    profile: {
-                        connect: {
-                            id: profile.id
-                        }
-                    }
-                }
-            })
-        }
+//             // Clean up any duplicate home relationships.
+//             if (existingHomes.length > 1) {
+//                 await prisma.profileToCollection.deleteMany({
+//                     where: {
+//                         profileId: profile.id,
+//                         type: "home",
+//                         id: {
+//                             not: existingHomes[0].id
+//                         }
+//                     }
+//                 })
+//             }
+//         } else {
+//             // Create a home relationship if one doesn't exist.
+//             await prisma.profileToCollection.create({
+//                 data: {
+//                     type: "home",
+//                     collection: {
+//                         connect: {
+//                             id: collectionId
+//                         }
+//                     },
+//                     profile: {
+//                         connect: {
+//                             id: profile.id
+//                         }
+//                     }
+//                 }
+//             })
+//         }
 
-        // Return the updated profile and its collection relationships.
-        const updatedProfile = await prisma.profile.findUnique({
-            where: {
-                id: profile.id
-            },
-            include: {
-                profileToCollections: {
-                    include: {
-                        collection: {
-                            include: {
-                                storyIdList: true
-                            }
-                        }
-                    }
-                }
-            }
-        })
+//         // Return the updated profile and its collection relationships.
+//         const updatedProfile = await prisma.profile.findUnique({
+//             where: {
+//                 id: profile.id
+//             },
+//             include: {
+//                 profileToCollections: {
+//                     include: {
+//                         collection: {
+//                             include: {
+//                                 storyIdList: true
+//                             }
+//                         }
+//                     }
+//                 }
+//             }
+//         })
 
-        return res.json({
-            profile: updatedProfile
-        })
+//         return res.json({
+//             profile: updatedProfile
+//         })
 
-    } catch (error) {
-        console.error("Error updating home collection:", error)
+//     } catch (error) {
+//         console.error("Error updating home collection:", error)
 
-        return res.status(500).json({
-            message: "Unable to update home collection."
-        })
-    }
-})
+//         return res.status(500).json({
+//             message: "Unable to update home collection."
+//         })
+//     }
+// })
     //   router.post("/home",authMiddleware,async(req,res)=>{
     //     const {collection}=req.body
     //     try{
@@ -3782,6 +3788,259 @@ objectID:data.id
         res.json({error})
     }
     })
+
+router.get("/:id/feed", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const profileId = req.user?.profiles?.[0]?.id;
+
+    if (!profileId) {
+      return res.status(401).json({
+        error: "Profile not found.",
+      });
+    }
+
+    const parsedSkip = Number.parseInt(req.query.skip, 10);
+    const parsedTake = Number.parseInt(req.query.take, 10);
+
+    const skip = Number.isFinite(parsedSkip)
+      ? Math.max(0, parsedSkip)
+      : 0;
+
+    const take = Number.isFinite(parsedTake)
+      ? Math.min(Math.max(parsedTake, 1), 50)
+      : 12;
+
+    // --------------------------------------------------
+    // 1. Verify that this is the user's Home collection.
+    // --------------------------------------------------
+
+    const homeRelationship =
+      await prisma.profileToCollection.findFirst({
+        where: {
+          profileId,
+          collectionId: id,
+          type: "home",
+        },
+        select: {
+          id: true,
+        },
+      });
+
+    if (!homeRelationship) {
+      return res.status(403).json({
+        error: "You cannot access this Home feed.",
+      });
+    }
+
+    const home = await prisma.collection.findUnique({
+      where: { id },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!home) {
+      return res.status(404).json({
+        error: "Home collection not found.",
+      });
+    }
+
+    // --------------------------------------------------
+    // 2. Collect all nested collection IDs.
+    // --------------------------------------------------
+
+    const visited = new Set([id]);
+    let frontier = [id];
+
+    while (frontier.length > 0) {
+      const relationships =
+        await prisma.collectionToCollection.findMany({
+          where: {
+            parentCollectionId: {
+              in: frontier,
+            },
+          },
+          select: {
+            childCollectionId: true,
+          },
+        });
+
+      const nextFrontier = [];
+
+      for (const relationship of relationships) {
+        const childId = relationship.childCollectionId;
+
+        if (!childId || visited.has(childId)) {
+          continue;
+        }
+
+        visited.add(childId);
+        nextFrontier.push(childId);
+      }
+
+      frontier = nextFrontier;
+    }
+
+    // --------------------------------------------------
+    // 3. Fetch all nested collections.
+    // --------------------------------------------------
+
+    const collectionIds = [...visited].filter(
+      (collectionId) => collectionId !== id
+    );
+
+    const collections = collectionIds.length
+      ? await prisma.collection.findMany({
+          where: {
+            id: {
+              in: collectionIds,
+            },
+          },
+          include: {
+            profile: true,
+
+            roles: {
+              include: {
+                profile: true,
+              },
+            },
+
+            childCollections: {
+              include: {
+                childCollection: true,
+              },
+            },
+
+            storyIdList: {
+              include: {
+                story: {
+                  include: {
+                    author: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      : [];
+
+    // --------------------------------------------------
+    // 4. Build a unified feed.
+    // --------------------------------------------------
+
+    const feed = [];
+    const seenCollections = new Set();
+    const seenStories = new Set();
+
+    for (const collection of collections) {
+      if (
+        !collection?.id ||
+        seenCollections.has(collection.id)
+      ) {
+        continue;
+      }
+
+      seenCollections.add(collection.id);
+
+      const collectionType = String(
+        collection.type || ""
+      ).toLowerCase();
+
+      const kind =
+        collectionType === "book"
+          ? "book"
+          : ["library", "archive"].includes(collectionType)
+            ? "collection"
+            : "room";
+
+      feed.push({
+        kind,
+        content: collection,
+        updated:
+          collection.updated ||
+          collection.created ||
+          null,
+      });
+
+      // Stories belonging to this collection.
+      for (const relationship of collection.storyIdList || []) {
+        const story = relationship?.story;
+
+        if (!story?.id || seenStories.has(story.id)) {
+          continue;
+        }
+
+        // Never expose another author's private story.
+        if (
+          story.isPrivate &&
+          story.authorId !== profileId
+        ) {
+          continue;
+        }
+
+        seenStories.add(story.id);
+
+        feed.push({
+          kind: "page",
+          content: story,
+          updated:
+            story.updated ||
+            story.created ||
+            null,
+          sourceCollectionId: collection.id,
+        });
+      }
+    }
+
+    // --------------------------------------------------
+    // 5. Sort the combined feed chronologically.
+    // --------------------------------------------------
+
+    feed.sort((a, b) => {
+      const aDate = new Date(a.updated || 0).getTime();
+      const bDate = new Date(b.updated || 0).getTime();
+
+      if (bDate !== aDate) {
+        return bDate - aDate;
+      }
+
+      const aId = a.content?.id || "";
+      const bId = b.content?.id || "";
+
+      return aId.localeCompare(bId);
+    });
+
+    // --------------------------------------------------
+    // 6. Paginate after sorting.
+    // --------------------------------------------------
+
+    const totalCount = feed.length;
+
+    const items = feed.slice(
+      skip,
+      skip + take
+    );
+
+    return res.status(200).json({
+      items,
+      totalCount,
+      skip,
+      take,
+      hasMore: skip + take < totalCount,
+    });
+
+  } catch (error) {
+    console.error(
+      "GET COLLECTION FEED ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Unable to load collection feed.",
+    });
+  }
+});
 
     return router
 
