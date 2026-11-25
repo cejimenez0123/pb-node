@@ -61,53 +61,49 @@ module.exports = function (authMiddleware){
       include: {
         hashtag: true
       }
-    },
+    }
+,
     profileToCollections: {
-    
+
+  include: {
+    collection: {
       include: {
-        
-        collection: {
-          include: {
-            
-            childCollections: {
+        childCollections: {
+          select: {
+            childCollection: {
               select: {
-                childCollection: {
-                  select: {
-                    id: true,
-                    title: true,
-                    type:true
-                    // type: true,
-                  }
-                }
+                id: true,
+                title: true,
+                type: true
               }
-            },
-            storyIdList: {
+            }
+          }
+        },
+        storyIdList: {
+          select: {
+            id: true,
+            storyId: true,
+            story: {
               select: {
-                id:true,
-                storyId: true,
-                story: {
-                  select: {
-                    id: true,
-                    title: true,
-                    data:true,
-                    description: true,
-                    type: true
-                  }
-                }
+                id: true,
+                title: true,
+                data: true,
+                description: true,
+                type: true
               }
-            },
+            }
           }
         }
       }
-    },
-    _count: {
-      select: {
+    }
+  }
+}
+ ,   select: {
         followers: true,
         following: true
       }
     }
-  }
-})
+    })
 
 
 
